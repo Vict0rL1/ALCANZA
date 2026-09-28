@@ -187,7 +187,13 @@ export function UpdateBalanceDialog({ onClose, initialAccountId }: { onClose: ()
   const [accountId, setAccountId] = useState(firstAccount)
   const account = data.accounts.find((a) => a.id === accountId)!
   const current = accountBalance(data, account).balanceMinor
-  const [amountText, setAmountText] = useState(() => fmt.moneyInput(current))
+  const isCredit = account.kind === 'credit'
+  /** En tarjetas se muestra la deuda en positivo; internamente el saldo es negativo. */
+  const shown = (acc: typeof account) => {
+    const bal = accountBalance(data, acc).balanceMinor
+    return acc.kind === 'credit' ? -bal : bal
+  }
+  const [amountText, setAmountText] = useState(() => fmt.moneyInput(shown(account)))
   const [date, setDate] = useState(today)
   const [settleKeys, setSettleKeys] = useState<string[]>([])
   const [issues, setIssues] = useState<Issue[]>([])
@@ -212,7 +218,8 @@ export function UpdateBalanceDialog({ onClose, initialAccountId }: { onClose: ()
         occurrenceDate: i.date,
         amountMinor: i.amountMinor,
       }))
-    const { result, saved } = await run((d, c) => updateAccountBalance(d, { accountId, amountMinor: parsed.minor, date, settle }, c))
+    const amountMinor = isCredit ? (parsed.minor === 0 ? 0 : -parsed.minor) : parsed.minor
+    const { result, saved } = await run((d, c) => updateAccountBalance(d, { accountId, amountMinor, date, settle }, c))
     setBusy(false)
     if (!result.ok) {
       setIssues(result.issues)
@@ -246,15 +253,15 @@ export function UpdateBalanceDialog({ onClose, initialAccountId }: { onClose: ()
           onChange={(e) => {
             setAccountId(e.target.value)
             const acc = data.accounts.find((a) => a.id === e.target.value)!
-            setAmountText(fmt.moneyInput(accountBalance(data, acc).balanceMinor))
+            setAmountText(fmt.moneyInput(shown(acc)))
             setSettleKeys([])
           }}
           options={data.accounts.map((a) => ({ value: a.id, label: a.name }))}
         />
       )}
       <MoneyField
-        label={t('balance.amountLabel')}
-        hint={t('balance.amountHint', { amount: fmt.money(current) })}
+        label={isCredit ? t('balance.debtLabel') : t('balance.amountLabel')}
+        hint={isCredit ? t('balance.debtHint', { amount: fmt.money(-current) }) : t('balance.amountHint', { amount: fmt.money(current) })}
         value={amountText}
         onChange={setAmountText}
         error={amountError ?? fieldError(t, fmt, issues, 'anchor.amountMinor')}

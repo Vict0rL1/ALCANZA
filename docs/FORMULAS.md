@@ -216,9 +216,17 @@ Suposiciones (se muestran en pantalla):
 
 - Una **devolución** suma al saldo. Si se vincula a un gasto, la suma de devoluciones
   no puede superar el importe del gasto (devoluciones parciales permitidas).
-- **Tarjetas de crédito: fuera de esta fase.** No existe el tipo de cuenta «tarjeta» ni
-  el movimiento «pago de tarjeta». La app indica: registra cada compra con tarjeta como
-  gasto una sola vez y **no** registres el pago de la tarjeta como gasto.
+- **Tarjeta de crédito** = cuenta de tipo `credit` cuyo saldo es la **deuda**, guardada
+  como número negativo (deber 100.00 → `-10000`). En pantalla se escribe y se muestra
+  la deuda en positivo («Debes $100.00»).
+- **Compra con tarjeta** = gasto de la cuenta tarjeta (la deuda crece).
+- **Pago de la tarjeta** = **transferencia** desde el banco hacia la tarjeta. No es un
+  gasto: así la compra se cuenta una sola vez.
+- Si la tarjeta **cuenta para el presupuesto** (recomendado), su deuda se resta de S y
+  el disponible baja en el momento de la compra; el pago posterior no cambia S.
+  Si no cuenta, la compra no afecta hasta que se paga (la transferencia baja S).
+- Una cuenta no puede convertirse en tarjeta ni al revés (cambiaría el signo del saldo).
+- Límite de crédito, intereses y fechas de corte: fuera de esta fase.
 
 ## 11. Integridad de datos
 

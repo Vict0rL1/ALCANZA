@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { accountBalance, spendableBalance } from './balances'
 import { computeBudget } from './budget'
-import { allocateToGoal, markOccurrence, realizePlanned, saveTransaction, updateAccountBalance, type OpResult } from './operations'
+import { allocateToGoal, markOccurrence, realizePlanned, saveAccount, saveTransaction, updateAccountBalance, type OpResult } from './operations'
 import { account, baseData, bill, ctx, EARLIER, goal, income, NOW, TODAY, tx } from '../test/fixtures'
 
 function must<T>(r: OpResult<T>): Extract<OpResult<T>, { ok: true }> {
@@ -334,5 +334,42 @@ describe('cambio de mes y fechas límite', () => {
     const b = computeBudget(data, '2026-12-30')
     expect(b.horizon?.days).toBe(7)
     expect(b.dailyMinor).toBe(10000)
+  })
+})
+
+describe('tarjetas de crédito', () => {
+  const card = (overrides: Partial<Parameters<typeof account>[0]> = {}) =>
+    account({ id: 'card', name: 'Tarjeta', kind: 'credit', anchor: { amountMinor: -20000, date: TODAY, setAt: EARLIER }, ...overrides })
+
+  it('la deuda de una tarjeta del presupuesto se descuenta del disponible', () => {
+    const data = baseData({ accounts: [account({ id: 'main' }), card()], schedules: [income('2026-10-03', 1)] })
+    expect(computeBudget(data, TODAY).spendableMinor).toBe(80000)
+  })
+
+  it('compra con tarjeta y pago de la tarjeta: la compra se cuenta una sola vez', () => {
+    let data = baseData({ accounts: [account({ id: 'main' }), card({ anchor: { amountMinor: 0, date: TODAY, setAt: EARLIER } })] })
+    data = must(saveTransaction(data, { id: 'buy', kind: 'expense', status: 'realized', amountMinor: 5000, date: TODAY, accountId: 'card', categoryId: 'shopping' }, ctx)).data
+    expect(spendableBalance(data).totalMinor).toBe(95000)
+    // Pagar la tarjeta es una transferencia banco → tarjeta: no cambia el total.
+    data = must(saveTransaction(data, { id: 'pay', kind: 'transfer', status: 'realized', amountMinor: 5000, date: TODAY, accountId: 'main', toAccountId: 'card' }, ctx)).data
+    expect(spendableBalance(data).totalMinor).toBe(95000)
+    expect(accountBalance(data, data.accounts[1]!).balanceMinor).toBe(0)
+    expect(accountBalance(data, data.accounts[0]!).balanceMinor).toBe(95000)
+  })
+
+  it('tarjeta fuera del presupuesto: la compra no afecta hasta que se paga', () => {
+    let data = baseData({ accounts: [account({ id: 'main' }), card({ includeInBudget: false, anchor: { amountMinor: 0, date: TODAY, setAt: EARLIER } })] })
+    data = must(saveTransaction(data, { id: 'buy', kind: 'expense', status: 'realized', amountMinor: 5000, date: TODAY, accountId: 'card', categoryId: 'shopping' }, ctx)).data
+    expect(spendableBalance(data).totalMinor).toBe(100000)
+    data = must(saveTransaction(data, { id: 'pay', kind: 'transfer', status: 'realized', amountMinor: 5000, date: TODAY, accountId: 'main', toAccountId: 'card' }, ctx)).data
+    expect(spendableBalance(data).totalMinor).toBe(95000)
+  })
+
+  it('no permite convertir una cuenta en tarjeta ni al revés', () => {
+    const data = baseData({ accounts: [account({ id: 'main' }), card()] })
+    const r1 = saveAccount(data, { id: 'card', name: 'Tarjeta', kind: 'bank', includeInBudget: true }, ctx)
+    expect(r1.ok || r1.issues[0]?.code).toBe('creditKindChange')
+    const r2 = saveAccount(data, { id: 'main', name: 'Principal', kind: 'credit', includeInBudget: true }, ctx)
+    expect(r2.ok || r2.issues[0]?.code).toBe('creditKindChange')
   })
 })

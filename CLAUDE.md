@@ -45,7 +45,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Una ocurrencia programada está pagada si hay un movimiento realizado con su
   `scheduleId` + `occurrenceDate`: cuenta como reserva **o** como movimiento, nunca ambos.
 - Transferencias entre cuentas propias no son ingresos ni gastos.
-- Tarjetas de crédito: fuera de esta fase (no añadir "pago de tarjeta" como gasto).
+- Tarjetas de crédito: cuenta `credit` con saldo negativo (deuda). Compra = gasto de la
+  tarjeta; pago = **transferencia** banco → tarjeta, nunca un gasto.
 - Mensuales en 29/30/31 → último día del mes corto.
 - Operaciones idempotentes: el id se genera al abrir el formulario; guardar dos veces
   actualiza el mismo registro.
@@ -67,3 +68,5 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - La importación valida TODO el archivo y no aplica nada si hay un error.
 - Cambios de formato de datos: subir `SCHEMA_VERSION` y añadir migración con prueba.
 - Datos de demostración siempre marcados con `isDemo: true`.
+- El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea
+  archivos de la app, nunca datos. Solo se registra en producción y contexto seguro.

@@ -23,11 +23,20 @@ botones de esas funciones.
 
 ## Fase 1.5 — Pulido local (sin servicios externos)
 
+Hecho:
+
+- ✅ **Uso sin conexión:** *service worker* propio generado al compilar (sin
+  dependencias), caché por versión y aviso «Actualizar ahora» cuando hay una versión
+  nueva. Funciona en `https` o `localhost`; no en modo desarrollo.
+- ✅ **Tarjetas de crédito:** cuenta tipo tarjeta con deuda; el pago es una
+  transferencia, no un gasto.
+
+Pendiente:
+
 | Tarea | Notas |
 |---|---|
-| PWA instalable sin conexión | Añadir *service worker* (por ejemplo con `vite-plugin-pwa`/Workbox) y estrategia de actualización visible («Hay una versión nueva»). Requiere servir por HTTPS. |
 | Inglés | Completar `src/i18n/en.ts` y añadir el selector de idioma. |
-| Tarjetas de crédito | Cuenta tipo tarjeta con saldo deudor; «pago de tarjeta» como **transferencia** (no gasto) para no contar dos veces las compras. |
+| Tarjetas: límite, intereses y fecha de corte | Recordatorio del pago mínimo; intereses con enteros y redondeo documentado. |
 | Categorías personalizadas | Con id estable y nombre editable. |
 | Papelera (*tombstones*) | Marcar eliminados con `deletedAt` en vez de borrar: necesario para sincronizar después. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |

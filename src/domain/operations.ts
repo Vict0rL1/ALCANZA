@@ -399,6 +399,10 @@ export function saveAccount(data: AppData, draft: AccountDraft, ctx: OpContext):
   }
   const issues = validateAccount(account)
   if (issues.length) return fail(issues)
+  // Cambiar una cuenta a tarjeta (o al revés) cambiaría el sentido de su saldo: se crea otra cuenta.
+  if (existing && existing.kind !== account.kind && (existing.kind === 'credit' || account.kind === 'credit')) {
+    return fail([{ path: 'kind', code: 'creditKindChange' }])
+  }
   const accounts = upsert(data.accounts, account)
   if (!accounts.some((a) => a.includeInBudget)) return fail([{ path: 'includeInBudget', code: 'lastBudgetAccount' }])
   return { ok: true, data: touch({ ...data, accounts }, ctx.now), value: account }

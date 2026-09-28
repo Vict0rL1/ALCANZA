@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { I18nContext, createTranslator, useT } from './i18n'
+import { usePwaState } from './pwa/register'
 import { getStore, useAppState, type SaveStatus } from './state/store'
 import { Alert } from './ui/components/common'
 import { Icon, type IconName } from './ui/components/Icon'
@@ -27,6 +28,7 @@ export function App() {
   return (
     <I18nContext.Provider value={translator}>
       <ToastProvider>
+        <UpdateBanner />
         {state.phase === 'loading' && <Loading />}
         {state.phase === 'corrupt' && <Corrupt raw={state.raw} />}
         {state.phase === 'ready' && !state.data && (
@@ -38,6 +40,22 @@ export function App() {
         {state.phase === 'ready' && state.data && <Shell />}
       </ToastProvider>
     </I18nContext.Provider>
+  )
+}
+
+/** Aviso real de versión nueva (solo aparece si el service worker instaló una). */
+function UpdateBanner() {
+  const { t } = useT()
+  const { update } = usePwaState()
+  if (!update) return null
+  return (
+    <div className="banner banner--info" role="status">
+      <Icon name="info" size={18} />
+      <span>{t('shell.updateText')}</span>
+      <button type="button" className="btn btn--small btn--inverse" onClick={update}>
+        {t('shell.updateAction')}
+      </button>
+    </div>
   )
 }
 

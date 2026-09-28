@@ -9,6 +9,7 @@ import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
 import { backupFileName, createBackup, MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
+import { usePwaState } from '../../pwa/register'
 import { useRun, useToday } from '../../state/hooks'
 import { getStore, useAppState, useData } from '../../state/store'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
@@ -67,6 +68,7 @@ export function Settings() {
   const [confirm, setConfirm] = useState<'resetDemo' | 'clearAll' | 'leaveDemo' | null>(null)
   const [understood, setUnderstood] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const pwa = usePwaState()
 
   const detected = detectTimeZone()
   const zones = Array.from(new Set([data.settings.timeZone, detected, ...COMMON_TIME_ZONES]))
@@ -176,7 +178,13 @@ export function Settings() {
                       <Badge tone={a.includeInBudget ? 'info' : 'neutral'}>{t(a.includeInBudget ? 'settings.accounts.included' : 'settings.accounts.excluded')}</Badge>
                     </p>
                   </div>
-                  <p className="item__amount">{fmt.money(b.balanceMinor)}</p>
+                  <p className="item__amount">
+                    {a.kind === 'credit'
+                      ? b.balanceMinor <= 0
+                        ? t('settings.accounts.debt', { amount: fmt.money(-b.balanceMinor) })
+                        : t('settings.accounts.creditInFavor', { amount: fmt.money(b.balanceMinor) })
+                      : fmt.money(b.balanceMinor)}
+                  </p>
                 </div>
                 <div className="item__actions">
                   <button type="button" className="btn btn--small btn--secondary" onClick={() => setBalanceFor(a.id)}>
@@ -242,6 +250,7 @@ export function Settings() {
           <li>{t('settings.storage.local')}</li>
           <li>{t('settings.storage.lost')}</li>
           <li>{t('settings.storage.noSync')}</li>
+          <li>{t(pwa.offlineReady ? 'settings.storage.offlineReady' : 'settings.storage.offlineNotReady')}</li>
           <li>{t('settings.storage.noAccount')}</li>
           <li>{t('settings.storage.noBank')}</li>
           <li>{t('settings.storage.noAi')}</li>
@@ -381,7 +390,8 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
       const parsed = parseMoneyText(balanceText || '0', fmt, { allowNegative: true, allowZero: true })
       setAmountError(moneyErrorMessage(t, parsed))
       if (!parsed.ok) return
-      openingBalanceMinor = parsed.minor
+      // En una tarjeta se escribe lo que se debe; se guarda como saldo negativo.
+      openingBalanceMinor = kind === 'credit' ? (parsed.minor === 0 ? 0 : -parsed.minor) : parsed.minor
     }
     const draft: AccountDraft = { id, name, kind, includeInBudget: include, openingBalanceMinor, openingDate: today }
     const { result, saved } = await run((d, c) => saveAccount(d, draft, c))
@@ -404,7 +414,7 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
     onClose()
   }
 
-  const generalIssue = issues.find((i) => i.path === 'id' || i.path === 'includeInBudget')
+  const generalIssue = issues.find((i) => i.path === 'id' || i.path === 'includeInBudget' || i.path === 'kind')
   return (
     <Dialog
       open
@@ -429,8 +439,22 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
     >
       <TextField label={t('fields.name')} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} error={fieldError(t, fmt, issues, 'name')} required />
       <SelectField label={t('settings.accounts.kind')} value={kind} onChange={(e) => setKind(e.target.value as AccountKind)} options={ACCOUNT_KINDS.map((k) => ({ value: k, label: t(`accountKind.${k}` as MessageKey) }))} hint={t('settings.accounts.kindHint')} />
-      <CheckboxField checked={include} onChange={setInclude} label={t('settings.accounts.includeLabel')} hint={t('settings.accounts.includeHint')} />
-      {!account && <MoneyField label={t('settings.accounts.openingBalance')} hint={t('settings.accounts.openingHint')} value={balanceText} onChange={setBalanceText} error={amountError} fmt={fmt} />}
+      <CheckboxField
+        checked={include}
+        onChange={setInclude}
+        label={t('settings.accounts.includeLabel')}
+        hint={kind === 'credit' ? t('settings.accounts.creditIncludeHint') : t('settings.accounts.includeHint')}
+      />
+      {!account && (
+        <MoneyField
+          label={kind === 'credit' ? t('settings.accounts.debtLabel') : t('settings.accounts.openingBalance')}
+          hint={kind === 'credit' ? t('settings.accounts.debtHint') : t('settings.accounts.openingHint')}
+          value={balanceText}
+          onChange={setBalanceText}
+          error={amountError}
+          fmt={fmt}
+        />
+      )}
       {generalIssue && <Alert tone="critical" title={issueMessage(t, fmt, generalIssue)} role="alert" />}
     </Dialog>
   )

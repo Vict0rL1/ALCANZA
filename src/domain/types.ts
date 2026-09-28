@@ -17,7 +17,12 @@ export type CurrencyCode = string
 
 export const SCHEMA_VERSION = 1 as const
 
-export type AccountKind = 'bank' | 'cash' | 'savings' | 'other'
+/**
+ * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
+ * negativo. Las compras son gastos de esa cuenta; el pago de la tarjeta es una
+ * transferencia desde otra cuenta (nunca un gasto), así nada se cuenta dos veces.
+ */
+export type AccountKind = 'bank' | 'cash' | 'savings' | 'credit' | 'other'
 
 /**
  * Saldo de referencia que el usuario escribe (por ejemplo, copiado de su banco).

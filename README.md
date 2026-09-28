@@ -175,14 +175,17 @@ servidor más adelante basta con otra implementación de `DataRepository`
 
 ## 8. Qué incluye y qué no
 
-**Incluye:** todo lo descrito arriba, funcionando sin internet una vez cargada,
-persistencia local, validación de copias, manifiesto e iconos para PWA, modo oscuro,
-diseño desde 320 px hasta escritorio.
+**Incluye:** todo lo descrito arriba, persistencia local, validación de copias,
+tarjetas de crédito (la compra es un gasto de la tarjeta y el pago una transferencia),
+modo oscuro y diseño desde 320 px hasta escritorio. En la versión compilada
+(`npm run build` + `npm run preview`, o publicada con https) la app se guarda en el
+dispositivo y **abre sin internet** tras la primera visita; cuando hay una versión nueva
+aparece el aviso «Actualizar ahora». En modo desarrollo (`npm run dev`) y al abrirla por
+IP en la red local no se activa el uso sin conexión (el navegador lo exige así).
 
 **No incluye todavía (y la app no finge tenerlo):** cuentas de usuario, sincronización,
-conexión bancaria, tarjetas de crédito, varias monedas, notificaciones del teléfono,
-funcionamiento sin conexión tras cerrar el navegador (falta el *service worker*), inglés
-(textos preparados), IA. Ver `docs/ROADMAP.md`.
+conexión bancaria, varias monedas, notificaciones del teléfono, límites e intereses de
+tarjetas, inglés (textos preparados), IA. Ver `docs/ROADMAP.md`.
 
 ## 9. Solución de problemas
 

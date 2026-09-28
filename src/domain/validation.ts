@@ -35,6 +35,7 @@ export type IssueCode =
   | 'exceedsSaved'
   | 'accountInUse'
   | 'lastBudgetAccount'
+  | 'creditKindChange'
   | 'notFound'
 
 export interface Issue {
@@ -53,7 +54,7 @@ export const LIMITS = {
 
 export const TX_KINDS = ['income', 'expense', 'transfer', 'refund'] as const
 export const TX_STATUSES = ['planned', 'realized'] as const
-export const ACCOUNT_KINDS = ['bank', 'cash', 'savings', 'other'] as const
+export const ACCOUNT_KINDS = ['bank', 'cash', 'savings', 'credit', 'other'] as const
 export const FREQUENCIES = ['once', 'weekly', 'biweekly', 'monthly', 'yearly'] as const
 export const NUMBER_LOCALES = ['es-MX', 'es-ES', 'en-CA', 'fr-CA'] as const
 export const DATE_STYLES = ['short', 'medium', 'iso'] as const

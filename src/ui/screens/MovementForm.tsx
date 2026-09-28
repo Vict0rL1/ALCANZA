@@ -267,8 +267,14 @@ export function MovementForm({ route }: { route: Route }) {
           </Alert>
         )}
 
+        {kind === 'expense' && data.accounts.find((a) => a.id === accountId)?.kind === 'credit' && (
+          <p className="note">{t('movementForm.cardPurchaseHint')}</p>
+        )}
+        {kind === 'transfer' && data.accounts.find((a) => a.id === toAccountId)?.kind === 'credit' && (
+          <Alert tone="info" icon="info" title={t('movementForm.cardPaymentHint')} />
+        )}
         {kind === 'expense' && (
-          <Alert tone="neutral" icon="lock" title={t('movementForm.cardTitle')}>
+          <Alert tone="neutral" icon="info" title={t('movementForm.cardTitle')}>
             {t('movementForm.cardText')}
           </Alert>
         )}
