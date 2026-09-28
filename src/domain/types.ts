@@ -1,0 +1,157 @@
+/**
+ * Modelo de datos de Margen.
+ *
+ * Reglas clave (ver docs/FORMULAS.md):
+ * - Todo importe se guarda como ENTERO en unidades menores (centavos para CAD).
+ * - Las fechas de calendario (`LocalDate`) son texto 'AAAA-MM-DD' sin hora ni zona.
+ * - Las marcas de tiempo (`Timestamp`) son ISO 8601 en UTC ('2026-09-28T14:05:00.000Z').
+ * - Un presupuesto usa una sola moneda; cada registro guarda su moneda y se valida.
+ */
+
+/** Fecha de calendario 'AAAA-MM-DD' (sin hora ni zona horaria). */
+export type LocalDate = string
+/** Marca de tiempo ISO 8601 en UTC. */
+export type Timestamp = string
+/** Código ISO 4217, por ejemplo 'CAD'. */
+export type CurrencyCode = string
+
+export const SCHEMA_VERSION = 1 as const
+
+export type AccountKind = 'bank' | 'cash' | 'savings' | 'other'
+
+/**
+ * Saldo de referencia que el usuario escribe (por ejemplo, copiado de su banco).
+ * Se considera que incluye todo lo ocurrido hasta `setAt` en la fecha `date`.
+ */
+export interface BalanceAnchor {
+  /** Puede ser negativo (sobregiro). */
+  amountMinor: number
+  date: LocalDate
+  setAt: Timestamp
+}
+
+export interface Account {
+  id: string
+  name: string
+  kind: AccountKind
+  /** Si es `true`, su saldo cuenta para "Disponible hasta el próximo ingreso". */
+  includeInBudget: boolean
+  anchor: BalanceAnchor
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+export type TxKind = 'income' | 'expense' | 'transfer' | 'refund'
+export type TxStatus = 'planned' | 'realized'
+
+export interface Transaction {
+  id: string
+  kind: TxKind
+  status: TxStatus
+  /** Siempre positivo; el tipo decide si suma o resta. */
+  amountMinor: number
+  currency: CurrencyCode
+  date: LocalDate
+  /** Cuenta de origen (o la única cuenta si no es transferencia). */
+  accountId: string
+  /** Solo transferencias: cuenta de destino. */
+  toAccountId?: string
+  /** Ingresos, gastos y devoluciones. */
+  categoryId?: string
+  /** Devoluciones: gasto original (opcional). */
+  refundOfId?: string
+  note?: string
+  /** Si este movimiento liquida una ocurrencia de un pago programado. */
+  scheduleId?: string
+  occurrenceDate?: LocalDate
+  /**
+   * Momento en que el movimiento pasó a "realizado". Decide, junto con la fecha,
+   * si ya estaba incluido en el saldo de referencia de la cuenta.
+   */
+  realizedAt?: Timestamp
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+export type Frequency = 'once' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+export type ScheduleKind = 'income' | 'expense'
+
+/** Pago o ingreso programado (único o recurrente). */
+export interface Schedule {
+  id: string
+  name: string
+  kind: ScheduleKind
+  amountMinor: number
+  /** Importe aproximado (por ejemplo, ingresos variables). */
+  amountIsEstimate: boolean
+  currency: CurrencyCode
+  accountId: string
+  categoryId?: string
+  frequency: Frequency
+  /** Primera fecha pendiente. También fija el día del mes para pagos mensuales. */
+  startDate: LocalDate
+  endDate?: LocalDate
+  reminderDaysBefore: number
+  /** Ocurrencias que el usuario decidió omitir. */
+  skippedDates: LocalDate[]
+  note?: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+/** Movimiento virtual de dinero hacia (+) o desde (−) una meta. No toca el banco. */
+export interface GoalAllocation {
+  id: string
+  amountMinor: number
+  date: LocalDate
+  createdAt: Timestamp
+}
+
+export type GoalFunding = 'budget' | 'external'
+
+export interface Goal {
+  id: string
+  name: string
+  kind: 'goal' | 'emergency'
+  targetMinor: number
+  targetDate?: LocalDate
+  currency: CurrencyCode
+  /**
+   * 'budget': el dinero apartado está en cuentas del presupuesto y se descuenta del disponible.
+   * 'external': el dinero está en otra cuenta fuera del presupuesto; solo se registra el progreso.
+   */
+  fundedFrom: GoalFunding
+  allocations: GoalAllocation[]
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+export type NumberLocale = 'es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
+export type DateStyle = 'short' | 'medium' | 'iso'
+export type Language = 'es' | 'en'
+
+export interface Settings {
+  currency: CurrencyCode
+  numberLocale: NumberLocale
+  dateStyle: DateStyle
+  timeZone: string
+  language: Language
+  /** Horizonte (días) si no hay un próximo ingreso registrado. `null` = preguntar. */
+  fallbackHorizonDays: number | null
+}
+
+export interface AppData {
+  schemaVersion: typeof SCHEMA_VERSION
+  /** Identificador único de este presupuesto (útil para sincronizar en el futuro). */
+  budgetId: string
+  isDemo: boolean
+  settings: Settings
+  accounts: Account[]
+  transactions: Transaction[]
+  schedules: Schedule[]
+  goals: Goal[]
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */
+  revision: number
+}

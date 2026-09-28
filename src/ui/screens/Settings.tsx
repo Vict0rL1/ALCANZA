@@ -1,0 +1,437 @@
+import { useRef, useState } from 'react'
+import { accountBalance } from '../../domain/balances'
+import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
+import { newId } from '../../domain/ids'
+import { deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
+import type { Account, AccountKind, AppData, DateStyle, NumberLocale } from '../../domain/types'
+import { ACCOUNT_KINDS, DATE_STYLES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import { formatMoney } from '../../domain/money'
+import { createDemoData } from '../../demo/demoData'
+import { useT, type MessageKey } from '../../i18n'
+import { backupFileName, createBackup, MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
+import { useRun, useToday } from '../../state/hooks'
+import { getStore, useAppState, useData } from '../../state/store'
+import { Alert, Badge, Card, PageHeader } from '../components/common'
+import { CheckboxField, MoneyField, SelectField, TextField } from '../components/fields'
+import { parseMoneyText, moneyErrorMessage } from '../moneyText'
+import { ConfirmDialog, Dialog } from '../components/Dialog'
+import { Icon } from '../components/Icon'
+import { useToast } from '../components/toastContext'
+import { UpdateBalanceDialog } from '../dialogs'
+import { createFormatter, useFormat } from '../format'
+import { fieldError, issueMessage } from '../labels'
+
+export const APP_VERSION = '0.1.0'
+
+const COMMON_TIME_ZONES = [
+  'America/Toronto',
+  'America/Vancouver',
+  'America/Edmonton',
+  'America/Winnipeg',
+  'America/Halifax',
+  'America/St_Johns',
+  'America/Mexico_City',
+  'America/Bogota',
+  'America/Lima',
+  'America/Santiago',
+  'America/Argentina/Buenos_Aires',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Europe/Madrid',
+  'UTC',
+]
+
+function download(filename: string, text: string) {
+  const blob = new Blob([text], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export function Settings() {
+  const { t } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const state = useAppState()
+  const run = useRun()
+  const toast = useToast()
+  const today = useToday()
+  const [accountDialog, setAccountDialog] = useState<Account | 'new' | null>(null)
+  const [balanceFor, setBalanceFor] = useState<string | null>(null)
+  const [importState, setImportState] = useState<{ issues: ImportIssue[] } | { data: AppData; exportedAt: string | null } | null>(null)
+  const [confirm, setConfirm] = useState<'resetDemo' | 'clearAll' | 'leaveDemo' | null>(null)
+  const [understood, setUnderstood] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const detected = detectTimeZone()
+  const zones = Array.from(new Set([data.settings.timeZone, detected, ...COMMON_TIME_ZONES]))
+
+  const setSetting = async (patch: Parameters<typeof updateSettings>[1]) => {
+    const { saved } = await run((d, c) => updateSettings(d, patch, c))
+    toast({ message: saved ? t('settings.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+  }
+
+  const exportData = () => {
+    const now = new Date()
+    download(backupFileName(now, data.isDemo), JSON.stringify(createBackup(data, now, APP_VERSION), null, 2))
+    toast({ message: t('settings.backup.exported') })
+  }
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return
+    if (file.size > MAX_BACKUP_BYTES) {
+      setImportState({ issues: [{ path: 'file', code: 'tooLarge' }] })
+      return
+    }
+    const text = await file.text()
+    const result = parseBackup(text)
+    setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const applyImport = async () => {
+    if (!importState || !('data' in importState)) return
+    const ok = await getStore().commit(importState.data)
+    setImportState(null)
+    toast({ message: ok ? t('settings.backup.imported') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+  }
+
+  const resetDemo = async () => {
+    const demo = createDemoData({ now: new Date(), timeZone: data.settings.timeZone, currency: 'CAD' })
+    const ok = await getStore().commit(demo)
+    setConfirm(null)
+    toast({ message: ok ? t('settings.demo.resetDone') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+  }
+
+  const clearAll = async () => {
+    setConfirm(null)
+    await getStore().clearAll()
+  }
+
+  const sample = createFormatter({ ...data.settings })
+  return (
+    <div className="stack">
+      <PageHeader title={t('settings.title')} />
+
+      <Card labelledBy="format-title">
+        <h2 id="format-title" className="card__title">
+          {t('settings.format.title')}
+        </h2>
+        <SelectField
+          label={t('settings.format.number')}
+          value={data.settings.numberLocale}
+          onChange={(e) => void setSetting({ numberLocale: e.target.value as NumberLocale })}
+          options={NUMBER_LOCALES.map((l) => ({ value: l, label: `${formatMoney(123456, data.settings.currency, l)} (${t(`settings.format.locale.${l}` as MessageKey)})` }))}
+        />
+        <SelectField
+          label={t('settings.format.date')}
+          value={data.settings.dateStyle}
+          onChange={(e) => void setSetting({ dateStyle: e.target.value as DateStyle })}
+          options={DATE_STYLES.map((s) => ({ value: s, label: createFormatter({ ...data.settings, dateStyle: s }).date(today) }))}
+        />
+        <SelectField
+          label={t('settings.format.timeZone')}
+          value={data.settings.timeZone}
+          onChange={(e) => void setSetting({ timeZone: e.target.value })}
+          options={zones.map((z) => ({ value: z, label: z === detected ? t('settings.format.detected', { zone: z }) : z }))}
+          hint={t('settings.format.timeZoneHint', { today: sample.date(todayInTimeZone(data.settings.timeZone)) })}
+        />
+        <div className="field">
+          <p className="field__label">{t('settings.currency.label')}</p>
+          <p>
+            <strong>{data.settings.currency}</strong>
+          </p>
+          <p className="field__hint">{t('settings.currency.hint')}</p>
+        </div>
+        <div className="field">
+          <p className="field__label">{t('settings.language.label')}</p>
+          <p>
+            <strong>{t('settings.language.es')}</strong>
+          </p>
+          <p className="field__hint">{t('settings.language.hint')}</p>
+        </div>
+      </Card>
+
+      <Card labelledBy="accounts-title">
+        <h2 id="cuentas" className="card__title">
+          <span id="accounts-title">{t('settings.accounts.title')}</span>
+        </h2>
+        <ul className="item-list">
+          {data.accounts.map((a) => {
+            const b = accountBalance(data, a)
+            return (
+              <li key={a.id} className="item item--stacked">
+                <div className="item__row">
+                  <div className="item__main">
+                    <p className="item__title">{a.name}</p>
+                    <p className="item__meta">
+                      {t(`accountKind.${a.kind}` as MessageKey)} · {t('settings.accounts.updated', { when: fmt.timestamp(a.anchor.setAt) })}
+                    </p>
+                    <p className="item__badges">
+                      <Badge tone={a.includeInBudget ? 'info' : 'neutral'}>{t(a.includeInBudget ? 'settings.accounts.included' : 'settings.accounts.excluded')}</Badge>
+                    </p>
+                  </div>
+                  <p className="item__amount">{fmt.money(b.balanceMinor)}</p>
+                </div>
+                <div className="item__actions">
+                  <button type="button" className="btn btn--small btn--secondary" onClick={() => setBalanceFor(a.id)}>
+                    {t('home.updateBalance')}
+                    <span className="sr-only">: {a.name}</span>
+                  </button>
+                  <button type="button" className="btn btn--small btn--ghost" onClick={() => setAccountDialog(a)}>
+                    <Icon name="edit" size={16} />
+                    {t('common.edit')}
+                    <span className="sr-only">: {a.name}</span>
+                  </button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        <button type="button" className="btn btn--secondary" onClick={() => setAccountDialog('new')}>
+          <Icon name="plus" />
+          {t('settings.accounts.add')}
+        </button>
+        <Alert tone="neutral" icon="lock" title={t('settings.accounts.cardsTitle')}>
+          {t('settings.accounts.cardsText')}
+        </Alert>
+      </Card>
+
+      <Card labelledBy="backup-title">
+        <h2 id="backup-title" className="card__title">
+          {t('settings.backup.title')}
+        </h2>
+        <p>{t('settings.backup.text')}</p>
+        <div className="button-row">
+          <button type="button" className="btn btn--primary" onClick={exportData}>
+            <Icon name="download" />
+            {t('settings.backup.export')}
+          </button>
+          <label className="btn btn--secondary file-button">
+            <Icon name="upload" />
+            {t('settings.backup.import')}
+            <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} data-testid="import-file" />
+          </label>
+        </div>
+        <p className="note">{t('settings.backup.importNote')}</p>
+        {importState && 'issues' in importState && (
+          <Alert tone="critical" title={t('settings.backup.invalidTitle')} role="alert">
+            <p>{t('settings.backup.invalidText')}</p>
+            <ul>
+              {importState.issues.slice(0, 8).map((i, idx) => (
+                <li key={idx}>
+                  {i.path !== 'file' ? <code>{i.path}</code> : null} {issueMessage(t, fmt, i)}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+      </Card>
+
+      <Card labelledBy="storage-title">
+        <h2 id="storage-title" className="card__title">
+          {t('settings.storage.title')}
+        </h2>
+        {state.phase === 'ready' && state.storage === 'memory' && <Alert tone="critical" title={t('shell.memoryTitle')}>{t('shell.memoryText')}</Alert>}
+        <ul className="bullets">
+          <li>{t('settings.storage.local')}</li>
+          <li>{t('settings.storage.lost')}</li>
+          <li>{t('settings.storage.noSync')}</li>
+          <li>{t('settings.storage.noAccount')}</li>
+          <li>{t('settings.storage.noBank')}</li>
+          <li>{t('settings.storage.noAi')}</li>
+        </ul>
+      </Card>
+
+      <Card labelledBy="notifications-title">
+        <h2 id="notifications-title" className="card__title">
+          {t('settings.notifications.title')}
+        </h2>
+        <p>{t('settings.notifications.text')}</p>
+      </Card>
+
+      <Card labelledBy="formulas-title">
+        <h2 id="formulas" className="card__title">
+          <span id="formulas-title">{t('settings.formulas.title')}</span>
+        </h2>
+        <ul className="bullets">
+          <li>{t('settings.formulas.available')}</li>
+          <li>{t('settings.formulas.period')}</li>
+          <li>{t('settings.formulas.daily')}</li>
+          <li>{t('settings.formulas.balance')}</li>
+          <li>{t('settings.formulas.paid')}</li>
+          <li>{t('settings.formulas.transfer')}</li>
+          <li>{t('settings.formulas.monthEnd')}</li>
+          <li>{t('settings.formulas.rounding')}</li>
+        </ul>
+      </Card>
+
+      <Card labelledBy="reset-title">
+        <h2 id="reset-title" className="card__title">
+          {t('settings.reset.title')}
+        </h2>
+        {data.isDemo ? (
+          <div className="button-row">
+            <button type="button" className="btn btn--secondary" onClick={() => setConfirm('resetDemo')}>
+              {t('settings.demo.reset')}
+            </button>
+            <button type="button" className="btn btn--primary" onClick={() => setConfirm('leaveDemo')}>
+              {t('shell.leaveDemo')}
+            </button>
+          </div>
+        ) : (
+          <p className="note">{t('settings.reset.noDemo')}</p>
+        )}
+        <button
+          type="button"
+          className="btn btn--danger-ghost"
+          onClick={() => {
+            setUnderstood(false)
+            setConfirm('clearAll')
+          }}
+        >
+          <Icon name="trash" />
+          {t('settings.reset.clearAll')}
+        </button>
+      </Card>
+
+      <Card labelledBy="about-title">
+        <h2 id="about-title" className="card__title">
+          {t('settings.about.title')}
+        </h2>
+        <p>{t('settings.about.text', { version: APP_VERSION })}</p>
+      </Card>
+
+      {accountDialog && <AccountDialog account={accountDialog === 'new' ? null : accountDialog} onClose={() => setAccountDialog(null)} />}
+      {balanceFor && <UpdateBalanceDialog initialAccountId={balanceFor} onClose={() => setBalanceFor(null)} />}
+
+      <ConfirmDialog
+        open={!!importState && 'data' in importState}
+        title={t('settings.backup.confirmTitle')}
+        confirmLabel={t('settings.backup.confirm')}
+        onConfirm={() => void applyImport()}
+        onCancel={() => setImportState(null)}
+        destructive
+      >
+        {importState && 'data' in importState && (
+          <>
+            <p>{t('settings.backup.confirmText')}</p>
+            <ul className="bullets">
+              {importState.exportedAt && <li>{t('settings.backup.summaryDate', { when: fmt.timestamp(importState.exportedAt) })}</li>}
+              <li>{t('settings.backup.summaryCurrency', { currency: importState.data.settings.currency })}</li>
+              <li>
+                {t('settings.backup.summaryCounts', {
+                  accounts: importState.data.accounts.length,
+                  movements: importState.data.transactions.length,
+                  schedules: importState.data.schedules.length,
+                  goals: importState.data.goals.length,
+                })}
+              </li>
+              {importState.data.isDemo && <li>{t('settings.backup.summaryDemo')}</li>}
+            </ul>
+            <p className="note">{t('settings.backup.confirmHint')}</p>
+          </>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog open={confirm === 'resetDemo'} title={t('settings.demo.resetTitle')} confirmLabel={t('settings.demo.reset')} onConfirm={() => void resetDemo()} onCancel={() => setConfirm(null)} destructive>
+        <p>{t('settings.demo.resetText')}</p>
+      </ConfirmDialog>
+      <ConfirmDialog open={confirm === 'leaveDemo'} title={t('shell.leaveDemoTitle')} confirmLabel={t('shell.leaveDemo')} onConfirm={() => void clearAll()} onCancel={() => setConfirm(null)}>
+        <p>{t('shell.leaveDemoText')}</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirm === 'clearAll'}
+        title={t('settings.reset.clearTitle')}
+        confirmLabel={t('settings.reset.clearConfirm')}
+        onConfirm={() => void clearAll()}
+        onCancel={() => setConfirm(null)}
+        destructive
+        confirmDisabled={!understood}
+      >
+        <p>{t('settings.reset.clearText')}</p>
+        <CheckboxField checked={understood} onChange={setUnderstood} label={t('settings.reset.understand')} />
+      </ConfirmDialog>
+    </div>
+  )
+}
+
+function AccountDialog({ account, onClose }: { account: Account | null; onClose: () => void }) {
+  const { t } = useT()
+  const fmt = useFormat()
+  const run = useRun()
+  const toast = useToast()
+  const today = useToday()
+  const [id] = useState(() => account?.id ?? newId())
+  const [name, setName] = useState(account?.name ?? '')
+  const [kind, setKind] = useState<AccountKind>(account?.kind ?? 'bank')
+  const [include, setInclude] = useState(account?.includeInBudget ?? true)
+  const [balanceText, setBalanceText] = useState('')
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [amountError, setAmountError] = useState<string | null>(null)
+
+  const submit = async () => {
+    let openingBalanceMinor: number | undefined
+    if (!account) {
+      const parsed = parseMoneyText(balanceText || '0', fmt, { allowNegative: true, allowZero: true })
+      setAmountError(moneyErrorMessage(t, parsed))
+      if (!parsed.ok) return
+      openingBalanceMinor = parsed.minor
+    }
+    const draft: AccountDraft = { id, name, kind, includeInBudget: include, openingBalanceMinor, openingDate: today }
+    const { result, saved } = await run((d, c) => saveAccount(d, draft, c))
+    if (!result.ok) {
+      setIssues(result.issues)
+      return
+    }
+    toast({ message: saved ? t('settings.accounts.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    onClose()
+  }
+
+  const remove = async () => {
+    if (!account) return
+    const { result, saved } = await run((d, c) => deleteAccount(d, account.id, c))
+    if (!result.ok) {
+      setIssues(result.issues)
+      return
+    }
+    toast({ message: saved ? t('settings.accounts.deleted') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    onClose()
+  }
+
+  const generalIssue = issues.find((i) => i.path === 'id' || i.path === 'includeInBudget')
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={account ? t('settings.accounts.editTitle') : t('settings.accounts.newTitle')}
+      onSubmit={() => void submit()}
+      footer={
+        <>
+          {account && (
+            <button type="button" className="btn btn--danger-ghost" onClick={() => void remove()}>
+              {t('common.delete')}
+            </button>
+          )}
+          <button type="button" className="btn btn--secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" className="btn btn--primary">
+            {t('common.save')}
+          </button>
+        </>
+      }
+    >
+      <TextField label={t('fields.name')} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} error={fieldError(t, fmt, issues, 'name')} required />
+      <SelectField label={t('settings.accounts.kind')} value={kind} onChange={(e) => setKind(e.target.value as AccountKind)} options={ACCOUNT_KINDS.map((k) => ({ value: k, label: t(`accountKind.${k}` as MessageKey) }))} hint={t('settings.accounts.kindHint')} />
+      <CheckboxField checked={include} onChange={setInclude} label={t('settings.accounts.includeLabel')} hint={t('settings.accounts.includeHint')} />
+      {!account && <MoneyField label={t('settings.accounts.openingBalance')} hint={t('settings.accounts.openingHint')} value={balanceText} onChange={setBalanceText} error={amountError} fmt={fmt} />}
+      {generalIssue && <Alert tone="critical" title={issueMessage(t, fmt, generalIssue)} role="alert" />}
+    </Dialog>
+  )
+}

@@ -1,0 +1,109 @@
+/**
+ * Guarda los datos en `localStorage` del navegador.
+ *
+ * Limitaciones (se explican al usuario):
+ *  - Si se borran los datos del sitio o del navegador, se pierden.
+ *  - No se sincroniza entre dispositivos ni navegadores.
+ *  - El espacio es limitado (unos 5 MB por sitio).
+ */
+import type { AppData } from '../domain/types'
+import { validateAppData } from './backup'
+import type { DataRepository, LoadResult, SaveResult } from './repository'
+
+export const STORAGE_KEY = 'margen.data.v1'
+const CORRUPT_KEY_PREFIX = 'margen.data.corrupt.'
+
+function getStorage(): Storage | null {
+  try {
+    const s = globalThis.localStorage
+    const probe = '__margen_probe__'
+    s.setItem(probe, '1')
+    s.removeItem(probe)
+    return s
+  } catch {
+    return null
+  }
+}
+
+export function isLocalStorageAvailable(): boolean {
+  return getStorage() !== null
+}
+
+export class LocalStorageRepository implements DataRepository {
+  readonly kind = 'local' as const
+
+  async load(): Promise<LoadResult> {
+    const storage = getStorage()
+    if (!storage) throw new Error('localStorage no disponible')
+    const raw = storage.getItem(STORAGE_KEY)
+    if (raw === null) return { status: 'empty' }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      return { status: 'corrupt', raw, issues: [{ path: 'file', code: 'invalidJson' }] }
+    }
+    const result = validateAppData(parsed)
+    if (!result.ok) return { status: 'corrupt', raw, issues: result.issues }
+    return { status: 'ok', data: result.data }
+  }
+
+  async save(data: AppData): Promise<SaveResult> {
+    const storage = getStorage()
+    if (!storage) return { ok: false, error: 'unavailable' }
+    try {
+      storage.setItem(STORAGE_KEY, JSON.stringify(data))
+      return { ok: true }
+    } catch (error) {
+      const name = (error as { name?: string } | null)?.name
+      if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') return { ok: false, error: 'quota' }
+      return { ok: false, error: 'unknown' }
+    }
+  }
+
+  async clear(): Promise<void> {
+    getStorage()?.removeItem(STORAGE_KEY)
+  }
+
+  /** Guarda una copia de datos dañados antes de reemplazarlos, por si hace falta recuperarlos. */
+  preserveCorrupt(raw: string, now: Date): void {
+    try {
+      getStorage()?.setItem(`${CORRUPT_KEY_PREFIX}${now.toISOString()}`, raw)
+    } catch {
+      // Si no cabe, no se puede hacer más; la interfaz ya ofreció descargarla.
+    }
+  }
+
+  subscribe(onExternalChange: () => void): () => void {
+    const handler = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY) onExternalChange()
+    }
+    globalThis.addEventListener?.('storage', handler)
+    return () => globalThis.removeEventListener?.('storage', handler)
+  }
+}
+
+/** Solo en memoria: se usa si el navegador bloquea el almacenamiento (y en pruebas). */
+export class MemoryRepository implements DataRepository {
+  readonly kind = 'memory' as const
+  private stored: string | null = null
+
+  async load(): Promise<LoadResult> {
+    if (this.stored === null) return { status: 'empty' }
+    const result = validateAppData(JSON.parse(this.stored))
+    return result.ok ? { status: 'ok', data: result.data } : { status: 'corrupt', raw: this.stored, issues: result.issues }
+  }
+
+  async save(data: AppData): Promise<SaveResult> {
+    this.stored = JSON.stringify(data)
+    return { ok: true }
+  }
+
+  async clear(): Promise<void> {
+    this.stored = null
+  }
+
+  subscribe(): () => void {
+    return () => {}
+  }
+}
