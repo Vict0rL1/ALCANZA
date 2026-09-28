@@ -28,20 +28,33 @@ Para comprobarlo, abre una terminal (en Windows: «Símbolo del sistema» o «Po
 en Mac: «Terminal») y escribe:
 
 ```bash
-node --version   # debe mostrar v22.12.0 o superior
+node --version
 npm --version
 ```
 
+`node --version` debe mostrar `v22.12.0` o superior.
+
+> **Copia solo las líneas de comandos.** No copies textos que empiecen con `#`:
+> en la terminal de Mac no se ignoran y causan errores como `Invalid tag name "#"`.
+
 No hace falta ninguna cuenta, clave ni archivo `.env`.
 
-## 2. Instalar (solo la primera vez)
+## 2. Descargar e instalar (solo la primera vez)
 
-En la terminal, entra en la carpeta del proyecto y descarga las dependencias:
+Descarga el proyecto desde GitHub (necesitas `git`; en Mac, si no lo tienes, el sistema
+te ofrecerá instalarlo la primera vez que lo uses):
 
 ```bash
-cd ruta/a/la/carpeta/ALCANZA
+cd ~/Desktop
+git clone https://github.com/Vict0rL1/ALCANZA.git
+cd ALCANZA
 npm install
 ```
+
+Esto crea la carpeta `ALCANZA` en tu Escritorio. **Todos los comandos siguientes deben
+ejecutarse dentro de esa carpeta.** Si abres una terminal nueva, entra primero con
+`cd ~/Desktop/ALCANZA`. Si ves `Could not read package.json`, es que no estás dentro
+de la carpeta del proyecto.
 
 ## 3. Abrir la aplicación
 
@@ -65,9 +78,11 @@ celular son independientes de los de la computadora.
 ### Versión optimizada (como quedaría publicada)
 
 ```bash
-npm run build     # genera la carpeta dist/
-npm run preview   # la sirve en http://localhost:4173/
+npm run build
+npm run preview
 ```
+
+`build` genera la carpeta `dist/` y `preview` la sirve en `http://localhost:4173/`.
 
 ## 4. Cómo usarla
 
@@ -106,6 +121,9 @@ La primera vez hay que descargar el navegador de pruebas:
 
 ```bash
 npx playwright install chromium
+```
+
+```bash
 npm run test:e2e
 ```
 
@@ -117,8 +135,10 @@ una auditoría automática de accesibilidad (axe) en modo claro y oscuro.
 ### Todas las comprobaciones
 
 ```bash
-npm run check   # tipos + estilo de código + pruebas de lógica
+npm run check
 ```
+
+Revisa tipos, estilo de código y pruebas de lógica.
 
 ## 6. Comandos disponibles
 
@@ -168,6 +188,10 @@ funcionamiento sin conexión tras cerrar el navegador (falta el *service worker*
 
 - **`npm: command not found` / `node no se reconoce`:** instala Node.js y abre una
   terminal nueva.
+- **`Could not read package.json` / `ENOENT`:** no estás dentro de la carpeta del
+  proyecto. Ejecuta `cd ~/Desktop/ALCANZA` (o la ruta donde lo descargaste).
+- **`Invalid tag name "#"`:** copiaste un comentario que empieza con `#`. Copia solo el
+  comando.
 - **La versión de Node es menor que 22.12:** instala la LTS actual desde nodejs.org.
 - **El puerto 5173 está ocupado:** Vite usará otro (mira la dirección en la terminal).
 - **«No se puede guardar en este navegador»:** el navegador bloquea el almacenamiento
