@@ -2207,3 +2207,13 @@ fieldset.bill-row {
   font-weight: 650;
   overflow-wrap: anywhere;
 }
+
+.topbar__search {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.topbar__search.is-active {
+  color: var(--primary);
+}

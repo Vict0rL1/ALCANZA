@@ -201,6 +201,39 @@ describe('migraciones', () => {
     expect(backupStatus(r.data, TODAY).neverExported).toBe(true)
   })
 
+  it('una copia v5 se migra a v6 sin perder nada: metas antiguas intactas y revisión semanal activada', () => {
+    const v5: Record<string, unknown> = JSON.parse(
+      JSON.stringify(
+        baseData({
+          transactions: [tx({ id: 'keep', amountMinor: 1234 })],
+          goals: [{ id: 'g', name: 'Viaje', kind: 'goal', targetMinor: 50000, currency: 'CAD', fundedFrom: 'budget', allocations: [{ id: 'a', amountMinor: 1000, date: TODAY, createdAt: NOW }], createdAt: NOW, updatedAt: NOW }],
+        }),
+      ),
+    )
+    v5.schemaVersion = 5
+    delete v5.periodBudgets
+    delete v5.scenarios
+    delete (v5.settings as Record<string, unknown>).weeklyReview
+    const r = validateAppData(v5)
+    if (!r.ok) throw new Error(JSON.stringify(r.issues))
+    expect(r.data).toMatchObject({ schemaVersion: 6, periodBudgets: [], scenarios: [], settings: { weeklyReview: true } })
+    expect(r.data.goals).toEqual(v5.goals)
+    expect(r.data.transactions).toEqual(v5.transactions)
+  })
+
+  it('migrar a v6 respeta la preferencia existente y nunca borra datos mal formados: se rechazan', () => {
+    const off: Record<string, unknown> = JSON.parse(JSON.stringify(baseData({ settings: { ...baseData().settings, weeklyReview: false } })))
+    off.schemaVersion = 5
+    delete off.periodBudgets
+    delete off.scenarios
+    const r = validateAppData(off)
+    expect(r.ok && r.data.settings.weeklyReview).toBe(false)
+    const bad: Record<string, unknown> = JSON.parse(JSON.stringify(baseData()))
+    bad.schemaVersion = 5
+    bad.periodBudgets = 'no es una lista'
+    expect(validateAppData(bad).ok).toBe(false)
+  })
+
   it('una copia v4 dentro de un archivo de respaldo también se importa', () => {
     const v4: Record<string, unknown> = JSON.parse(JSON.stringify(baseData()))
     v4.schemaVersion = 4

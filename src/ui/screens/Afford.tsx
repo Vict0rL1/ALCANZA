@@ -49,6 +49,19 @@ export function Afford() {
         <p className="note">
           <Icon name="lock" size={16} /> {t('afford.noSave')}
         </p>
+        <p className="link-row">
+          <a href={href('/alcanza/escenarios')}>
+            <Icon name="scale" size={16} />
+            {t('scenario.openCompare')}
+            {data.scenarios.length > 0 ? ` (${data.scenarios.length})` : ''}
+          </a>
+          {priceMinor !== null && (
+            <a href={href(withQuery('/alcanza/escenarios/nuevo', { amount: priceMinor, note: what.trim() || undefined }))}>
+              <Icon name="plus" size={16} />
+              {t('scenario.saveFromAfford')}
+            </a>
+          )}
+        </p>
       </Card>
 
       <div aria-live="polite" className="stack">

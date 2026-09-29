@@ -24,6 +24,9 @@ const Reconcile = lazy(() => import('./ui/screens/Reconcile').then((m) => ({ def
 const PeriodBudgetForm = lazy(() => import('./ui/screens/PeriodBudgets').then((m) => ({ default: m.PeriodBudgetForm })))
 const PeriodBudgetDetail = lazy(() => import('./ui/screens/PeriodBudgets').then((m) => ({ default: m.PeriodBudgetDetail })))
 const WeeklyReview = lazy(() => import('./ui/screens/WeeklyReview').then((m) => ({ default: m.WeeklyReview })))
+const Scenarios = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ default: m.Scenarios })))
+const ScenarioForm = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ default: m.ScenarioForm })))
+const Search = lazy(() => import('./ui/screens/Search').then((m) => ({ default: m.Search })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
@@ -250,6 +253,10 @@ function Shell() {
         </a>
         <span className="badge badge--neutral topbar__proto">{t('shell.prototype')}</span>
         <SaveIndicator save={state.save} />
+        <a className={`btn btn--ghost btn--icon topbar__search${top === 'buscar' ? ' is-active' : ''}`} href={href('/buscar')} aria-current={top === 'buscar' ? 'page' : undefined}>
+          <Icon name="search" />
+          <span className="sr-only">{t('search.title')}</span>
+        </a>
       </header>
       <div className="shell__body">
         <nav className="nav" aria-label={t('nav.aria')}>
@@ -278,6 +285,8 @@ function Screen({ route }: { route: Route }) {
   const [a, b, c] = route.segments
   const key = route.path
   if (!a) return <Home key={key} />
+  if (a === 'alcanza' && b === 'escenarios' && (c === 'nuevo' || c === 'editar')) return <ScenarioForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'alcanza' && b === 'escenarios') return <Scenarios key={key} />
   if (a === 'alcanza') return <Afford key={key} />
   if (a === 'revision') return <WeeklyReview key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />
@@ -285,13 +294,14 @@ function Screen({ route }: { route: Route }) {
   if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
   if (a === 'movimientos' && b === 'favoritos') return <Favorites key={key} />
   if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />
-  if (a === 'movimientos') return <Movements key={key} />
+  if (a === 'movimientos') return <Movements key={`${key}?${route.query.get('categoria') ?? ''}`} route={route} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'periodos' && (c === 'nuevo' || c === 'editar')) return <PeriodBudgetForm key={key} route={route} />
   if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
   if (a === 'ajustes') return <Settings key={key} />
+  if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (
     <div className="stack">
       <h1 id="page-title" tabIndex={-1}>

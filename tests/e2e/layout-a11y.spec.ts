@@ -16,6 +16,13 @@ const ROUTES = [
   '/movimientos/papelera',
   '/movimientos/favoritos',
   '/conciliar',
+  '/plan/periodos',
+  '/plan/periodos/nuevo',
+  '/plan/metas/nueva?tipo=gasto',
+  '/revision',
+  '/alcanza/escenarios',
+  '/alcanza/escenarios/nuevo',
+  '/buscar?q=cafe',
 ]
 
 async function horizontalOverflow(page: import('@playwright/test').Page) {
@@ -34,7 +41,7 @@ test('ninguna pantalla tiene desplazamiento horizontal', async ({ page }) => {
 test('con texto ampliado al 200 % no aparece desplazamiento horizontal', async ({ page }) => {
   await startDemo(page)
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
-  for (const route of ['/', '/movimientos', '/alcanza', '/plan/calendario', '/plan/proyeccion', '/movimientos/favoritos', '/conciliar']) {
+  for (const route of ['/', '/movimientos', '/alcanza', '/plan/calendario', '/plan/proyeccion', '/movimientos/favoritos', '/conciliar', '/revision', '/alcanza/escenarios/nuevo', '/buscar?q=cafe', '/plan/periodos']) {
     await go(page, route)
     expect(await horizontalOverflow(page), route).toBeLessThanOrEqual(0)
   }

@@ -12,12 +12,12 @@ import { Icon, type IconName } from '../components/Icon'
 import { MonthSummary } from '../components/MonthSummary'
 import { useFormat } from '../format'
 import { accountName, categoryLabel, transactionTitle } from '../labels'
-import { href } from '../router'
+import { href, type Route } from '../router'
 
 const KIND_ICON: Record<TxKind, IconName> = { income: 'arrowDown', expense: 'arrowUp', transfer: 'transfer', refund: 'refund', adjustment: 'sliders' }
 const PAGE = 60
 
-export function Movements() {
+export function Movements({ route }: { route?: Route }) {
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -26,7 +26,7 @@ export function Movements() {
   const [kind, setKind] = useState<'all' | TxKind>('all')
   const [status, setStatus] = useState<'all' | TxStatus>('all')
   const [accountId, setAccountId] = useState('all')
-  const [categoryId, setCategoryId] = useState('all')
+  const [categoryId, setCategoryId] = useState(() => route?.query.get('categoria') || 'all')
   const [limit, setLimit] = useState(PAGE)
 
   const filtersActive = query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all'
