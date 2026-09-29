@@ -10,12 +10,13 @@ import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
 import { findSettlement } from './planItems'
-import type { Account, AppData, CardDetails, CategoryLimit, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
+import type { Account, AppData, CardDetails, CategoryLimit, CategoryRule, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
 import { SCHEMA_VERSION } from './types'
 import {
   validateAccount,
   validateCategory,
   validateCategoryLimit,
+  validateCategoryRule,
   validateGoal,
   validateSchedule,
   validateSettings,
@@ -510,7 +511,7 @@ export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpRes
   if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
   return {
     ok: true,
-    data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id), categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id) }, ctx.now),
+    data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id), categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id), categoryRules: data.categoryRules.filter((r) => r.categoryId !== id) }, ctx.now),
     value: category,
   }
 }
@@ -527,6 +528,42 @@ export function removeCategoryLimit(data: AppData, categoryId: string, ctx: OpCo
   const limit = data.categoryLimits.find((l) => l.categoryId === categoryId)
   if (!limit) return fail([{ path: 'categoryId', code: 'notFound' }])
   return { ok: true, data: touch({ ...data, categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== categoryId) }, ctx.now), value: limit }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reglas de categoría                                                 */
+/* ------------------------------------------------------------------ */
+
+export type CategoryRuleDraft = Pick<CategoryRule, 'id' | 'pattern' | 'kind' | 'categoryId'>
+
+export function saveCategoryRule(data: AppData, draft: CategoryRuleDraft, ctx: OpContext): OpResult<CategoryRule> {
+  const existing = data.categoryRules.find((r) => r.id === draft.id)
+  const rule: CategoryRule = {
+    id: draft.id,
+    pattern: draft.pattern.replace(/\s+/g, ' ').trim(),
+    kind: draft.kind,
+    categoryId: draft.categoryId,
+    createdAt: existing?.createdAt ?? ctx.now,
+    updatedAt: ctx.now,
+  }
+  if (existing && existing.pattern === rule.pattern && existing.kind === rule.kind && existing.categoryId === rule.categoryId) {
+    return { ok: true, data, value: existing, unchanged: true }
+  }
+  const issues = validateCategoryRule(rule, data.categoryRules, data.categories)
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...data, categoryRules: upsert(data.categoryRules, rule) }, ctx.now), value: rule }
+}
+
+export function deleteCategoryRule(data: AppData, id: string, ctx: OpContext): OpResult<CategoryRule> {
+  const rule = data.categoryRules.find((r) => r.id === id)
+  if (!rule) return fail([{ path: 'id', code: 'notFound' }])
+  return { ok: true, data: touch({ ...data, categoryRules: data.categoryRules.filter((r) => r.id !== id) }, ctx.now), value: rule }
+}
+
+/** Deshacer: vuelve a poner la misma regla (mismo id). */
+export function restoreCategoryRule(data: AppData, rule: CategoryRule, ctx: OpContext): OpResult<CategoryRule> {
+  if (data.categoryRules.some((r) => r.id === rule.id)) return { ok: true, data, value: rule, unchanged: true }
+  return { ok: true, data: touch({ ...data, categoryRules: [...data.categoryRules, rule] }, ctx.now), value: rule }
 }
 
 /* ------------------------------------------------------------------ */
@@ -582,6 +619,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     goals: [],
     categories: [],
     categoryLimits: [],
+    categoryRules: [],
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,

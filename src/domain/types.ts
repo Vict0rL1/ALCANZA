@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 3 as const
+export const SCHEMA_VERSION = 4 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -175,6 +175,19 @@ export interface CategoryLimit {
   monthlyLimitMinor: number
 }
 
+/**
+ * Regla de categoría: si la descripción contiene `pattern` (sin distinguir mayúsculas
+ * ni acentos), se propone `categoryId`. Solo PROPONE: la persona puede cambiarla.
+ */
+export interface CategoryRule {
+  id: string
+  pattern: string
+  kind: 'expense' | 'income'
+  categoryId: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
 export type NumberLocale = 'es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
 export type DateStyle = 'short' | 'medium' | 'iso'
 export type Language = 'es' | 'en'
@@ -201,6 +214,7 @@ export interface AppData {
   goals: Goal[]
   categories: CustomCategory[]
   categoryLimits: CategoryLimit[]
+  categoryRules: CategoryRule[]
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

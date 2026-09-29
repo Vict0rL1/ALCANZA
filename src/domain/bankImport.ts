@@ -15,6 +15,7 @@
  */
 import { addDays, isValidLocalDate, toLocalDate, daysInMonth } from './dates'
 import { MAX_AMOUNT_MINOR, parseMoney } from './money'
+import { normalizeText } from './rules'
 import type { AppData, LocalDate } from './types'
 
 export const MAX_IMPORT_BYTES = 2 * 1024 * 1024
@@ -237,15 +238,9 @@ export interface ImportPreview {
   tooManyRows: boolean
 }
 
-/** Minúsculas, sin acentos y con espacios simples: "  CAFÉ  Central " → "cafe central". */
+/** Descripción normalizada para la huella (80 caracteres como máximo). */
 export function normalizeDescription(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80)
+  return normalizeText(value).slice(0, 80)
 }
 
 function signedAmount(cells: string[], mapping: ColumnMapping, currency: string, locale: string): { ok: true; value: number } | { ok: false; error: ImportRowError } {

@@ -17,6 +17,8 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
   }),
   /** v2 → v3: los movimientos pueden llevar `importRef` (opcional); no cambia nada existente. */
   2: (raw) => ({ ...raw, schemaVersion: 3 }),
+  /** v3 → v4: reglas de categoría (lista vacía). */
+  3: (raw) => ({ ...raw, schemaVersion: 4, categoryRules: Array.isArray(raw.categoryRules) ? raw.categoryRules : [] }),
 }
 
 export function migrate(raw: Raw): Raw {

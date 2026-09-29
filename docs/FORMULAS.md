@@ -303,6 +303,22 @@ guarda hasta confirmar la vista previa. Límites: 2 MB y 5000 filas.
   «Deshacer» quita exactamente los movimientos creados. Editar un movimiento importado
   conserva su huella.
 
+## 10 e. Reglas de categoría
+
+```
+coincide  = normalizar(descripción) contiene normalizar(texto de la regla)
+normalizar = minúsculas, sin acentos, espacios simples
+```
+
+- Solo se consideran reglas del mismo tipo (gasto o ingreso; las devoluciones usan las
+  de gasto) cuya categoría exista y no esté archivada. El texto tiene al menos 2
+  caracteres y no se repite para el mismo tipo.
+- Si varias coinciden, gana el texto **más largo** («uber eats» antes que «uber»); si
+  empatan, la regla más antigua.
+- Una regla solo **propone**: en la importación CSV (cada fila, cambiable) y en la nota de
+  un movimiento nuevo mientras no se elija la categoría a mano. Nunca cambia movimientos
+  guardados ni importes. Al eliminar una categoría personalizada se quitan sus reglas.
+
 ## 11. Integridad de datos
 
 - Identificadores únicos (UUID v4) generados al abrir cada formulario: guardar dos

@@ -7,7 +7,8 @@ import { categoriesForKind } from './categories'
 import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
-import type { Account, AppData, CategoryLimit, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
+import { normalizeText, RULE_PATTERN_MAX, RULE_PATTERN_MIN } from './rules'
+import type { Account, AppData, CategoryLimit, CategoryRule, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
 
 export type IssueCode =
   | 'required'
@@ -38,6 +39,8 @@ export type IssueCode =
   | 'creditKindChange'
   | 'duplicateName'
   | 'categoryInUse'
+  | 'duplicateRule'
+  | 'patternTooShort'
   | 'notFound'
 
 export interface Issue {
@@ -169,6 +172,26 @@ export function validateCategoryLimit(l: CategoryLimit, custom: readonly CustomC
     issues.push({ path: `${prefix}categoryId`, code: 'invalidCategory' })
   }
   checkPositiveAmount(l.monthlyLimitMinor, `${prefix}monthlyLimitMinor`, issues)
+  return issues
+}
+
+export function validateCategoryRule(r: CategoryRule, all: readonly CategoryRule[], custom: readonly CustomCategory[], prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(r.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  checkName(r.pattern, `${prefix}pattern`, issues, RULE_PATTERN_MAX)
+  const kindOk = r.kind === 'expense' || r.kind === 'income'
+  if (!kindOk) issues.push({ path: `${prefix}kind`, code: 'invalidValue' })
+  if (typeof r.pattern === 'string' && r.pattern.trim() !== '') {
+    const norm = normalizeText(r.pattern)
+    if (norm.length < RULE_PATTERN_MIN) issues.push({ path: `${prefix}pattern`, code: 'patternTooShort', params: { min: RULE_PATTERN_MIN } })
+    else if (all.some((o) => o.id !== r.id && o.kind === r.kind && normalizeText(o.pattern) === norm)) {
+      issues.push({ path: `${prefix}pattern`, code: 'duplicateRule' })
+    }
+  }
+  if (kindOk && (typeof r.categoryId !== 'string' || !categoriesForKind(r.kind, custom, { includeArchived: true }).includes(r.categoryId))) {
+    issues.push({ path: `${prefix}categoryId`, code: 'invalidCategory' })
+  }
+  checkTimestamps(r, prefix, issues)
   return issues
 }
 

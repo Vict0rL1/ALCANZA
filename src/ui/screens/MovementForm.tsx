@@ -4,7 +4,8 @@ import { isValidLocalDate } from '../../domain/dates'
 import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
 import { saveTransaction } from '../../domain/operations'
-import type { TxKind, TxStatus } from '../../domain/types'
+import { matchCategoryRule } from '../../domain/rules'
+import type { CategoryRule, TxKind, TxStatus } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { LIMITS } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -61,9 +62,26 @@ export function MovementForm({ route }: { route: Route }) {
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const submitting = useRef(false)
+  // Regla de categoría: solo propone mientras la persona no elija la categoría a mano.
+  const [categoryTouched, setCategoryTouched] = useState(() => !!existing || !!q.get('category'))
+  const [ruleApplied, setRuleApplied] = useState<CategoryRule | undefined>(undefined)
+
+  const changeNote = (value: string) => {
+    setNote(value)
+    if (categoryTouched || kind === 'transfer') return
+    const rule = matchCategoryRule(value, kind, data.categoryRules, data.categories)
+    if (rule) {
+      setCategoryId(rule.categoryId)
+      setRuleApplied(rule)
+    } else if (ruleApplied) {
+      setCategoryId(kind === 'income' ? 'salary' : 'other_expense')
+      setRuleApplied(undefined)
+    }
+  }
 
   const changeKind = (k: TxKind) => {
     setKind(k)
+    setRuleApplied(undefined)
     const valid = categoriesForKind(k, data.categories)
     if (k !== 'transfer' && !valid.includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
     if (k === 'transfer' && toAccountId === accountId) setToAccountId(data.accounts.find((a) => a.id !== accountId)?.id ?? '')
@@ -212,10 +230,14 @@ export function MovementForm({ route }: { route: Route }) {
           <SelectField
             label={t('fields.category')}
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(e) => {
+              setCategoryId(e.target.value)
+              setCategoryTouched(true)
+              setRuleApplied(undefined)
+            }}
             options={withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
             error={fieldError(t, fmt, issues, 'categoryId')}
-            hint={kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
+            hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
           />
         )}
 
@@ -252,7 +274,7 @@ export function MovementForm({ route }: { route: Route }) {
               value={note}
               maxLength={LIMITS.noteMax}
               rows={2}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => changeNote(e.target.value)}
               aria-describedby={describedBy}
               aria-invalid={invalid || undefined}
             />

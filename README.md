@@ -97,13 +97,15 @@ npm run preview
    mensuales opcionales por categoría. Con «Importar CSV» cargas el historial que
    descargas de la web de tu banco: revisas cada fila (nuevas, posibles duplicados, ya
    importadas, con error) y nada se guarda hasta confirmar. Importar el mismo archivo
-   dos veces no duplica nada, y se puede deshacer.
+   dos veces no duplica nada, y se puede deshacer. Las **reglas de categoría** (en
+   Ajustes) ponen la categoría sola según la descripción: «si contiene *walmart* →
+   Supermercado».
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
    que pulses «Registrar esta compra» y luego «Guardar».
 5. **Plan:** calendario de pagos (marcar pagado, omitir), metas (apartar/liberar) y
    proyección de 30 días.
 6. **Ajustes:** idioma, formato de números y fechas, zona horaria, cuentas (y tarjetas con
-   límite, tasa y fechas), categorías personalizadas, copia de seguridad,
+   límite, tasa y fechas), categorías personalizadas, reglas de categoría, copia de seguridad,
    reinicio de la demo y borrado de datos.
 
 La demostración muestra un aviso morado permanente: **todos sus datos son ficticios**.

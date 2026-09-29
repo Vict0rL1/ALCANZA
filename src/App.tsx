@@ -170,18 +170,32 @@ function Shell() {
       return
     }
     const section = route.query.get('seccion')
-    requestAnimationFrame(() => {
+    let frame = 0
+    let tries = 0
+    const settle = () => {
       const target = section ? document.getElementById(section) : null
       if (target) {
         target.scrollIntoView()
+        return
+      }
+      // Las pantallas que se cargan aparte pueden tardar unos instantes en aparecer.
+      if (section && tries++ < 60) {
+        frame = requestAnimationFrame(settle)
+        return
+      }
+      const title = document.getElementById('page-title')
+      if (!title && tries++ < 60) {
+        frame = requestAnimationFrame(settle)
         return
       }
       window.scrollTo({ top: 0 })
       // Si la pantalla ya enfocó un campo (autoFocus), se respeta; si no, el foco va al título.
       const active = document.activeElement
       if (active instanceof HTMLElement && active.matches('input, select, textarea') && mainRef.current?.contains(active)) return
-      document.getElementById('page-title')?.focus({ preventScroll: true })
-    })
+      title?.focus({ preventScroll: true })
+    }
+    frame = requestAnimationFrame(settle)
+    return () => cancelAnimationFrame(frame)
   }, [route.path, route.query])
 
   if (state.phase !== 'ready' || !state.data) return null

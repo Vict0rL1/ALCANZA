@@ -5,7 +5,7 @@
  */
 import { addDays, localDateInTimeZone } from '../domain/dates'
 import { newId } from '../domain/ids'
-import type { Account, AppData, Goal, Language, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
+import type { Account, AppData, CategoryRule, Goal, Language, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 
 /** Textos de los datos ficticios en cada idioma (son datos, no textos de interfaz). */
@@ -40,6 +40,9 @@ const DEMO_TEXTS = {
     birthday: 'Regalo de cumpleaños',
     emergency: 'Fondo de emergencia',
     laptop: 'Laptop para la escuela',
+    ruleGroceries: 'supermercado',
+    rulePharmacy: 'farmacia',
+    ruleCoffee: 'café',
   },
   en: {
     checking: 'Chequing account',
@@ -71,6 +74,9 @@ const DEMO_TEXTS = {
     birthday: 'Birthday gift',
     emergency: 'Emergency fund',
     laptop: 'Laptop for school',
+    ruleGroceries: 'groceries',
+    rulePharmacy: 'pharmacy',
+    ruleCoffee: 'coffee',
   },
 } satisfies Record<Language, Record<string, string>>
 
@@ -308,6 +314,13 @@ export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es
     goals,
     categories: [],
     categoryLimits: [],
+    categoryRules: (
+      [
+        [L.ruleGroceries, 'groceries'],
+        [L.rulePharmacy, 'health'],
+        [L.ruleCoffee, 'dining'],
+      ] as const
+    ).map(([pattern, categoryId]): CategoryRule => ({ id: newId(), pattern, kind: 'expense', categoryId, createdAt: nowTs, updatedAt: nowTs })),
     createdAt: nowTs,
     updatedAt: nowTs,
     revision: 0,

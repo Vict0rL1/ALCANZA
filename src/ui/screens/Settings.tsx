@@ -24,6 +24,7 @@ import { fieldError, issueMessage } from '../labels'
 import { CardFields, CardSummaryView } from '../cardUi'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { CategoriesSection } from './CategoriesSection'
+import { RulesSection } from './RulesSection'
 
 export const APP_VERSION = '0.1.0'
 
@@ -215,6 +216,7 @@ export function Settings() {
       </Card>
 
       <CategoriesSection />
+      <RulesSection />
 
       <Card labelledBy="backup-title">
         <h2 id="backup-title" className="card__title">

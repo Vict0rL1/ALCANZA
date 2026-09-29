@@ -174,7 +174,8 @@ describe('migraciones', () => {
     const r = validateAppData(v1)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.data.schemaVersion).toBe(3)
+      expect(r.data.schemaVersion).toBe(4)
+      expect(r.data.categoryRules).toEqual([])
       expect(r.data.categories).toEqual([])
       expect(r.data.categoryLimits).toEqual([])
     }

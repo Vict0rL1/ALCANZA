@@ -2090,3 +2090,35 @@ fieldset.bill-row {
   color: var(--ink-2);
   font-weight: 500;
 }
+
+.import-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.import-row__category {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.input--small {
+  min-height: 40px;
+  padding-block: 6px;
+  font-size: 0.95rem;
+  width: auto;
+  max-width: 100%;
+}
+
+.import-row__category .select {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.import-row__category .btn {
+  white-space: nowrap;
+}

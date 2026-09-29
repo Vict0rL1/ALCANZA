@@ -15,6 +15,8 @@ import {
 import { categoriesForKind } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { importTransactions, removeTransactions } from '../../domain/operations'
+import { matchCategoryRule, RULE_PATTERN_MAX } from '../../domain/rules'
+import type { CategoryRule } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
@@ -26,6 +28,7 @@ import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, issueMessage } from '../labels'
 import { href, navigate } from '../router'
+import { RuleDialog } from './RulesSection'
 
 const PAGE = 100
 
@@ -64,6 +67,9 @@ export function BankImport() {
   const [expenseCategory, setExpenseCategory] = useState('other_expense')
   const [incomeCategory, setIncomeCategory] = useState('other_income')
   const [choices, setChoices] = useState<Map<string, boolean>>(new Map())
+  // Categoría elegida a mano en una fila (tiene prioridad sobre las reglas).
+  const [rowCategories, setRowCategories] = useState<Map<string, string>>(new Map())
+  const [ruleFor, setRuleFor] = useState<{ pattern: string; kind: 'expense' | 'income'; categoryId: string } | null>(null)
   const [limit, setLimit] = useState(PAGE)
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
@@ -120,6 +126,21 @@ export function BankImport() {
   const hasSameDay = selected.some((r) => r.anchorRelation === 'sameDay')
   const selectedTotal = selected.reduce((sum, r) => sum + (r.kind === 'income' ? r.amountMinor! : -r.amountMinor!), 0)
 
+  /** Categoría de una fila: la elegida a mano, si no la de una regla, si no la general. */
+  const categoryFor = (row: ImportRow): { categoryId: string; rule?: CategoryRule } => {
+    const kind = row.kind ?? 'expense'
+    const manual = row.importRef ? rowCategories.get(row.importRef) : undefined
+    if (manual) return { categoryId: manual }
+    const rule = matchCategoryRule(row.description, kind, data.categoryRules, data.categories)
+    if (rule) return { categoryId: rule.categoryId, rule }
+    return { categoryId: kind === 'income' ? incomeCategory : expenseCategory }
+  }
+
+  const setRowCategory = (row: ImportRow, categoryId: string) => {
+    if (!row.importRef) return
+    setRowCategories((prev) => new Map(prev).set(row.importRef!, categoryId))
+  }
+
   const toggle = (row: ImportRow, value: boolean) => {
     if (!row.importRef) return
     setChoices((prev) => new Map(prev).set(row.importRef!, value))
@@ -134,7 +155,7 @@ export function BankImport() {
       amountMinor: r.amountMinor,
       date: r.date,
       accountId,
-      categoryId: r.kind === 'income' ? incomeCategory : expenseCategory,
+      categoryId: categoryFor(r).categoryId,
       note: r.description || undefined,
       importRef: r.importRef,
     }))
@@ -283,7 +304,9 @@ export function BankImport() {
                 options={categoriesForKind('income', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
               />
             </div>
-            <p className="note">{t('bankImport.categoryNote')}</p>
+            <p className="note">
+              {t('bankImport.categoryNote')} <a href={href('/ajustes?seccion=reglas')}>{t('bankImport.manageRules')}</a>
+            </p>
           </Card>
 
           <Card labelledBy="import-review-title">
@@ -322,6 +345,7 @@ export function BankImport() {
                 const importable = isImportable(row)
                 const inputId = `import-row-${row.line}`
                 const matchHint = possibleMatch(row)
+                const category = importable ? categoryFor(row) : null
                 return (
                   <li key={row.line} className={`item import-row${importable ? '' : ' import-row--disabled'}`}>
                     <input
@@ -333,16 +357,48 @@ export function BankImport() {
                       onChange={(e) => toggle(row, e.target.checked)}
                       aria-describedby={`${inputId}-meta`}
                     />
-                    <label htmlFor={inputId} className="item__main">
-                      <span className="item__title">{row.description || t('bankImport.noDescription')}</span>
-                      <span className="item__meta" id={`${inputId}-meta`}>
-                        {t('bankImport.line', { n: row.line })}
-                        {row.date ? ` · ${fmt.date(row.date, { compact: true, today })}` : ''}
-                        {matchHint ? ` · ${matchHint}` : ''}
-                        {importable && row.anchorRelation === 'before' ? ` · ${t('bankImport.notInBalance')}` : ''}
-                      </span>
-                      <span className="item__badges">{rowBadges(row)}</span>
-                    </label>
+                    <div className="item__main">
+                      <label htmlFor={inputId} className="import-row__label">
+                        <span className="item__title">{row.description || t('bankImport.noDescription')}</span>
+                        <span className="item__meta" id={`${inputId}-meta`}>
+                          {t('bankImport.line', { n: row.line })}
+                          {row.date ? ` · ${fmt.date(row.date, { compact: true, today })}` : ''}
+                          {matchHint ? ` · ${matchHint}` : ''}
+                          {importable && row.anchorRelation === 'before' ? ` · ${t('bankImport.notInBalance')}` : ''}
+                          {category?.rule ? ` · ${t('bankImport.byRule', { pattern: category.rule.pattern })}` : ''}
+                        </span>
+                        <span className="item__badges">{rowBadges(row)}</span>
+                      </label>
+                      {importable && category && (
+                        <div className="import-row__category">
+                          <select
+                            className="input select input--small"
+                            value={category.categoryId}
+                            aria-label={t('bankImport.rowCategory', { description: row.description || t('bankImport.line', { n: row.line }) })}
+                            onChange={(e) => setRowCategory(row, e.target.value)}
+                          >
+                            {categoriesForKind(row.kind, data.categories).map((c) => (
+                              <option key={c} value={c}>
+                                {categoryLabel(t, c)}
+                              </option>
+                            ))}
+                          </select>
+                          {rowCategories.has(row.importRef) &&
+                            row.description &&
+                            matchCategoryRule(row.description, row.kind, data.categoryRules, data.categories)?.categoryId !== category.categoryId && (
+                            <button
+                              type="button"
+                              className="btn btn--small btn--ghost"
+                              onClick={() => setRuleFor({ pattern: row.description.slice(0, RULE_PATTERN_MAX), kind: row.kind, categoryId: category.categoryId })}
+                            >
+                              <Icon name="plus" size={16} />
+                              {t('bankImport.makeRule')}
+                              <span className="sr-only">: {row.description}</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {row.amountMinor !== undefined && (
                       <span className={`item__amount item__amount--${row.kind}`}>{fmt.money(row.kind === 'income' ? row.amountMinor : -row.amountMinor, { sign: true })}</span>
                     )}
@@ -386,6 +442,7 @@ export function BankImport() {
               </a>
             </div>
           </Card>
+          {ruleFor && <RuleDialog rule={null} initial={ruleFor} onClose={() => setRuleFor(null)} />}
         </>
       )}
     </div>
