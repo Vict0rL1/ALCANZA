@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { computeBudget, upcomingItems } from '../../domain/budget'
+import { cardPaymentReminders } from '../../domain/cards'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped } from '../../domain/operations'
@@ -25,6 +26,7 @@ export function Home() {
   const budget = useMemo(() => computeBudget(data, today), [data, today])
   const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 6), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
+  const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
   const [balanceOpen, setBalanceOpen] = useState(false)
 
@@ -236,13 +238,28 @@ export function Home() {
             </div>
           </Card>
           {/* Recordatorios dentro de la app */}
-          {otherReminders.length > 0 && (
+          {(otherReminders.length > 0 || cardReminders.length > 0) && (
             <Card labelledBy="reminders-title">
               <h2 id="reminders-title" className="card__title">
                 <Icon name="clock" />
                 {t('home.remindersTitle')}
               </h2>
               <ul className="item-list">
+                {cardReminders.map(({ account, summary }) => (
+                  <li key={`card-${account.id}`} className="item">
+                    <div className="item__main">
+                      <p className="item__title">{t('card.reminderTitle')}</p>
+                      <p className="item__meta">
+                        {t('card.reminderItem', {
+                          name: account.name,
+                          date: fmt.date(summary.nextDueDate!, { compact: true, today }),
+                          debt: fmt.money(summary.debtMinor),
+                          min: fmt.money(summary.minPaymentMinor),
+                        })}
+                      </p>
+                    </div>
+                  </li>
+                ))}
                 {otherReminders.map((i) => (
                   <li key={i.key} className="item">
                     <div className="item__main">

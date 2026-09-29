@@ -226,7 +226,30 @@ Suposiciones (se muestran en pantalla):
   el disponible baja en el momento de la compra; el pago posterior no cambia S.
   Si no cuenta, la compra no afecta hasta que se paga (la transferencia baja S).
 - Una cuenta no puede convertirse en tarjeta ni al revés (cambiaría el signo del saldo).
-- Límite de crédito, intereses y fechas de corte: fuera de esta fase.
+- Datos opcionales de la tarjeta (`card`): límite, tasa anual, día de corte, día de
+  pago y regla del pago mínimo. Con ellos se muestra (sin cambiar el disponible):
+
+```
+Deuda                     = max(0, −saldo)
+Crédito disponible        = límite − deuda            (negativo = sobre el límite)
+Pago mínimo ESTIMADO      = min(deuda, max(importe fijo, ceil(deuda × % / 100)))   (por defecto 3 % y 10,00)
+Interés de un mes ESTIMADO = ceil(deuda × tasa anual / 12)   (si no se paga nada)
+Próximo corte / pago      = el día indicado de este mes o del siguiente; en meses cortos, el último día
+```
+
+- Las tasas y porcentajes se guardan como **enteros en puntos básicos**
+  (19,99 % = 1999), sin decimales flotantes.
+- Son estimaciones orientativas: los bancos calculan con saldo diario promedio y
+  reglas propias. La app lo dice junto a cada cifra.
+- Recordatorio dentro de la app: si hay deuda y el pago vence en los próximos 7 días.
+
+## 10 b. Categorías personalizadas
+
+- Además de las fijas, la persona puede crear categorías de gasto o de ingreso
+  (id `c_…`, nombre único por tipo). El tipo no cambia después de crearlas.
+- **Archivar** la oculta de los formularios; los movimientos antiguos siguen siendo
+  válidos y conservan su nombre. Solo se puede **eliminar** si nadie la usa.
+- Las devoluciones usan las categorías de gasto (fijas y personalizadas).
 
 ## 11. Integridad de datos
 

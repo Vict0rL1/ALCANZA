@@ -36,10 +36,14 @@ export interface Translator {
   tn: (base: string, count: number, params?: Params) => string
 }
 
-export function createTranslator(language: Language): Translator {
+/**
+ * `extra` añade textos que vienen de los datos (nombres de categorías
+ * personalizadas: `category.c_…`), así se muestran igual que las fijas.
+ */
+export function createTranslator(language: Language, extra: Record<string, string> = {}): Translator {
   return {
     language,
-    t: (key, params) => translate(language, key, params),
+    t: (key, params) => (key in extra ? interpolate(extra[key]!, params) : translate(language, key, params)),
     tn: (base, count, params) => translatePlural(language, base, count, params),
   }
 }

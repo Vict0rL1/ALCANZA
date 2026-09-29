@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 1 as const
+export const SCHEMA_VERSION = 2 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -35,6 +35,25 @@ export interface BalanceAnchor {
   setAt: Timestamp
 }
 
+/**
+ * Datos opcionales de una tarjeta de crédito. Las cifras derivadas (pago mínimo,
+ * intereses) son ESTIMACIONES para orientar; el banco manda.
+ */
+export interface CardDetails {
+  /** Límite de crédito. */
+  limitMinor?: number
+  /** Tasa anual en puntos básicos (19,99 % = 1999). */
+  aprBps?: number
+  /** Día del mes de la fecha de corte (1–31; en meses cortos, el último día). */
+  statementDay?: number
+  /** Día del mes en que vence el pago (1–31; en meses cortos, el último día). */
+  dueDay?: number
+  /** Pago mínimo: porcentaje de la deuda en puntos básicos (3 % = 300). */
+  minPaymentBps?: number
+  /** Pago mínimo: importe fijo mínimo. */
+  minPaymentFloorMinor?: number
+}
+
 export interface Account {
   id: string
   name: string
@@ -42,6 +61,8 @@ export interface Account {
   /** Si es `true`, su saldo cuenta para "Disponible hasta el próximo ingreso". */
   includeInBudget: boolean
   anchor: BalanceAnchor
+  /** Solo tarjetas de crédito. */
+  card?: CardDetails
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -131,6 +152,18 @@ export interface Goal {
   updatedAt: Timestamp
 }
 
+/** Categoría creada por la persona. Las fijas viven en `categories.ts`. */
+export interface CustomCategory {
+  /** Empieza por `c_` para no chocar nunca con una categoría fija. */
+  id: string
+  name: string
+  kind: 'expense' | 'income'
+  /** Archivada: no se ofrece en formularios, pero los movimientos antiguos la conservan. */
+  archived: boolean
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
 export type NumberLocale = 'es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
 export type DateStyle = 'short' | 'medium' | 'iso'
 export type Language = 'es' | 'en'
@@ -155,6 +188,7 @@ export interface AppData {
   transactions: Transaction[]
   schedules: Schedule[]
   goals: Goal[]
+  categories: CustomCategory[]
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

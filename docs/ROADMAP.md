@@ -30,6 +30,10 @@ Hecho:
   nueva. Funciona en `https` o `localhost`; no en modo desarrollo.
 - ✅ **Tarjetas de crédito:** cuenta tipo tarjeta con deuda; el pago es una
   transferencia, no un gasto.
+- ✅ **Tarjetas completas:** límite, tasa anual, días de corte y de pago, pago mínimo
+  e intereses estimados (en enteros) y recordatorio del pago en Inicio.
+- ✅ **Categorías personalizadas:** crear, renombrar, archivar y eliminar si no se usan.
+  Formato de datos v2 con migración probada desde v1.
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
@@ -37,8 +41,6 @@ Pendiente:
 
 | Tarea | Notas |
 |---|---|
-| Tarjetas: límite, intereses y fecha de corte | Recordatorio del pago mínimo; intereses con enteros y redondeo documentado. |
-| Categorías personalizadas | Con id estable y nombre editable. |
 | Papelera (*tombstones*) | Marcar eliminados con `deletedAt` en vez de borrar: necesario para sincronizar después. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
 

@@ -11,6 +11,11 @@ export function categoryLabel(t: Translator['t'], id: string | undefined): strin
   return t(`category.${id}` as MessageKey)
 }
 
+/** Opciones de categoría: si el registro usa una categoría archivada, se mantiene visible. */
+export function withCurrent(options: readonly string[], current: string | undefined): string[] {
+  return current && !options.includes(current) ? [...options, current] : [...options]
+}
+
 export function frequencyLabel(t: Translator['t'], f: Frequency): string {
   return t(`frequency.${f}` as MessageKey)
 }

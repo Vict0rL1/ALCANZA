@@ -175,7 +175,27 @@ export function parseMoney(
   locale: string,
   options: ParseMoneyOptions = {},
 ): ParseMoneyResult {
-  const digits = currencyDigits(currency)
+  return parseScaled(input, currencyDigits(currency), locale, options)
+}
+
+/**
+ * Porcentaje con hasta 2 decimales en puntos básicos: "19,99" → 1999.
+ * Mismas reglas de separadores que los importes.
+ */
+export function parsePercentBps(input: string, locale: string): ParseMoneyResult {
+  const r = parseScaled(input.replace('%', ''), 2, locale, { allowZero: true })
+  if (r.ok && r.minor > 10000) return { ok: false, error: 'tooLarge', digits: 2 }
+  return r
+}
+
+/** Texto editable de un porcentaje en puntos básicos: 1999 → "19.99". */
+export function bpsToInputString(bps: number, locale: string): string {
+  const { decimal } = localeSeparators(locale)
+  const s = String(bps).padStart(3, '0')
+  return `${s.slice(0, -2)}${decimal}${s.slice(-2)}`
+}
+
+function parseScaled(input: string, digits: number, locale: string, options: ParseMoneyOptions): ParseMoneyResult {
   const fail = (error: ParseMoneyError): ParseMoneyResult => ({ ok: false, error, digits })
 
   let s = input.trim().replace(/[\s  '’]/g, '').replace(/[$€£¥]/g, '')

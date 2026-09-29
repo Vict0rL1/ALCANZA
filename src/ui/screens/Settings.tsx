@@ -21,6 +21,9 @@ import { useToast } from '../components/toastContext'
 import { UpdateBalanceDialog } from '../dialogs'
 import { createFormatter, useFormat } from '../format'
 import { fieldError, issueMessage } from '../labels'
+import { CardFields, CardSummaryView } from '../cardUi'
+import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
+import { CategoriesSection } from './CategoriesSection'
 
 export const APP_VERSION = '0.1.0'
 
@@ -186,6 +189,7 @@ export function Settings() {
                       : fmt.money(b.balanceMinor)}
                   </p>
                 </div>
+                {a.kind === 'credit' && <CardSummaryView account={a} fmt={fmt} />}
                 <div className="item__actions">
                   <button type="button" className="btn btn--small btn--secondary" onClick={() => setBalanceFor(a.id)}>
                     {t('home.updateBalance')}
@@ -209,6 +213,8 @@ export function Settings() {
           {t('settings.accounts.cardsText')}
         </Alert>
       </Card>
+
+      <CategoriesSection />
 
       <Card labelledBy="backup-title">
         <h2 id="backup-title" className="card__title">
@@ -383,8 +389,17 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
   const [balanceText, setBalanceText] = useState('')
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
+  const [cardText, setCardText] = useCardFields(account?.card, fmt)
+  const [cardErrors, setCardErrors] = useState<CardErrors>({})
 
   const submit = async () => {
+    let card: AccountDraft['card']
+    if (kind === 'credit') {
+      const parsed = parseCardFields(cardText, fmt, t)
+      setCardErrors(parsed.errors)
+      if (!parsed.card) return
+      card = parsed.card
+    }
     let openingBalanceMinor: number | undefined
     if (!account) {
       const parsed = parseMoneyText(balanceText || '0', fmt, { allowNegative: true, allowZero: true })
@@ -393,7 +408,7 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
       // En una tarjeta se escribe lo que se debe; se guarda como saldo negativo.
       openingBalanceMinor = kind === 'credit' ? (parsed.minor === 0 ? 0 : -parsed.minor) : parsed.minor
     }
-    const draft: AccountDraft = { id, name, kind, includeInBudget: include, openingBalanceMinor, openingDate: today }
+    const draft: AccountDraft = { id, name, kind, includeInBudget: include, openingBalanceMinor, openingDate: today, card }
     const { result, saved } = await run((d, c) => saveAccount(d, draft, c))
     if (!result.ok) {
       setIssues(result.issues)
@@ -455,6 +470,7 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
           fmt={fmt}
         />
       )}
+      {kind === 'credit' && <CardFields value={cardText} onChange={setCardText} errors={cardErrors} fmt={fmt} />}
       {generalIssue && <Alert tone="critical" title={issueMessage(t, fmt, generalIssue)} role="alert" />}
     </Dialog>
   )

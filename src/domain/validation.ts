@@ -7,7 +7,7 @@ import { categoriesForKind } from './categories'
 import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
-import type { Account, AppData, Goal, Schedule, Settings, Transaction } from './types'
+import type { Account, AppData, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
 
 export type IssueCode =
   | 'required'
@@ -36,6 +36,8 @@ export type IssueCode =
   | 'accountInUse'
   | 'lastBudgetAccount'
   | 'creditKindChange'
+  | 'duplicateName'
+  | 'categoryInUse'
   | 'notFound'
 
 export interface Issue {
@@ -91,7 +93,7 @@ function checkTimestamps(value: { createdAt?: unknown; updatedAt?: unknown }, pr
 }
 
 export interface ValidationContext {
-  data: Pick<AppData, 'accounts' | 'transactions' | 'settings'>
+  data: Pick<AppData, 'accounts' | 'transactions' | 'settings'> & { categories?: CustomCategory[] }
   /** Si se indica, un movimiento realizado no puede tener fecha posterior. */
   today?: string
   prefix?: string
@@ -125,7 +127,39 @@ export function validateAccount(a: Account, prefix = ''): Issue[] {
     checkDate(a.anchor.date, `${prefix}anchor.date`, issues)
     if (!isValidTimestamp(a.anchor.setAt)) issues.push({ path: `${prefix}anchor.setAt`, code: 'invalidTimestamp' })
   }
+  if (a.card !== undefined) {
+    const c = a.card
+    if (!c || typeof c !== 'object' || a.kind !== 'credit') {
+      issues.push({ path: `${prefix}card`, code: 'invalidValue' })
+    } else {
+      if (c.limitMinor !== undefined) checkPositiveAmount(c.limitMinor, `${prefix}card.limitMinor`, issues)
+      const intIn = (v: unknown, min: number, max: number) => Number.isInteger(v) && (v as number) >= min && (v as number) <= max
+      if (c.aprBps !== undefined && !intIn(c.aprBps, 0, 10000)) issues.push({ path: `${prefix}card.aprBps`, code: 'invalidValue' })
+      if (c.minPaymentBps !== undefined && !intIn(c.minPaymentBps, 0, 10000)) issues.push({ path: `${prefix}card.minPaymentBps`, code: 'invalidValue' })
+      if (c.statementDay !== undefined && !intIn(c.statementDay, 1, 31)) issues.push({ path: `${prefix}card.statementDay`, code: 'invalidValue' })
+      if (c.dueDay !== undefined && !intIn(c.dueDay, 1, 31)) issues.push({ path: `${prefix}card.dueDay`, code: 'invalidValue' })
+      if (c.minPaymentFloorMinor !== undefined && !(isMinorAmount(c.minPaymentFloorMinor) && c.minPaymentFloorMinor >= 0 && c.minPaymentFloorMinor <= MAX_AMOUNT_MINOR)) {
+        issues.push({ path: `${prefix}card.minPaymentFloorMinor`, code: 'invalidAmount' })
+      }
+    }
+  }
   checkTimestamps(a, prefix, issues)
+  return issues
+}
+
+export function validateCategory(c: CustomCategory, all: readonly CustomCategory[], prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(c.id) || !c.id.startsWith('c_')) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  checkName(c.name, `${prefix}name`, issues, 40)
+  if (c.kind !== 'expense' && c.kind !== 'income') issues.push({ path: `${prefix}kind`, code: 'invalidValue' })
+  if (typeof c.archived !== 'boolean') issues.push({ path: `${prefix}archived`, code: 'invalidValue' })
+  if (typeof c.name === 'string') {
+    const norm = c.name.trim().toLocaleLowerCase()
+    if (all.some((o) => o.id !== c.id && o.kind === c.kind && o.name.trim().toLocaleLowerCase() === norm)) {
+      issues.push({ path: `${prefix}name`, code: 'duplicateName' })
+    }
+  }
+  checkTimestamps(c, prefix, issues)
   return issues
 }
 
@@ -152,7 +186,7 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
     if (tx.categoryId !== undefined) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   } else if (isOneOf(TX_KINDS, tx.kind)) {
     if (tx.toAccountId !== undefined) issues.push({ path: `${p}toAccountId`, code: 'invalidValue' })
-    if (!tx.categoryId || !categoriesForKind(tx.kind).includes(tx.categoryId)) {
+    if (!tx.categoryId || !categoriesForKind(tx.kind, ctx.data.categories, { includeArchived: true }).includes(tx.categoryId)) {
       issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
     }
   }
@@ -202,7 +236,7 @@ export function validateSchedule(s: Schedule, ctx: ValidationContext): Issue[] {
   }
   if (!ctx.data.accounts.some((a) => a.id === s.accountId)) issues.push({ path: `${p}accountId`, code: 'unknownAccount' })
   if (s.kind === 'income' || s.kind === 'expense') {
-    if (!s.categoryId || !categoriesForKind(s.kind).includes(s.categoryId)) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+    if (!s.categoryId || !categoriesForKind(s.kind, ctx.data.categories, { includeArchived: true }).includes(s.categoryId)) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   }
   if (!isOneOf(FREQUENCIES, s.frequency)) issues.push({ path: `${p}frequency`, code: 'invalidValue' })
   checkDate(s.startDate, `${p}startDate`, issues)

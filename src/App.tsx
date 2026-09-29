@@ -22,7 +22,11 @@ export function App() {
   // Antes de configurar, el idioma se elige en la bienvenida; después se guarda en Ajustes.
   const [setupLanguage, setSetupLanguage] = useState<Language>('es')
   const language = state.phase === 'ready' && state.data ? state.data.settings.language : setupLanguage
-  const translator = useMemo(() => createTranslator(language), [language])
+  const categories = state.phase === 'ready' && state.data ? state.data.categories : undefined
+  const translator = useMemo(
+    () => createTranslator(language, Object.fromEntries((categories ?? []).map((c) => [`category.${c.id}`, c.name]))),
+    [language, categories],
+  )
 
   useEffect(() => {
     document.documentElement.lang = language

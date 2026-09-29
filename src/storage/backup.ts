@@ -5,10 +5,11 @@
  * se cambia nada. Se copian solo los campos conocidos (se descarta lo demás).
  */
 import { isValidId } from '../domain/ids'
-import type { Account, AppData, Goal, GoalAllocation, Schedule, Settings, Transaction } from '../domain/types'
+import type { Account, AppData, CustomCategory, Goal, GoalAllocation, Schedule, Settings, Transaction } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 import {
   validateAccount,
+  validateCategory,
   validateGoal,
   validateSchedule,
   validateSettings,
@@ -63,8 +64,10 @@ function pick<T>(src: Obj, keys: readonly string[]): T {
 }
 
 const SETTINGS_KEYS = ['currency', 'numberLocale', 'dateStyle', 'timeZone', 'language', 'fallbackHorizonDays'] as const
-const ACCOUNT_KEYS = ['id', 'name', 'kind', 'includeInBudget', 'anchor', 'createdAt', 'updatedAt'] as const
+const ACCOUNT_KEYS = ['id', 'name', 'kind', 'includeInBudget', 'anchor', 'card', 'createdAt', 'updatedAt'] as const
 const ANCHOR_KEYS = ['amountMinor', 'date', 'setAt'] as const
+const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPaymentBps', 'minPaymentFloorMinor'] as const
+const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'createdAt', 'updatedAt'] as const
 const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
   'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'createdAt', 'updatedAt',
@@ -98,7 +101,7 @@ export function validateAppData(raw: unknown): ImportResult {
   if (!isValidId(migrated.budgetId)) issues.push({ path: 'budgetId', code: 'invalidId' })
   if (typeof migrated.isDemo !== 'boolean') issues.push({ path: 'isDemo', code: 'invalidValue' })
   if (!isObj(migrated.settings)) issues.push({ path: 'settings', code: 'required' })
-  for (const key of ['accounts', 'transactions', 'schedules', 'goals'] as const) {
+  for (const key of ['accounts', 'transactions', 'schedules', 'goals', 'categories'] as const) {
     const value = migrated[key]
     if (!Array.isArray(value)) issues.push({ path: key, code: 'required' })
     else if (value.length > MAX_RECORDS) issues.push({ path: key, code: 'tooManyRecords', params: { max: MAX_RECORDS } })
@@ -113,6 +116,7 @@ export function validateAppData(raw: unknown): ImportResult {
   const accounts = (migrated.accounts as Obj[]).map((a) => {
     const acc = pick<Account>(a, ACCOUNT_KEYS)
     if (isObj(a.anchor)) acc.anchor = pick(a.anchor, ANCHOR_KEYS)
+    if (isObj(a.card)) acc.card = pick(a.card, CARD_KEYS)
     return acc
   })
   accounts.forEach((a, i) => issues.push(...validateAccount(a, `accounts[${i}].`)))
@@ -130,7 +134,10 @@ export function validateAppData(raw: unknown): ImportResult {
     return goal
   })
 
-  const ctxData = { accounts, transactions, settings }
+  const categories = (migrated.categories as Obj[]).map((c) => pick<CustomCategory>(c, CATEGORY_KEYS))
+  categories.forEach((c, i) => issues.push(...validateCategory(c, categories, `categories[${i}].`)))
+  checkDuplicates(categories, 'categories', issues)
+  const ctxData = { accounts, transactions, settings, categories }
   transactions.forEach((t, i) => issues.push(...validateTransaction(t, { data: ctxData, prefix: `transactions[${i}].` })))
   schedules.forEach((s, i) => issues.push(...validateSchedule(s, { data: ctxData, prefix: `schedules[${i}].` })))
   goals.forEach((g, i) => issues.push(...validateGoal(g, { data: ctxData, prefix: `goals[${i}].` })))
@@ -157,6 +164,7 @@ export function validateAppData(raw: unknown): ImportResult {
     transactions,
     schedules,
     goals,
+    categories,
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

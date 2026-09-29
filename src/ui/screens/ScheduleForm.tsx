@@ -14,7 +14,7 @@ import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, frequencyLabel, issueMessage, otherIssues } from '../labels'
+import { categoryLabel, fieldError, frequencyLabel, issueMessage, otherIssues, withCurrent } from '../labels'
 import { href, navigate, type Route } from '../router'
 
 const REMINDER_OPTIONS = [0, 1, 2, 3, 7, 14]
@@ -57,7 +57,7 @@ export function ScheduleForm({ route }: { route: Route }) {
 
   const changeKind = (k: ScheduleKind) => {
     setKind(k)
-    if (!categoriesForKind(k).includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
+    if (!categoriesForKind(k, data.categories).includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
   }
 
   const submit = async () => {
@@ -153,7 +153,7 @@ export function ScheduleForm({ route }: { route: Route }) {
           <TextField label={t('scheduleForm.endDate')} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} hint={t('scheduleForm.endDateHint')} error={fieldError(t, fmt, issues, 'endDate')} />
         )}
         <SelectField label={t('fields.account')} value={accountId} onChange={(e) => setAccountId(e.target.value)} options={data.accounts.map((a) => ({ value: a.id, label: a.name }))} error={fieldError(t, fmt, issues, 'accountId')} />
-        <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoriesForKind(kind).map((c) => ({ value: c, label: categoryLabel(t, c) }))} />
+        <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))} />
         <SelectField
           label={t('scheduleForm.reminder')}
           value={String(reminder)}

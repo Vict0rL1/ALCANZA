@@ -18,7 +18,7 @@ import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
 import { useDeleteTransaction } from '../useDeleteTransaction'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
+import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle, withCurrent } from '../labels'
 import { href, navigate, type Route } from '../router'
 
 const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note']
@@ -64,7 +64,7 @@ export function MovementForm({ route }: { route: Route }) {
 
   const changeKind = (k: TxKind) => {
     setKind(k)
-    const valid = categoriesForKind(k)
+    const valid = categoriesForKind(k, data.categories)
     if (k !== 'transfer' && !valid.includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
     if (k === 'transfer' && toAccountId === accountId) setToAccountId(data.accounts.find((a) => a.id !== accountId)?.id ?? '')
   }
@@ -213,7 +213,7 @@ export function MovementForm({ route }: { route: Route }) {
             label={t('fields.category')}
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            options={categoriesForKind(kind).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
+            options={withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
             error={fieldError(t, fmt, issues, 'categoryId')}
             hint={kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
           />

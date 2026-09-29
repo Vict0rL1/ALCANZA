@@ -306,6 +306,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es
     transactions,
     schedules: [salary, rent, music, phone, transit, electricity, tuition],
     goals,
+    categories: [],
     createdAt: nowTs,
     updatedAt: nowTs,
     revision: 0,

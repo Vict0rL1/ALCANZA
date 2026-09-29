@@ -66,7 +66,7 @@ export function Movements() {
 
   const categoryOptions = [
     { value: 'all', label: t('filters.allCategories') },
-    ...[...categoriesForKind('expense'), ...categoriesForKind('income')].map((c) => ({ value: c, label: categoryLabel(t, c) })),
+    ...[...categoriesForKind('expense', data.categories, { includeArchived: true }), ...categoriesForKind('income', data.categories, { includeArchived: true })].map((c) => ({ value: c, label: categoryLabel(t, c) })),
   ]
 
   return (

@@ -8,8 +8,8 @@ import { SCHEMA_VERSION } from '../domain/types'
 type Raw = Record<string, unknown>
 
 const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
-  // Ejemplo para el futuro:
-  // 1: (raw) => ({ ...raw, schemaVersion: 2, nuevoCampo: valorPorDefecto }),
+  /** v1 → v2: categorías personalizadas (lista vacía). Los datos de tarjeta son opcionales. */
+  1: (raw) => ({ ...raw, schemaVersion: 2, categories: Array.isArray(raw.categories) ? raw.categories : [] }),
 }
 
 export function migrate(raw: Raw): Raw {

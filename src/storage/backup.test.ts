@@ -165,3 +165,34 @@ describe('datos iniciales y demostración', () => {
     }
   })
 })
+
+describe('migraciones', () => {
+  it('una copia de la versión 1 se migra a la 2 (categorías vacías)', () => {
+    const v1 = JSON.parse(JSON.stringify(baseData())) as Record<string, unknown>
+    v1.schemaVersion = 1
+    delete v1.categories
+    const r = validateAppData(v1)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.data.schemaVersion).toBe(2)
+      expect(r.data.categories).toEqual([])
+    }
+  })
+
+  it('conserva datos de tarjeta y categorías al exportar e importar', () => {
+    const data = baseData({
+      accounts: [
+        baseData().accounts[0]!,
+        { ...baseData().accounts[0]!, id: 'visa', kind: 'credit', card: { limitMinor: 50000, aprBps: 1999, dueDay: 15 } },
+      ],
+      categories: [{ id: 'c_pets', name: 'Mascotas', kind: 'expense', archived: false, createdAt: NOW, updatedAt: NOW }],
+    })
+    const r = parseBackup(JSON.stringify(createBackup(data, new Date(NOW), '0.2.0')))
+    expect(r.ok && r.data).toEqual(data)
+  })
+
+  it('rechaza datos de tarjeta en cuentas que no son tarjeta', () => {
+    const data = baseData({ accounts: [{ ...baseData().accounts[0]!, card: { limitMinor: 1 } }] })
+    expect(validateAppData(data).ok).toBe(false)
+  })
+})

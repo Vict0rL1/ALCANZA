@@ -43,6 +43,7 @@ export function baseData(overrides: Partial<AppData> = {}): AppData {
     transactions: [],
     schedules: [],
     goals: [],
+    categories: [],
     createdAt: EARLIER,
     updatedAt: EARLIER,
     revision: 0,

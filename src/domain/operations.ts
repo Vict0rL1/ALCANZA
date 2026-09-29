@@ -10,10 +10,11 @@ import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
 import { findSettlement } from './planItems'
-import type { Account, AppData, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
+import type { Account, AppData, CardDetails, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
 import { SCHEMA_VERSION } from './types'
 import {
   validateAccount,
+  validateCategory,
   validateGoal,
   validateSchedule,
   validateSettings,
@@ -380,7 +381,7 @@ export function updateAccountBalance(
   return { ok: true, data: touch(next, ctx.now), value: updated }
 }
 
-export type AccountDraft = Pick<Account, 'id' | 'name' | 'kind' | 'includeInBudget'> & {
+export type AccountDraft = Pick<Account, 'id' | 'name' | 'kind' | 'includeInBudget' | 'card'> & {
   /** Solo al crear. */
   openingBalanceMinor?: number
   openingDate?: LocalDate
@@ -393,6 +394,7 @@ export function saveAccount(data: AppData, draft: AccountDraft, ctx: OpContext):
     name: draft.name.trim(),
     kind: draft.kind,
     includeInBudget: draft.includeInBudget,
+    ...(draft.kind === 'credit' && draft.card ? { card: cleanCard(draft.card) } : {}),
     anchor: existing?.anchor ?? { amountMinor: draft.openingBalanceMinor ?? 0, date: draft.openingDate ?? ctx.today, setAt: ctx.now },
     createdAt: existing?.createdAt ?? ctx.now,
     updatedAt: ctx.now,
@@ -408,6 +410,13 @@ export function saveAccount(data: AppData, draft: AccountDraft, ctx: OpContext):
   return { ok: true, data: touch({ ...data, accounts }, ctx.now), value: account }
 }
 
+/** Quita campos vacíos de los datos de tarjeta. */
+function cleanCard(card: CardDetails): CardDetails {
+  const out: CardDetails = {}
+  for (const [k, v] of Object.entries(card) as [keyof CardDetails, number | undefined][]) if (v !== undefined) out[k] = v
+  return out
+}
+
 export function deleteAccount(data: AppData, id: string, ctx: OpContext): OpResult<Account> {
   const account = data.accounts.find((a) => a.id === id)
   if (!account) return fail([{ path: 'id', code: 'notFound' }])
@@ -417,6 +426,45 @@ export function deleteAccount(data: AppData, id: string, ctx: OpContext): OpResu
   const accounts = data.accounts.filter((a) => a.id !== id)
   if (!accounts.some((a) => a.includeInBudget)) return fail([{ path: 'id', code: 'lastBudgetAccount' }])
   return { ok: true, data: touch({ ...data, accounts }, ctx.now), value: account }
+}
+
+/* ------------------------------------------------------------------ */
+/* Categorías personalizadas                                           */
+/* ------------------------------------------------------------------ */
+
+export type CategoryDraft = Pick<CustomCategory, 'id' | 'name' | 'kind'>
+
+export function saveCategory(data: AppData, draft: CategoryDraft, ctx: OpContext): OpResult<CustomCategory> {
+  const existing = data.categories.find((c) => c.id === draft.id)
+  // El tipo no cambia después de crearla: los movimientos que la usan dependen de él.
+  const category: CustomCategory = {
+    id: draft.id,
+    name: draft.name.trim(),
+    kind: existing?.kind ?? draft.kind,
+    archived: existing?.archived ?? false,
+    createdAt: existing?.createdAt ?? ctx.now,
+    updatedAt: ctx.now,
+  }
+  const issues = validateCategory(category, data.categories)
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...data, categories: upsert(data.categories, category) }, ctx.now), value: category }
+}
+
+export function setCategoryArchived(data: AppData, id: string, archived: boolean, ctx: OpContext): OpResult<CustomCategory> {
+  const category = data.categories.find((c) => c.id === id)
+  if (!category) return fail([{ path: 'id', code: 'notFound' }])
+  if (category.archived === archived) return { ok: true, data, value: category, unchanged: true }
+  const updated = { ...category, archived, updatedAt: ctx.now }
+  return { ok: true, data: touch({ ...data, categories: upsert(data.categories, updated) }, ctx.now), value: updated }
+}
+
+/** Solo se elimina si ningún movimiento ni programado la usa; si no, se archiva. */
+export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpResult<CustomCategory> {
+  const category = data.categories.find((c) => c.id === id)
+  if (!category) return fail([{ path: 'id', code: 'notFound' }])
+  const used = data.transactions.some((t) => t.categoryId === id) || data.schedules.some((s) => s.categoryId === id)
+  if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
+  return { ok: true, data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id) }, ctx.now), value: category }
 }
 
 /* ------------------------------------------------------------------ */
@@ -470,6 +518,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     transactions: [],
     schedules: [],
     goals: [],
+    categories: [],
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,
