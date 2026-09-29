@@ -175,7 +175,7 @@ describe('migraciones', () => {
     const r = validateAppData(v1)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.data.schemaVersion).toBe(5)
+      expect(r.data.schemaVersion).toBe(6)
       expect(r.data.categoryRules).toEqual([])
       expect(r.data.categories).toEqual([])
       expect(r.data.categoryLimits).toEqual([])
@@ -195,7 +195,7 @@ describe('migraciones', () => {
     for (const key of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup']) delete v4[key]
     const r = validateAppData(v4)
     if (!r.ok) throw new Error(JSON.stringify(r.issues))
-    expect(r.data).toMatchObject({ schemaVersion: 5, trash: [], purgedImportRefs: [], favorites: [], reconciliations: [], backup: { reminder: 'weekly' } })
+    expect(r.data).toMatchObject({ schemaVersion: 6, periodBudgets: [], scenarios: [], trash: [], purgedImportRefs: [], favorites: [], reconciliations: [], backup: { reminder: 'weekly' } })
     expect(r.data.transactions).toEqual((v4.transactions as unknown[]))
     expect(r.data.schedules).toEqual((v4.schedules as unknown[]))
     expect(backupStatus(r.data, TODAY).neverExported).toBe(true)
@@ -230,7 +230,7 @@ describe('migraciones', () => {
       expect(loaded.status).toBe('ok')
       // Los datos originales no se sobrescriben al cargar; la copia previa conserva el texto exacto.
       expect(store.get(STORAGE_KEY)).toBe(raw)
-      expect(JSON.parse(store.get(`${PRE_MIGRATION_KEY_PREFIX}5`)!)).toEqual({ fromVersion: 4, raw })
+      expect(JSON.parse(store.get(`${PRE_MIGRATION_KEY_PREFIX}6`)!)).toEqual({ fromVersion: 4, raw })
       // Datos de una versión futura: se informan como no legibles y no se tocan.
       const future = JSON.stringify({ ...v4, schemaVersion: 99 })
       store.set(STORAGE_KEY, future)

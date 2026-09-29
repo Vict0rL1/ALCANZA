@@ -156,6 +156,12 @@ export function Settings() {
           options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
           hint={t('settings.language.hint')}
         />
+        <CheckboxField
+          checked={data.settings.weeklyReview !== false}
+          onChange={(v) => void setSetting({ weeklyReview: v })}
+          label={t('weekly.settingLabel')}
+          hint={t('weekly.settingHint')}
+        />
       </Card>
 
       <Card labelledBy="accounts-title">

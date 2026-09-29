@@ -51,6 +51,8 @@ export interface GoalPlan {
   /** Cuántos ingresos programados hay antes de la fecha (incluida). */
   incomeCount: number
   perIncomeMinor: number | null
+  /** Faltan menos de 7 días: la cuota «por semana» es todo lo que falta. */
+  underWeek: boolean
 }
 
 /**
@@ -73,6 +75,7 @@ export function goalPlan(goal: Goal, today: LocalDate, incomeDates: LocalDate[] 
     perMonthMinor: null,
     incomeCount: 0,
     perIncomeMinor: null,
+    underWeek: false,
   }
   if (complete) return { ...base, status: 'complete' }
   if (!goal.targetDate) return { ...base, status: 'noDate' }
@@ -91,5 +94,6 @@ export function goalPlan(goal: Goal, today: LocalDate, incomeDates: LocalDate[] 
     perMonthMinor: ceilDiv(remainingMinor, monthsLeft),
     incomeCount: incomes.length,
     perIncomeMinor: incomes.length > 0 ? ceilDiv(remainingMinor, incomes.length) : null,
+    underWeek: daysLeft < 7,
   }
 }

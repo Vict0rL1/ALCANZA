@@ -4,11 +4,13 @@ import { Icon, type IconName } from '../components/Icon'
 import { href, type Route } from '../router'
 import { Calendar } from './Calendar'
 import { Goals } from './Goals'
+import { PeriodBudgets } from './PeriodBudgets'
 import { Projection } from './Projection'
 
-const TABS: { id: 'calendario' | 'metas' | 'proyeccion'; key: 'plan.calendar' | 'plan.goals' | 'plan.projection'; icon: IconName }[] = [
+const TABS: { id: 'calendario' | 'metas' | 'periodos' | 'proyeccion'; key: 'plan.calendar' | 'plan.goals' | 'plan.periods' | 'plan.projection'; icon: IconName }[] = [
   { id: 'calendario', key: 'plan.calendar', icon: 'calendar' },
   { id: 'metas', key: 'plan.goals', icon: 'target' },
+  { id: 'periodos', key: 'plan.periods', icon: 'wallet' },
   { id: 'proyeccion', key: 'plan.projection', icon: 'trend' },
 ]
 
@@ -28,6 +30,7 @@ export function Plan({ route }: { route: Route }) {
       </nav>
       {tab === 'calendario' && <Calendar />}
       {tab === 'metas' && <Goals />}
+      {tab === 'periodos' && <PeriodBudgets />}
       {tab === 'proyeccion' && <Projection />}
     </div>
   )

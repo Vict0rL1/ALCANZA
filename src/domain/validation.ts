@@ -18,7 +18,10 @@ import type {
   Favorite,
   Goal,
   IncomeRange,
+  PeriodBudget,
+  PlannedExpense,
   Reconciliation,
+  SavedScenario,
   Schedule,
   Settings,
   Transaction,
@@ -67,6 +70,8 @@ export type IssueCode =
   | 'nothingToAdjust'
   | 'reasonRequired'
   | 'notABackupOfThisBudget'
+  | 'tooMany'
+  | 'dateInPast'
 
 export interface Issue {
   /** Campo afectado, por ejemplo 'amountMinor' o 'transactions[3].date'. */
@@ -138,6 +143,7 @@ export function validateSettings(s: Settings, prefix = ''): Issue[] {
   if (h !== null && !(Number.isInteger(h) && h >= 1 && h <= LIMITS.horizonMaxDays)) {
     issues.push({ path: `${prefix}fallbackHorizonDays`, code: 'invalidValue' })
   }
+  if (s.weeklyReview !== undefined && typeof s.weeklyReview !== 'boolean') issues.push({ path: `${prefix}weeklyReview`, code: 'invalidValue' })
   return issues
 }
 
@@ -353,7 +359,14 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
   const issues: Issue[] = []
   if (!isValidId(g.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
   checkName(g.name, `${p}name`, issues)
-  if (g.kind !== 'goal' && g.kind !== 'emergency') issues.push({ path: `${p}kind`, code: 'invalidValue' })
+  if (g.kind !== 'goal' && g.kind !== 'emergency' && g.kind !== 'expense') issues.push({ path: `${p}kind`, code: 'invalidValue' })
+  // Un gasto planificado necesita fecha de vencimiento; las demás metas no llevan `plan`.
+  if (g.kind === 'expense') {
+    if (g.targetDate === undefined) issues.push({ path: `${p}targetDate`, code: 'required' })
+    issues.push(...validatePlannedExpense(g.plan, `${p}plan.`))
+  } else if (g.plan !== undefined) {
+    issues.push({ path: `${p}plan`, code: 'invalidValue' })
+  }
   checkPositiveAmount(g.targetMinor, `${p}targetMinor`, issues)
   if (g.targetDate !== undefined) checkDate(g.targetDate, `${p}targetDate`, issues)
   if (g.currency !== ctx.data.settings.currency) {
@@ -377,6 +390,7 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
       else if (Math.abs(a.amountMinor) > MAX_AMOUNT_MINOR) issues.push({ path: `${ap}amountMinor`, code: 'amountTooLarge' })
       checkDate(a.date, `${ap}date`, issues)
       if (!isValidTimestamp(a.createdAt)) issues.push({ path: `${ap}createdAt`, code: 'invalidTimestamp' })
+      if (a.reason !== undefined && !isOneOf(ALLOCATION_REASONS, a.reason)) issues.push({ path: `${ap}reason`, code: 'invalidValue' })
     })
     if (issues.length === 0) {
       const saved = sumMinor(g.allocations.map((a) => a.amountMinor))
@@ -478,5 +492,97 @@ export function validateBackupState(b: BackupState, prefix = ''): Issue[] {
     if (b[key] !== undefined && !isValidTimestamp(b[key])) issues.push({ path: `${prefix}${key}`, code: 'invalidTimestamp' })
   }
   if (b.snoozedUntil !== undefined) checkDate(b.snoozedUntil, `${prefix}snoozedUntil`, issues)
+  return issues
+}
+
+export const ALLOCATION_REASONS = ['contribution', 'release', 'payment', 'carry'] as const
+export const REPEAT_MONTHS_MAX = 24
+
+function validatePlannedExpense(plan: PlannedExpense | undefined, p: string): Issue[] {
+  const issues: Issue[] = []
+  if (!plan || typeof plan !== 'object') return [{ path: p.slice(0, -1), code: 'required' }]
+  if (plan.repeatEveryMonths !== undefined && !(Number.isInteger(plan.repeatEveryMonths) && plan.repeatEveryMonths >= 1 && plan.repeatEveryMonths <= REPEAT_MONTHS_MAX)) {
+    issues.push({ path: `${p}repeatEveryMonths`, code: 'invalidValue' })
+  }
+  if (plan.link !== undefined) {
+    if (!plan.link || !isValidId(plan.link.scheduleId)) issues.push({ path: `${p}link.scheduleId`, code: 'invalidId' })
+    checkDate(plan.link?.occurrenceDate, `${p}link.occurrenceDate`, issues)
+  }
+  if (plan.categoryId !== undefined && (typeof plan.categoryId !== 'string' || plan.categoryId === '')) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+  if (plan.paidAt !== undefined && !isValidTimestamp(plan.paidAt)) issues.push({ path: `${p}paidAt`, code: 'invalidTimestamp' })
+  if (!Array.isArray(plan.history)) {
+    issues.push({ path: `${p}history`, code: 'invalidValue' })
+  } else {
+    plan.history.forEach((c, i) => {
+      const cp = `${p}history[${i}].`
+      if (!c || typeof c !== 'object') {
+        issues.push({ path: `${p}history[${i}]`, code: 'invalidValue' })
+        return
+      }
+      checkDate(c.dueDate, `${cp}dueDate`, issues)
+      for (const key of ['targetMinor', 'reservedMinor', 'paidMinor'] as const) {
+        if (!isMinorAmount(c[key]) || c[key] < 0 || c[key] > MAX_AMOUNT_MINOR) issues.push({ path: `${cp}${key}`, code: 'invalidAmount' })
+      }
+      if (!isValidId(c.txId)) issues.push({ path: `${cp}txId`, code: 'invalidId' })
+      if (c.surplus !== 'none' && c.surplus !== 'release' && c.surplus !== 'carry') issues.push({ path: `${cp}surplus`, code: 'invalidValue' })
+      if (!isValidTimestamp(c.paidAt)) issues.push({ path: `${cp}paidAt`, code: 'invalidTimestamp' })
+    })
+  }
+  return issues
+}
+
+export const PERIOD_TEMPLATES = ['semester', 'trip', 'custom'] as const
+
+export function validatePeriodBudget(b: PeriodBudget, ctx: { data: Pick<AppData, 'settings' | 'goals'>; prefix?: string }): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  if (!isValidId(b.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
+  checkName(b.name, `${p}name`, issues)
+  if (!isOneOf(PERIOD_TEMPLATES, b.template)) issues.push({ path: `${p}template`, code: 'invalidValue' })
+  checkDate(b.startDate, `${p}startDate`, issues)
+  checkDate(b.endDate, `${p}endDate`, issues)
+  if (isValidLocalDate(b.startDate) && isValidLocalDate(b.endDate) && b.endDate < b.startDate) issues.push({ path: `${p}endDate`, code: 'endBeforeStart' })
+  checkPositiveAmount(b.allocatedMinor, `${p}allocatedMinor`, issues)
+  if (b.currency !== ctx.data.settings.currency) {
+    issues.push({ path: `${p}currency`, code: 'currencyMismatch', params: { expected: ctx.data.settings.currency } })
+  }
+  if (!Array.isArray(b.txIds) || !b.txIds.every(isValidId) || new Set(b.txIds).size !== b.txIds.length) {
+    issues.push({ path: `${p}txIds`, code: 'invalidValue' })
+  }
+  if (b.goalId !== undefined && !ctx.data.goals.some((g) => g.id === b.goalId)) issues.push({ path: `${p}goalId`, code: 'notFound' })
+  if (typeof b.archived !== 'boolean') issues.push({ path: `${p}archived`, code: 'invalidValue' })
+  checkOptionalText(b.note, `${p}note`, issues)
+  checkTimestamps(b, p, issues)
+  return issues
+}
+
+export const MAX_SCENARIO_CHANGES = 10
+
+export function validateScenario(sc: SavedScenario, prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(sc.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  checkName(sc.name, `${prefix}name`, issues)
+  if (!Array.isArray(sc.changes) || sc.changes.length === 0 || sc.changes.length > MAX_SCENARIO_CHANGES) {
+    issues.push({ path: `${prefix}changes`, code: 'invalidValue' })
+  } else {
+    sc.changes.forEach((c, i) => {
+      const cp = `${prefix}changes[${i}].`
+      if (!c || typeof c !== 'object') return void issues.push({ path: `${prefix}changes[${i}]`, code: 'invalidValue' })
+      if (c.type === 'purchase') {
+        checkPositiveAmount(c.amountMinor, `${cp}amountMinor`, issues)
+        checkDate(c.date, `${cp}date`, issues)
+        checkOptionalText(c.note, `${cp}note`, issues)
+      } else if (c.type === 'scheduleAmount') {
+        if (!isValidId(c.scheduleId)) issues.push({ path: `${cp}scheduleId`, code: 'invalidId' })
+        checkPositiveAmount(c.newAmountMinor, `${cp}newAmountMinor`, issues)
+      } else {
+        issues.push({ path: `${cp}type`, code: 'invalidValue' })
+      }
+    })
+  }
+  if (typeof sc.baseFingerprint !== 'string' || sc.baseFingerprint.length === 0 || sc.baseFingerprint.length > 64) {
+    issues.push({ path: `${prefix}baseFingerprint`, code: 'invalidValue' })
+  }
+  checkTimestamps(sc, prefix, issues)
   return issues
 }

@@ -1618,15 +1618,15 @@ fieldset.bill-row {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--surface-2);
   padding: 4px;
   border-radius: 14px;
-  overflow-x: auto;
 }
 
 .tabs__tab {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   display: inline-flex;
   align-items: center;
@@ -2187,4 +2187,23 @@ fieldset.bill-row {
 
 .backup-status .bullets {
   margin-top: 4px;
+}
+
+/* Gastos planificados: plan sugerido vs. apartado confirmado */
+.plan-vs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.plan-vs dt {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.plan-vs dd {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }

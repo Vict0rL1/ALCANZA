@@ -51,6 +51,8 @@ export function baseData(overrides: Partial<AppData> = {}): AppData {
     favorites: [],
     reconciliations: [],
     backup: { reminder: 'weekly' },
+    periodBudgets: [],
+    scenarios: [],
     createdAt: EARLIER,
     updatedAt: EARLIER,
     revision: 0,

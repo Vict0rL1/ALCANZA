@@ -1,0 +1,493 @@
+/**
+ * Presupuestos por periodo (semestre, viaje o personalizado). Los cálculos viven en
+ * `domain/periodBudgets.ts`; aquí solo se muestran y se llaman operaciones.
+ */
+import { useMemo, useState } from 'react'
+import { computeBudget } from '../../domain/budget'
+import { newId } from '../../domain/ids'
+import {
+  consolidatedSpent,
+  deletePeriodBudget,
+  periodCandidates,
+  reserveForPeriod,
+  restorePeriodBudget,
+  savePeriodBudget,
+  setPeriodBudgetArchived,
+  setPeriodTransaction,
+  summarizePeriod,
+  templateDates,
+  type PeriodStatus,
+} from '../../domain/periodBudgets'
+import { goalReserveLines } from '../../domain/reserves'
+import type { PeriodBudget, PeriodTemplate } from '../../domain/types'
+import { LIMITS, type Issue } from '../../domain/validation'
+import { useT } from '../../i18n'
+import { useRun, useToday } from '../../state/hooks'
+import { useData } from '../../state/store'
+import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, type Tone } from '../components/common'
+import { Dialog } from '../components/Dialog'
+import { MoneyField, Segmented, TextField } from '../components/fields'
+import { Icon, type IconName } from '../components/Icon'
+import { useToast } from '../components/toastContext'
+import { useFormat } from '../format'
+import { fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
+import { moneyErrorMessage, parseMoneyText } from '../moneyText'
+import { href, navigate, type Route } from '../router'
+
+const STATUS: Record<PeriodStatus, { tone: Tone; icon: IconName }> = {
+  upcoming: { tone: 'info', icon: 'clock' },
+  active: { tone: 'good', icon: 'checkCircle' },
+  ended: { tone: 'neutral', icon: 'check' },
+}
+
+const TEMPLATES: PeriodTemplate[] = ['semester', 'trip', 'custom']
+
+function StatusBadge({ budget, status }: { budget: PeriodBudget; status: PeriodStatus }) {
+  const { t } = useT()
+  if (budget.archived) return <Badge icon="lock">{t('period.archived')}</Badge>
+  return (
+    <Badge tone={STATUS[status].tone} icon={STATUS[status].icon}>
+      {t(`period.status.${status}`)}
+    </Badge>
+  )
+}
+
+/** Pestaña «Periodos» del Plan. */
+export function PeriodBudgets() {
+  const { t, tn } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const today = useToday()
+  const active = data.periodBudgets.filter((b) => !b.archived)
+  const archived = data.periodBudgets.filter((b) => b.archived)
+  const consolidated = useMemo(() => consolidatedSpent(data, active), [data, active])
+
+  const row = (b: PeriodBudget) => {
+    const s = summarizePeriod(data, b, today)
+    const fraction = b.allocatedMinor > 0 ? s.spentMinor / b.allocatedMinor : 0
+    return (
+      <li key={b.id}>
+        <a className="item item--link item--stacked" href={href(`/plan/periodos/${b.id}`)}>
+          <span className="item__main">
+            <span className="item__title">{b.name}</span>
+            <span className="item__meta">
+              {fmt.date(b.startDate, { compact: true, today })} – {fmt.date(b.endDate, { compact: true, today })} · {t(`period.template.${b.template}`)}
+            </span>
+            <span className="item__badges">
+              <StatusBadge budget={b} status={s.status} />
+              {s.remainingMinor < 0 && (
+                <Badge tone="critical" icon="alert">
+                  {t('period.over')}
+                </Badge>
+              )}
+            </span>
+            <Meter fraction={fraction} label={b.name} valueText={t('period.spentOf', { spent: fmt.money(s.spentMinor), allocated: fmt.money(b.allocatedMinor) })} />
+            <span className="item__meta">{t('period.spentOf', { spent: fmt.money(s.spentMinor), allocated: fmt.money(b.allocatedMinor) })}</span>
+          </span>
+        </a>
+      </li>
+    )
+  }
+
+  return (
+    <div className="stack">
+      <div className="button-row">
+        <a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>
+          <Icon name="plus" />
+          {t('period.new')}
+        </a>
+      </div>
+      <Alert tone="info" icon="info" title={t('period.notMoneyTitle')}>
+        {t('period.notMoneyText')}
+      </Alert>
+      {active.length === 0 && archived.length === 0 ? (
+        <EmptyState icon="wallet" title={t('period.empty')} action={<a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>{t('period.new')}</a>}>
+          <p>{t('period.emptyText')}</p>
+        </EmptyState>
+      ) : (
+        <>
+          {active.length > 1 && (
+            <Card>
+              <p className="stat__label">{t('period.consolidated')}</p>
+              <p className="stat__value" data-testid="period-consolidated">
+                {fmt.money(consolidated.spentMinor)}
+              </p>
+              <p className="note">{consolidated.sharedCount > 0 ? tn('period.consolidatedShared', consolidated.sharedCount) : t('period.consolidatedHint')}</p>
+            </Card>
+          )}
+          {active.length > 0 && <ul className="item-list">{active.map(row)}</ul>}
+          {archived.length > 0 && (
+            <details className="explain">
+              <summary>
+                <Icon name="lock" size={16} />
+                {tn('period.archivedList', archived.length)}
+              </summary>
+              <ul className="item-list explain__body">{archived.map(row)}</ul>
+            </details>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+export function PeriodBudgetForm({ route }: { route: Route }) {
+  const { t } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const today = useToday()
+  const run = useRun()
+  const toast = useToast()
+  const editId = route.segments[2] === 'editar' ? route.segments[3] : undefined
+  const existing = editId ? data.periodBudgets.find((b) => b.id === editId) : undefined
+  const [id] = useState(() => existing?.id ?? newId())
+  const [template, setTemplate] = useState<PeriodTemplate>(existing?.template ?? 'semester')
+  const initialDates = existing ?? templateDates('semester', today)
+  const [name, setName] = useState(existing?.name ?? '')
+  const [startDate, setStartDate] = useState(initialDates.startDate)
+  const [endDate, setEndDate] = useState(initialDates.endDate)
+  const [allocatedText, setAllocatedText] = useState(existing ? fmt.moneyInput(existing.allocatedMinor) : '')
+  const [note, setNote] = useState(existing?.note ?? '')
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [amountError, setAmountError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  if (editId && !existing) {
+    return <PageHeader title={t('period.notFound')} back={{ href: href('/plan/periodos'), label: t('plan.periods') }} />
+  }
+
+  const chooseTemplate = (tpl: PeriodTemplate) => {
+    setTemplate(tpl)
+    if (!existing) {
+      const d = templateDates(tpl, today)
+      setStartDate(d.startDate)
+      setEndDate(d.endDate)
+    }
+  }
+
+  const submit = async () => {
+    const parsed = parseMoneyText(allocatedText, fmt)
+    setAmountError(moneyErrorMessage(t, parsed))
+    if (!parsed.ok || busy) return
+    setBusy(true)
+    const { result, saved } = await run((d, c) => savePeriodBudget(d, { id, name, template, startDate, endDate, allocatedMinor: parsed.minor, note }, c))
+    setBusy(false)
+    if (!result.ok) {
+      setIssues(result.issues)
+      return
+    }
+    toast({ message: saved ? t('period.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    navigate(`/plan/periodos/${id}`)
+  }
+
+  const back = existing ? `/plan/periodos/${existing.id}` : '/plan/periodos'
+  const unknown = otherIssues(issues, ['name', 'startDate', 'endDate', 'allocatedMinor', 'note'])
+  return (
+    <div className="stack">
+      <PageHeader title={existing ? t('period.editTitle') : t('period.newTitle')} back={{ href: href(back), label: t('common.back') }} />
+      <form
+        className="form card"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
+        <Segmented
+          legend={t('period.templateLegend')}
+          name="template"
+          value={template}
+          onChange={chooseTemplate}
+          options={TEMPLATES.map((x) => ({ value: x, label: t(`period.template.${x}`) }))}
+          hint={t(`period.templateHint.${template}`)}
+        />
+        <TextField label={t('fields.name')} value={name} maxLength={LIMITS.nameMax} onChange={(e) => setName(e.target.value)} placeholder={t(`period.namePlaceholder.${template}`)} error={fieldError(t, fmt, issues, 'name')} required />
+        <div className="form-grid">
+          <TextField label={t('period.start')} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} error={fieldError(t, fmt, issues, 'startDate')} required />
+          <TextField label={t('period.end')} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} error={fieldError(t, fmt, issues, 'endDate')} required />
+        </div>
+        <MoneyField label={t('period.allocated')} value={allocatedText} onChange={setAllocatedText} error={amountError ?? fieldError(t, fmt, issues, 'allocatedMinor')} fmt={fmt} hint={t('period.allocatedHint')} />
+        <TextField label={t('fields.noteOptional')} value={note} maxLength={LIMITS.noteMax} onChange={(e) => setNote(e.target.value)} error={fieldError(t, fmt, issues, 'note')} />
+        {unknown.length > 0 && (
+          <Alert tone="critical" title={t('common.fixErrors')} role="alert">
+            <ul>
+              {unknown.map((i, idx) => (
+                <li key={idx}>{issueMessage(t, fmt, i)}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+        <div className="form__actions">
+          <button type="submit" className="btn btn--primary btn--large" disabled={busy}>
+            <Icon name="check" />
+            {busy ? t('common.saving') : t('common.save')}
+          </button>
+          <a className="btn btn--secondary btn--large" href={href(back)}>
+            {t('common.cancel')}
+          </a>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export function PeriodBudgetDetail({ route }: { route: Route }) {
+  const { t, tn } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const today = useToday()
+  const run = useRun()
+  const toast = useToast()
+  const [reserving, setReserving] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const budget = data.periodBudgets.find((b) => b.id === route.segments[2])
+  const summary = useMemo(() => (budget ? summarizePeriod(data, budget, today) : null), [data, budget, today])
+  const candidates = useMemo(() => (budget ? periodCandidates(data, budget) : []), [data, budget])
+  const reserve = budget?.goalId ? goalReserveLines(data).find((l) => l.goal.id === budget.goalId) : undefined
+  const availableMinor = useMemo(() => computeBudget(data, today).availableMinor, [data, today])
+
+  if (!budget || !summary) {
+    return (
+      <div className="stack">
+        <PageHeader title={t('period.notFound')} back={{ href: href('/plan/periodos'), label: t('plan.periods') }} />
+      </div>
+    )
+  }
+
+  const linked = new Set(budget.txIds)
+  const outside = new Set(summary.outsideRange.map((x) => x.id))
+  const shared = new Set(summary.shared.map((x) => x.id))
+  const shown = showAll ? candidates : candidates.slice(0, 40)
+
+  const toggle = async (txId: string, value: boolean) => {
+    const { result, saved } = await run((d, c) => setPeriodTransaction(d, budget.id, txId, value, c))
+    if (!result.ok || !saved) toast({ message: t('save.error.generic'), tone: 'critical' })
+  }
+
+  const archive = async (value: boolean) => {
+    const { saved } = await run((d, c) => setPeriodBudgetArchived(d, budget.id, value, c))
+    toast({ message: saved ? t(value ? 'period.archivedToast' : 'period.unarchivedToast') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+  }
+
+  const remove = async () => {
+    const { result, saved } = await run((d, c) => deletePeriodBudget(d, budget.id, c))
+    if (!result.ok) return
+    const removed = result.value
+    toast({
+      message: saved ? t('period.deleted') : t('save.error.generic'),
+      tone: saved ? 'good' : 'critical',
+      action: { label: t('common.undo'), onClick: () => void run((d, c) => restorePeriodBudget(d, removed, c)) },
+    })
+    navigate('/plan/periodos')
+  }
+
+  return (
+    <div className="stack">
+      <PageHeader title={budget.name} back={{ href: href('/plan/periodos'), label: t('plan.periods') }}>
+        <a className="btn btn--secondary" href={href(`/plan/periodos/editar/${budget.id}`)}>
+          <Icon name="edit" />
+          {t('common.edit')}
+        </a>
+      </PageHeader>
+      <p className="item__badges">
+        <StatusBadge budget={budget} status={summary.status} />
+        <Badge>{t(`period.template.${budget.template}`)}</Badge>
+      </p>
+      <p>
+        {fmt.date(budget.startDate)} – {fmt.date(budget.endDate)} · {tn('period.totalDays', summary.totalDays)}
+      </p>
+
+      <Card labelledBy="period-summary">
+        <h2 id="period-summary" className="card__title">
+          {t('period.summary')}
+        </h2>
+        <div className="stats">
+          <div className="stat">
+            <p className="stat__label">{t('period.allocated')}</p>
+            <p className="stat__value">{fmt.money(budget.allocatedMinor)}</p>
+          </div>
+          <div className="stat">
+            <p className="stat__label">{t('period.spent')}</p>
+            <p className="stat__value" data-testid="period-spent">
+              {fmt.money(summary.spentMinor)}
+            </p>
+          </div>
+          <div className="stat">
+            <p className="stat__label">{summary.remainingMinor < 0 ? t('period.overBy') : t('period.remaining')}</p>
+            <p className="stat__value" data-testid="period-remaining">
+              {fmt.money(Math.abs(summary.remainingMinor))}
+            </p>
+          </div>
+        </div>
+        {summary.remainingMinor < 0 && (
+          <Alert tone="critical" title={t('period.overTitle', { amount: fmt.money(-summary.remainingMinor) })}>
+            {t('period.overText')}
+          </Alert>
+        )}
+        {summary.perDayMinor !== null && summary.remainingMinor > 0 && (
+          <p>{t(summary.status === 'upcoming' ? 'period.paceUpcoming' : 'period.pace', { day: fmt.money(summary.perDayMinor), week: fmt.money(summary.perWeekMinor ?? 0), days: summary.daysLeft })}</p>
+        )}
+        {summary.status === 'ended' && <p className="note">{t('period.endedNote')}</p>}
+        {summary.plannedMinor > 0 && <p className="note">{t('period.plannedNote', { amount: fmt.money(summary.plannedMinor) })}</p>}
+        <Explain>
+          <div className="calc">
+            <CalcRow label={t('period.allocated')} value={fmt.money(budget.allocatedMinor)} />
+            <CalcRow op="−" label={t('period.explainSpent')} value={fmt.money(summary.spentMinor)} />
+            <CalcRow op="=" label={t('period.remaining')} value={fmt.money(summary.remainingMinor)} strong />
+          </div>
+          <ul className="bullets">
+            <li>{t('period.explainRefunds')}</li>
+            <li>{t('period.explainPace')}</li>
+            <li>{t('period.explainOutside')}</li>
+            <li>{t('period.explainShared')}</li>
+            <li>{t('period.explainTrash')}</li>
+          </ul>
+        </Explain>
+      </Card>
+
+      <Card labelledBy="period-money">
+        <h2 id="period-money" className="card__title">
+          {t('period.moneyTitle')}
+        </h2>
+        <p>{t('period.availableToday', { amount: fmt.money(availableMinor) })}</p>
+        <p className="note">{t('period.notMoneyText')}</p>
+        {reserve ? (
+          <p data-testid="period-reserve">{t('period.reserveLine', { amount: fmt.money(reserve.amountMinor), consumed: fmt.money(reserve.consumedMinor) })}</p>
+        ) : (
+          <p className="note">{t('period.noReserve')}</p>
+        )}
+        <div className="button-row">
+          {!budget.archived && summary.status !== 'ended' && (
+            <button type="button" className="btn btn--secondary" onClick={() => setReserving(true)}>
+              <Icon name="lock" />
+              {t('period.reserve')}
+            </button>
+          )}
+          {reserve && (
+            <a className="btn btn--ghost" href={href('/plan/metas')}>
+              {t('period.seeReserveGoal')}
+            </a>
+          )}
+        </div>
+      </Card>
+
+      {(summary.outsideRange.length > 0 || summary.shared.length > 0 || summary.trashedCount > 0) && (
+        <Alert tone="info" title={t('period.noticesTitle')}>
+          <ul>
+            {summary.outsideRange.length > 0 && <li>{tn('period.outsideCount', summary.outsideRange.length)}</li>}
+            {summary.shared.length > 0 && <li>{tn('period.sharedCount', summary.shared.length)}</li>}
+            {summary.trashedCount > 0 && <li>{tn('period.trashedCount', summary.trashedCount)}</li>}
+          </ul>
+        </Alert>
+      )}
+
+      <section className="stack-sm" aria-labelledby="period-movements">
+        <h2 id="period-movements" className="section-title">
+          {t('period.movements')}
+        </h2>
+        <p className="note">{t('period.movementsHint')}</p>
+        <a className="btn btn--secondary" href={href(`/movimientos/nuevo?kind=expense&periodo=${budget.id}&returnTo=/plan/periodos/${budget.id}`)}>
+          <Icon name="plus" />
+          {t('period.addExpense')}
+        </a>
+        {candidates.length === 0 ? (
+          <p className="note">{t('period.noCandidates')}</p>
+        ) : (
+          <fieldset className="stack-sm">
+            <legend className="sr-only">{t('period.movements')}</legend>
+            {shown.map((x) => (
+              <div className="check" key={x.id}>
+                <input id={`pt-${x.id}`} type="checkbox" checked={linked.has(x.id)} disabled={budget.archived} onChange={(e) => void toggle(x.id, e.target.checked)} />
+                <div>
+                  <label htmlFor={`pt-${x.id}`}>
+                    {transactionTitle(x, data.accounts, t)} · {fmt.date(x.date, { compact: true, today })} · {x.kind === 'refund' ? '+' : '−'}
+                    {fmt.money(x.amountMinor)}
+                  </label>
+                  <p className="item__badges">
+                    {x.status === 'planned' && <Badge tone="info" icon="clock">{t('status.planned')}</Badge>}
+                    {x.kind === 'refund' && <Badge icon="refund">{t('txKind.refund')}</Badge>}
+                    {outside.has(x.id) && <Badge tone="warning" icon="alert">{t('period.outsideBadge')}</Badge>}
+                    {shared.has(x.id) && <Badge icon="info">{t('period.sharedBadge')}</Badge>}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {candidates.length > shown.length && (
+              <button type="button" className="btn btn--ghost" onClick={() => setShowAll(true)}>
+                {t('movements.showMore', { count: candidates.length - shown.length })}
+              </button>
+            )}
+          </fieldset>
+        )}
+      </section>
+
+      <div className="form__actions">
+        <button type="button" className="btn btn--secondary" onClick={() => void archive(!budget.archived)}>
+          <Icon name="lock" />
+          {t(budget.archived ? 'period.unarchive' : 'period.archive')}
+        </button>
+        <button type="button" className="btn btn--danger-ghost" onClick={() => void remove()}>
+          <Icon name="trash" />
+          {t('common.delete')}
+        </button>
+      </div>
+      <p className="note">{t('period.deleteNote')}</p>
+      {reserving && <ReserveDialog budget={budget} available={availableMinor} onClose={() => setReserving(false)} />}
+    </div>
+  )
+}
+
+function ReserveDialog({ budget, available, onClose }: { budget: PeriodBudget; available: number; onClose: () => void }) {
+  const { t } = useT()
+  const fmt = useFormat()
+  const run = useRun()
+  const toast = useToast()
+  const [goalId] = useState(newId)
+  const [allocationId] = useState(newId)
+  const [amountText, setAmountText] = useState('')
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [amountError, setAmountError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const typed = parseMoneyText(amountText, fmt)
+
+  const submit = async () => {
+    const parsed = parseMoneyText(amountText, fmt)
+    setAmountError(moneyErrorMessage(t, parsed))
+    if (!parsed.ok || busy) return
+    setBusy(true)
+    const { result, saved } = await run((d, c) => reserveForPeriod(d, { budgetId: budget.id, amountMinor: parsed.minor, goalId, allocationId }, c))
+    setBusy(false)
+    if (!result.ok) {
+      setIssues(result.issues)
+      return
+    }
+    toast({ message: saved ? t('period.reservedToast', { amount: fmt.money(parsed.minor) }) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    onClose()
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={t('period.reserveTitle', { name: budget.name })}
+      onSubmit={submit}
+      footer={
+        <>
+          <button type="button" className="btn btn--secondary" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {t('period.reserve')}
+          </button>
+        </>
+      }
+    >
+      <p className="note">{t('period.reserveExplain')}</p>
+      <MoneyField label={t('fields.amount')} value={amountText} onChange={setAmountText} fmt={fmt} autoFocus error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} hint={t('goals.maxAddBudget', { amount: fmt.money(Math.max(0, available)) })} />
+      {typed.ok && <p>{t('period.reserveEffect', { before: fmt.money(available), after: fmt.money(available - typed.minor) })}</p>}
+      {otherIssues(issues, ['amountMinor']).map((i, idx) => (
+        <Alert key={idx} tone="critical" title={issueMessage(t, fmt, i)} role="alert" />
+      ))}
+    </Dialog>
+  )
+}

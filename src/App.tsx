@@ -21,6 +21,9 @@ const Favorites = lazy(() => import('./ui/screens/Favorites').then((m) => ({ def
 const Trash = lazy(() => import('./ui/screens/Trash').then((m) => ({ default: m.Trash })))
 const Settings = lazy(() => import('./ui/screens/Settings').then((m) => ({ default: m.Settings })))
 const Reconcile = lazy(() => import('./ui/screens/Reconcile').then((m) => ({ default: m.Reconcile })))
+const PeriodBudgetForm = lazy(() => import('./ui/screens/PeriodBudgets').then((m) => ({ default: m.PeriodBudgetForm })))
+const PeriodBudgetDetail = lazy(() => import('./ui/screens/PeriodBudgets').then((m) => ({ default: m.PeriodBudgetDetail })))
+const WeeklyReview = lazy(() => import('./ui/screens/WeeklyReview').then((m) => ({ default: m.WeeklyReview })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
@@ -251,7 +254,7 @@ function Shell() {
       <div className="shell__body">
         <nav className="nav" aria-label={t('nav.aria')}>
           {NAV.map((item) => {
-            const active = item.match === top || (item.match === '' && top === 'alcanza')
+            const active = item.match === top || (item.match === '' && (top === 'alcanza' || top === 'revision'))
             return (
               <a key={item.path} className={`nav__item${active ? ' is-active' : ''}`} href={href(item.path)} aria-current={active ? 'page' : undefined}>
                 <Icon name={item.icon} size={22} />
@@ -276,6 +279,7 @@ function Screen({ route }: { route: Route }) {
   const key = route.path
   if (!a) return <Home key={key} />
   if (a === 'alcanza') return <Afford key={key} />
+  if (a === 'revision') return <WeeklyReview key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && b === 'importar') return <BankImport key={key} />
   if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
@@ -283,7 +287,9 @@ function Screen({ route }: { route: Route }) {
   if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos') return <Movements key={key} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />
-  if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={key} route={route} />
+  if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'plan' && b === 'periodos' && (c === 'nuevo' || c === 'editar')) return <PeriodBudgetForm key={key} route={route} />
+  if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
   if (a === 'ajustes') return <Settings key={key} />
   return (

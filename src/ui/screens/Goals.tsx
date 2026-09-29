@@ -18,6 +18,7 @@ import { AllocateDialog } from '../dialogs'
 import { useFormat } from '../format'
 import { fieldError, issueMessage, otherIssues } from '../labels'
 import { href, navigate, type Route } from '../router'
+import { PlannedExpenseCard, PlannedExpenseForm } from './PlannedExpenses'
 
 export function Goals() {
   const { t, tn } = useT()
@@ -28,6 +29,8 @@ export function Goals() {
   const incomeDates = useMemo(() => scheduledIncomeItems(data, today, addDays(today, 3 * 365)).filter((i) => i.state === 'pending').map((i) => i.date), [data, today])
   const [dialog, setDialog] = useState<{ goal: Goal; mode: 'add' | 'release' } | null>(null)
   const free = Math.max(0, budget.availableMinor)
+  const goals = data.goals.filter((g) => g.kind !== 'expense')
+  const planned = data.goals.filter((g) => g.kind === 'expense' && g.plan)
 
   return (
     <div className="stack">
@@ -48,13 +51,37 @@ export function Goals() {
         <p className="note">{t('goals.freeHint')}</p>
       </Card>
 
-      {data.goals.length === 0 ? (
+      <section className="stack-sm" aria-labelledby="planned-title">
+        <div className="page-header__row">
+          <h2 id="planned-title" className="section-title">
+            {t('planned.title')}
+          </h2>
+          <a className="btn btn--secondary btn--small" href={href('/plan/metas/nueva?tipo=gasto')}>
+            <Icon name="plus" size={16} />
+            {t('planned.new')}
+          </a>
+        </div>
+        {planned.length === 0 ? (
+          <p className="note">{t('planned.empty')}</p>
+        ) : (
+          <ul className="goal-list">
+            {planned.map((g) => (
+              <li key={g.id}>
+                <PlannedExpenseCard goal={g} onAllocate={(mode) => setDialog({ goal: g, mode })} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <h2 className="section-title">{t('planned.otherGoals')}</h2>
+      {goals.length === 0 ? (
         <EmptyState icon="target" title={t('goals.empty')} action={<a className="btn btn--primary" href={href('/plan/metas/nueva')}>{t('goals.new')}</a>}>
           <p>{t('goals.emptyText')}</p>
         </EmptyState>
       ) : (
         <ul className="goal-list">
-          {data.goals.map((g) => {
+          {goals.map((g) => {
             const p = goalProgress(g)
             const plan = goalPlan(g, today, incomeDates)
             const valueText = t('goals.progressText', { saved: fmt.money(p.savedMinor), target: fmt.money(p.targetMinor), pct: fmt.percent(p.fraction) })
@@ -62,9 +89,9 @@ export function Goals() {
               <li key={g.id}>
                 <Card as="article" className="goal" labelledBy={`goal-${g.id}`}>
                   <div className="goal__head">
-                    <h2 className="card__title" id={`goal-${g.id}`}>
+                    <h3 className="card__title" id={`goal-${g.id}`}>
                       {g.name}
-                    </h2>
+                    </h3>
                     <a className="btn btn--ghost btn--small" href={href(`/plan/metas/editar/${g.id}`)}>
                       <Icon name="edit" size={16} />
                       {t('common.edit')}
@@ -131,13 +158,18 @@ export function Goals() {
 }
 
 export function GoalForm({ route }: { route: Route }) {
-  const { t } = useT()
-  const fmt = useFormat()
   const data = useData()
-  const run = useRun()
-  const toast = useToast()
   const editId = route.segments[2] === 'editar' ? route.segments[3] : undefined
   const existing = editId ? data.goals.find((g) => g.id === editId) : undefined
+  if (existing?.kind === 'expense' || (!editId && route.query.get('tipo') === 'gasto')) return <PlannedExpenseForm existing={existing} />
+  return <RegularGoalForm existing={existing} editId={editId} />
+}
+
+function RegularGoalForm({ existing, editId }: { existing: Goal | undefined; editId: string | undefined }) {
+  const { t } = useT()
+  const fmt = useFormat()
+  const run = useRun()
+  const toast = useToast()
   const [id] = useState(() => existing?.id ?? newId())
   const [name, setName] = useState(existing?.name ?? '')
   const [kind, setKind] = useState<Goal['kind']>(existing?.kind ?? 'goal')

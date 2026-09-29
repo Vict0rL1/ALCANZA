@@ -9,7 +9,8 @@ import { endOfMonth, localDateInTimeZone, startOfMonth } from '../../domain/date
 import { limitStatuses, periodSummary } from '../../domain/insights'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
-import { setOccurrenceSkipped } from '../../domain/operations'
+import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
+import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
@@ -64,7 +65,17 @@ export function Home() {
       : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
     : t('home.noHorizonTitle')
 
-  const goalsForHome = data.goals.slice(0, 3)
+  const goalsForHome = data.goals.filter((g) => !g.plan?.paidAt).slice(0, 3)
+  const showWeekly = data.settings.weeklyReview !== false
+  const week = useMemo(() => (showWeekly ? weeklyReview(data, weekStartOf(today), today) : null), [data, today, showWeekly])
+  const hideWeekly = async () => {
+    const { saved } = await run((d, c) => updateSettings(d, { weeklyReview: false }, c))
+    toast({
+      message: saved ? t('weekly.hidden') : t('save.error.generic'),
+      tone: saved ? 'good' : 'critical',
+      action: { label: t('common.undo'), onClick: () => void run((d, c) => updateSettings(d, { weeklyReview: true }, c)) },
+    })
+  }
   const otherReminders = reminderItems.filter((i) => i.state !== 'overdue')
 
   return (
@@ -243,12 +254,14 @@ export function Home() {
                   <p className="calc__detail" key={i.key}>
                     {planItemName(i, t)} · {fmt.date(i.date, { compact: true, today })}
                     {i.state === 'overdue' ? ` · ${t('state.overdue')}` : ''} · {fmt.money(-i.budgetEffectMinor)}
+                    {budget.coveredByGoals.get(i.key) ? ` · ${t('explain.coveredByGoal', { amount: fmt.money(budget.coveredByGoals.get(i.key)!) })}` : ''}
                   </p>
                 ))}
                 <CalcRow op="−" label={t('explain.goals')} value={fmt.money(budget.goalsReservedMinor)} />
                 {budget.goalReservations.map((g) => (
                   <p className="calc__detail" key={g.goal.id}>
                     {g.goal.name} · {fmt.money(g.amountMinor)}
+                    {g.consumedMinor > 0 ? ` · ${t('explain.goalConsumed', { amount: fmt.money(g.consumedMinor) })}` : ''}
                   </p>
                 ))}
                 <CalcRow op="=" label={t('explain.available')} value={fmt.money(budget.availableMinor)} strong />
@@ -388,6 +401,32 @@ export function Home() {
         </div>
 
         <div className="stack">
+          {/* Revisión semanal (se puede ocultar en Ajustes) */}
+          {week && (
+            <Card labelledBy="week-title">
+              <h2 id="week-title" className="card__title">
+                <Icon name="calendar" />
+                {t('weekly.homeTitle')}
+              </h2>
+              <p data-testid="week-home">
+                {t('weekly.homeSpent', { amount: fmt.money(week.current.spendingMinor), income: fmt.money(week.current.incomeMinor) })}
+              </p>
+              <p className="note">
+                {week.current.coverage !== 'complete' || week.previous.coverage !== 'complete'
+                  ? t('weekly.homeNoCompare')
+                  : t('weekly.homeCompare', { amount: fmt.money(week.previous.spendingMinor) })}
+              </p>
+              <div className="button-row">
+                <a className="btn btn--secondary btn--small" href={href('/revision')}>
+                  {t('weekly.open')}
+                </a>
+                <button type="button" className="btn btn--ghost btn--small" onClick={() => void hideWeekly()}>
+                  {t('weekly.hide')}
+                </button>
+              </div>
+            </Card>
+          )}
+
           {/* Actualización de datos */}
           <Card className="freshness" labelledBy="freshness-title">
             <h2 id="freshness-title" className="card__title">

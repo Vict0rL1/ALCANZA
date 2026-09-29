@@ -4,10 +4,11 @@ import { addDays, isValidLocalDate } from '../../domain/dates'
 import { favoritePrefill, type FavoritePrefill } from '../../domain/favorites'
 import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
-import { markOccurrence, saveTransaction } from '../../domain/operations'
+import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
+import { setTransactionPeriods } from '../../domain/periodBudgets'
 import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
-import type { CategoryRule, Transaction, TxKind, TxStatus } from '../../domain/types'
+import type { AppData, CategoryRule, Transaction, TxKind, TxStatus } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { LIMITS } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -106,7 +107,12 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const prefillAmount = q.get('amount')
   const [id] = useState(() => existing?.id ?? newId())
   const [kind, setKind] = useState<FormKind>(initialKind)
-  const [status, setStatus] = useState<TxStatus>(existing?.status ?? 'realized')
+  const [status, setStatus] = useState<TxStatus>(existing?.status ?? (q.get('status') === 'planned' ? 'planned' : 'realized'))
+  // Presupuestos por periodo (solo los no archivados se pueden cambiar aquí).
+  const openPeriods = data.periodBudgets.filter((b) => !b.archived)
+  const [periodIds, setPeriodIds] = useState<string[]>(() =>
+    existing ? openPeriods.filter((b) => b.txIds.includes(existing.id)).map((b) => b.id) : openPeriods.filter((b) => b.id === q.get('periodo')).map((b) => b.id),
+  )
   const [amountText, setAmountText] = useState(() => {
     if (existing) return fmt.moneyInput(existing.amountMinor)
     if (prefill?.amountMinor !== undefined) return fmt.moneyInput(prefill.amountMinor)
@@ -187,46 +193,15 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     submitting.current = true
     setBusy(true)
     const useLink = !!linked && status === 'realized'
-    const { result, saved } = useLink
-      ? await run((d, c) =>
-          markOccurrence(
-            d,
-            {
-              scheduleId: linked.sourceId,
-              occurrenceDate: linked.date,
-              amountMinor: parsed.minor,
-              date,
-              accountId,
-              alreadyInBalance,
-              txId: id,
-              expectRemainder: expectRemainder && parsed.minor < linked.amountMinor,
-              categoryId,
-              note,
-            },
-            c,
-          ),
-        )
-      : await run((d, c) =>
-          saveTransaction(
-            d,
-            {
-              id,
-              kind,
-              status,
-              amountMinor: parsed.minor,
-              date,
-              accountId,
-              ...(kind === 'transfer' ? { toAccountId } : { categoryId }),
-              ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
-              note,
-              ...(existing?.scheduleId
-                ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement }
-                : {}),
-              alreadyInBalance,
-            },
-            c,
-          ),
-        )
+    const periods = kind === 'expense' || kind === 'refund' ? periodIds : []
+    const { result, saved } = await run((d, c) => {
+      const r = save(d, c, parsed.minor)
+      if (!r.ok || (useLink && r.unchanged && r.value.id !== id) || openPeriods.length === 0) return r
+      // Asociación con presupuestos por periodo en la misma operación (todo o nada).
+      const p = setTransactionPeriods(r.data, r.value.id, periods, c)
+      if (!p.ok) return p
+      return p.unchanged ? r : { ok: true as const, data: p.data, value: r.value }
+    })
     setBusy(false)
     if (!result.ok) {
       submitting.current = false
@@ -241,6 +216,45 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     }
     toast({ message: saved ? t(existing ? 'movementForm.updated' : 'movementForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
     navigate(returnTo)
+  }
+
+  /** Guarda el movimiento (o liquida la ocurrencia vinculada). */
+  function save(d: AppData, c: OpContext, amountMinor: number) {
+    if (linked && status === 'realized') {
+      return markOccurrence(
+        d,
+        {
+          scheduleId: linked.sourceId,
+          occurrenceDate: linked.date,
+          amountMinor,
+          date,
+          accountId,
+          alreadyInBalance,
+          txId: id,
+          expectRemainder: expectRemainder && amountMinor < linked.amountMinor,
+          categoryId,
+          note,
+        },
+        c,
+      )
+    }
+    return saveTransaction(
+      d,
+      {
+        id,
+        kind,
+        status,
+        amountMinor,
+        date,
+        accountId,
+        ...(kind === 'transfer' ? { toAccountId } : { categoryId }),
+        ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
+        note,
+        ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
+        alreadyInBalance,
+      },
+      c,
+    )
   }
 
   const choose = { value: '', label: t('favorites.choose') }
@@ -406,6 +420,21 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             label={t('movementForm.expectRemainder', { amount: fmt.money(linked.amountMinor - parsedAmount.minor) })}
             hint={t('markPaid.partialHint')}
           />
+        )}
+
+        {(kind === 'expense' || kind === 'refund') && openPeriods.length > 0 && (
+          <fieldset className="stack-sm">
+            <legend className="field__label">{t('period.formLegend')}</legend>
+            {openPeriods.map((b) => (
+              <CheckboxField
+                key={b.id}
+                checked={periodIds.includes(b.id)}
+                onChange={(v) => setPeriodIds((ids) => (v ? [...ids, b.id] : ids.filter((x) => x !== b.id)))}
+                label={`${b.name} (${fmt.date(b.startDate, { compact: true, today })} – ${fmt.date(b.endDate, { compact: true, today })})`}
+              />
+            ))}
+            <p className="field__hint">{t('period.formHint')}</p>
+          </fieldset>
         )}
 
         <FieldShell label={t('fields.noteOptional')} error={fieldError(t, fmt, issues, 'note')} hint={t('movementForm.noteHint', { max: LIMITS.noteMax })}>

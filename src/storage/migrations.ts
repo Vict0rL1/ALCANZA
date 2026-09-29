@@ -35,6 +35,20 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
     reconciliations: raw.reconciliations ?? [],
     backup: raw.backup ?? { reminder: 'weekly' },
   }),
+  /**
+   * v5 → v6: presupuestos por periodo, escenarios guardados y preferencia de revisión
+   * semanal (activada). Las metas pueden llevar `plan` y los apartados `reason` (opcionales).
+   */
+  5: (raw) => ({
+    ...raw,
+    schemaVersion: 6,
+    periodBudgets: raw.periodBudgets ?? [],
+    scenarios: raw.scenarios ?? [],
+    settings:
+      raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings) && (raw.settings as Raw).weeklyReview === undefined
+        ? { ...(raw.settings as Raw), weeklyReview: true }
+        : raw.settings,
+  }),
 }
 
 export function migrate(raw: Raw): Raw {

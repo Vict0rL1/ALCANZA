@@ -14,7 +14,7 @@
  */
 import { spendableBalance } from './balances'
 import { addDays, daysBetween } from './dates'
-import { goalsReservedFromBudget } from './goals'
+import { goalsReservedTotal } from './reserves'
 import { floorDiv, sumMinor } from './money'
 import { openItemsUntil, type PlanItem } from './planItems'
 import type { AppData, IncomeScenario, LocalDate } from './types'
@@ -69,7 +69,7 @@ export function projectBalance(data: AppData, today: LocalDate, options: Project
   const scenario = options.scenario ?? 'min'
   const lastDay = addDays(today, totalDays - 1)
   const { totalMinor: startMinor } = spendableBalance(data)
-  const goalsReservedMinor = goalsReservedFromBudget(data.goals)
+  const goalsReservedMinor = goalsReservedTotal(data)
 
   const open = openItemsUntil(data, today, lastDay, scenario).filter((i) => i.budgetEffectMinor !== 0)
   const lateIncomesExcluded = open.filter((i) => i.state === 'overdue' && i.budgetEffectMinor > 0)

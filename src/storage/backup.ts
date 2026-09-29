@@ -15,7 +15,12 @@ import type {
   Favorite,
   Goal,
   GoalAllocation,
+  PeriodBudget,
+  PlannedExpense,
+  PlannedExpenseCycle,
   Reconciliation,
+  SavedScenario,
+  ScenarioChange,
   Schedule,
   Settings,
   Transaction,
@@ -30,7 +35,9 @@ import {
   validateCategoryRule,
   validateFavorite,
   validateGoal,
+  validatePeriodBudget,
   validateReconciliation,
+  validateScenario,
   validateSchedule,
   validateSettings,
   validateTransaction,
@@ -104,7 +111,7 @@ function pick<T>(src: Obj, keys: readonly string[]): T {
   return out as T
 }
 
-const SETTINGS_KEYS = ['currency', 'numberLocale', 'dateStyle', 'timeZone', 'language', 'fallbackHorizonDays'] as const
+const SETTINGS_KEYS = ['currency', 'numberLocale', 'dateStyle', 'timeZone', 'language', 'fallbackHorizonDays', 'weeklyReview'] as const
 const ACCOUNT_KEYS = ['id', 'name', 'kind', 'includeInBudget', 'anchor', 'card', 'createdAt', 'updatedAt'] as const
 const ANCHOR_KEYS = ['amountMinor', 'date', 'setAt'] as const
 const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPaymentBps', 'minPaymentFloorMinor'] as const
@@ -118,8 +125,10 @@ const SCHEDULE_KEYS = [
   'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'range', 'currency', 'accountId', 'categoryId', 'frequency',
   'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'createdAt', 'updatedAt',
 ] as const
-const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'createdAt', 'updatedAt'] as const
-const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt'] as const
+const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'createdAt', 'updatedAt'] as const
+const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt', 'reason'] as const
+const PLAN_KEYS = ['repeatEveryMonths', 'link', 'categoryId', 'history', 'paidAt'] as const
+const CYCLE_KEYS = ['dueDate', 'targetMinor', 'reservedMinor', 'paidMinor', 'txId', 'surplus', 'paidAt'] as const
 
 /** Lista opcional de objetos (ausente en copias antiguas = vacía). */
 function listOf(value: unknown, path: string, issues: ImportIssue[]): Obj[] {
@@ -188,6 +197,12 @@ export function validateAppData(raw: unknown): ImportResult {
     const goal = pick<Goal>(g, GOAL_KEYS)
     if (Array.isArray(g.allocations)) {
       goal.allocations = g.allocations.map((a) => (isObj(a) ? pick<GoalAllocation>(a, ALLOCATION_KEYS) : (a as GoalAllocation)))
+    }
+    if (isObj(g.plan)) {
+      const plan = pick<PlannedExpense>(g.plan, PLAN_KEYS)
+      if (isObj(g.plan.link)) plan.link = pick(g.plan.link, ['scheduleId', 'occurrenceDate'])
+      if (Array.isArray(g.plan.history)) plan.history = g.plan.history.map((c) => (isObj(c) ? pick<PlannedExpenseCycle>(c, CYCLE_KEYS) : (c as PlannedExpenseCycle)))
+      goal.plan = plan
     }
     return goal
   })
@@ -263,6 +278,24 @@ export function validateAppData(raw: unknown): ImportResult {
     ? pick<BackupState>(migrated.backup, ['reminder', 'lastExportAt', 'lastExportDataAt', 'lastVerifiedAt', 'verifiedExportedAt', 'snoozedUntil'])
     : ({ reminder: 'weekly' } as BackupState)
   if (migrated.backup !== undefined && !isObj(migrated.backup)) issues.push({ path: 'backup', code: 'invalidValue' })
+
+  // v6: presupuestos por periodo y escenarios guardados.
+  const periodBudgets = listOf(migrated.periodBudgets, 'periodBudgets', issues).map((b) =>
+    pick<PeriodBudget>(b, ['id', 'name', 'template', 'startDate', 'endDate', 'allocatedMinor', 'currency', 'txIds', 'goalId', 'archived', 'note', 'createdAt', 'updatedAt']),
+  )
+  periodBudgets.forEach((b, i) => issues.push(...validatePeriodBudget(b, { data: { settings, goals }, prefix: `periodBudgets[${i}].` })))
+  checkDuplicates(periodBudgets, 'periodBudgets', issues)
+  const scenarios = listOf(migrated.scenarios, 'scenarios', issues).map((sc) => {
+    const scenario = pick<SavedScenario>(sc, ['id', 'name', 'changes', 'baseFingerprint', 'createdAt', 'updatedAt'])
+    if (Array.isArray(sc.changes)) {
+      scenario.changes = sc.changes.map((c) =>
+        isObj(c) ? pick<ScenarioChange>(c, ['type', 'amountMinor', 'date', 'note', 'scheduleId', 'newAmountMinor']) : (c as ScenarioChange),
+      )
+    }
+    return scenario
+  })
+  scenarios.forEach((sc, i) => issues.push(...validateScenario(sc, `scenarios[${i}].`)))
+  checkDuplicates(scenarios, 'scenarios', issues)
   issues.push(...validateBackupState(backup, 'backup.'))
   if (issues.length) return { ok: false, issues: issues.slice(0, 50) }
 
@@ -283,6 +316,8 @@ export function validateAppData(raw: unknown): ImportResult {
     favorites: [...favorites].sort((a, b) => a.order - b.order),
     reconciliations,
     backup,
+    periodBudgets,
+    scenarios,
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

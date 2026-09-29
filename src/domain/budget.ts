@@ -15,7 +15,7 @@
  */
 import { spendableBalance, oldestAnchor, type AccountBalance } from './balances'
 import { addDays, daysBetween, localDateInTimeZone } from './dates'
-import { goalSavedMinor, goalsReservedFromBudget } from './goals'
+import { goalReserveLines, scheduleCoverage } from './reserves'
 import { floorDiv, mulDivFloor, sumMinor } from './money'
 import { openItemsUntil, planItems, type PlanItem } from './planItems'
 import type { AppData, Goal, LocalDate, Timestamp } from './types'
@@ -41,7 +41,9 @@ export interface BudgetResult {
   horizon: Horizon | null
   reservedItems: PlanItem[]
   reservedTotalMinor: number
-  goalReservations: { goal: Goal; amountMinor: number }[]
+  goalReservations: { goal: Goal; amountMinor: number; consumedMinor: number }[]
+  /** Parte de cada pago reservado ya cubierta por un gasto planificado (clave = PlanItem.key). */
+  coveredByGoals: Map<string, number>
   goalsReservedMinor: number
   availableMinor: number
   dailyMinor: number | null
@@ -90,14 +92,14 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   const reserveUntil = horizon ? horizon.endDate : addDays(today, 30)
   const open = openItemsUntil(data, today, reserveUntil)
   const reservedItems = open.filter((i) => i.budgetEffectMinor < 0)
-  const reservedTotalMinor = sumMinor(reservedItems.map((i) => -i.budgetEffectMinor))
+  // Metas: reserva efectiva (lo gastado en un periodo vinculado ya la consumió).
+  const lines = goalReserveLines(data)
+  const goalReservations = lines.filter((l) => l.amountMinor > 0).map((l) => ({ goal: l.goal, amountMinor: l.amountMinor, consumedMinor: l.consumedMinor }))
+  const goalsReservedMinor = sumMinor(lines.map((l) => l.amountMinor))
+  // Un pago previsto cubierto por un gasto planificado se descuenta una sola vez.
+  const coveredByGoals = scheduleCoverage(lines, reservedItems)
+  const reservedTotalMinor = sumMinor(reservedItems.map((i) => -i.budgetEffectMinor - (coveredByGoals.get(i.key) ?? 0)))
   const overdueBills = reservedItems.filter((i) => i.state === 'overdue')
-
-  const budgetGoals = data.goals.filter((g) => g.fundedFrom === 'budget')
-  const goalReservations = budgetGoals
-    .map((goal) => ({ goal, amountMinor: Math.max(0, goalSavedMinor(goal)) }))
-    .filter((g) => g.amountMinor > 0)
-  const goalsReservedMinor = goalsReservedFromBudget(data.goals)
 
   const availableMinor = spendableMinor - reservedTotalMinor - goalsReservedMinor
 
@@ -126,6 +128,7 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
     horizon,
     reservedItems,
     reservedTotalMinor,
+    coveredByGoals,
     goalReservations,
     goalsReservedMinor,
     availableMinor,

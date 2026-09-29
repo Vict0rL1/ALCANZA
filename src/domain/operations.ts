@@ -14,6 +14,7 @@ import { findSettlement } from './planItems'
 import { balanceAtDate, reconciliationFingerprint } from './reconcile'
 import type {
   Account,
+  AllocationReason,
   AppData,
   CardDetails,
   CategoryLimit,
@@ -260,7 +261,16 @@ export function purgeTrash(data: AppData, ids: string[] | 'all', ctx: OpContext)
   for (const e of selected) if (e.transaction.importRef) refs.add(e.transaction.importRef)
   return {
     ok: true,
-    data: touch({ ...data, trash: data.trash.filter((e) => !purgedIds.has(e.id)), purgedImportRefs: [...refs] }, ctx.now),
+    data: touch(
+      {
+        ...data,
+        trash: data.trash.filter((e) => !purgedIds.has(e.id)),
+        purgedImportRefs: [...refs],
+        // Lo eliminado definitivamente deja de figurar en los presupuestos por periodo.
+        periodBudgets: data.periodBudgets.map((b) => (b.txIds.some((t) => purgedIds.has(t)) ? { ...b, txIds: b.txIds.filter((t) => !purgedIds.has(t)) } : b)),
+      },
+      ctx.now,
+    ),
     value: { purged: selected.length },
   }
 }
@@ -367,8 +377,14 @@ export function saveSchedule(data: AppData, draft: ScheduleDraft, ctx: OpContext
 export function deleteSchedule(data: AppData, id: string, ctx: OpContext): OpResult<Schedule> {
   const schedule = data.schedules.find((s) => s.id === id)
   if (!schedule) return fail([{ path: 'id', code: 'notFound' }])
-  // Los movimientos ya realizados se conservan: son historia real.
-  return { ok: true, data: touch({ ...data, schedules: data.schedules.filter((s) => s.id !== id) }, ctx.now), value: schedule }
+  // Los movimientos ya realizados se conservan: son historia real. Los gastos planificados
+  // vinculados pierden el vínculo (siguen con su fecha y su dinero apartado).
+  const goals = data.goals.map((g) => {
+    if (g.plan?.link?.scheduleId !== id) return g
+    const { link: _removed, ...plan } = g.plan
+    return { ...g, plan, updatedAt: ctx.now }
+  })
+  return { ok: true, data: touch({ ...data, schedules: data.schedules.filter((s) => s.id !== id), goals }, ctx.now), value: schedule }
 }
 
 export function restoreSchedule(data: AppData, schedule: Schedule, ctx: OpContext): OpResult<Schedule> {
@@ -493,6 +509,10 @@ export function saveGoal(data: AppData, draft: GoalDraft, ctx: OpContext): OpRes
     currency: data.settings.currency,
     fundedFrom: draft.fundedFrom,
     allocations: existing?.allocations ?? [],
+    // Gasto planificado: se conserva el historial de periodos pagados al editar.
+    ...(draft.kind === 'expense'
+      ? { plan: { ...(existing?.plan ?? {}), ...(draft.plan ?? {}), history: existing?.plan?.history ?? draft.plan?.history ?? [] } }
+      : {}),
     createdAt: existing?.createdAt ?? ctx.now,
     updatedAt: ctx.now,
   }
@@ -510,7 +530,13 @@ export function saveGoal(data: AppData, draft: GoalDraft, ctx: OpContext): OpRes
 export function deleteGoal(data: AppData, id: string, ctx: OpContext): OpResult<Goal> {
   const goal = data.goals.find((g) => g.id === id)
   if (!goal) return fail([{ path: 'id', code: 'notFound' }])
-  return { ok: true, data: touch({ ...data, goals: data.goals.filter((g) => g.id !== id) }, ctx.now), value: goal }
+  // Un presupuesto por periodo que usaba esta meta como reserva se queda sin reserva.
+  const periodBudgets = data.periodBudgets.map((b) => {
+    if (b.goalId !== id) return b
+    const { goalId: _removed, ...rest } = b
+    return { ...rest, updatedAt: ctx.now }
+  })
+  return { ok: true, data: touch({ ...data, goals: data.goals.filter((g) => g.id !== id), periodBudgets }, ctx.now), value: goal }
 }
 
 export function restoreGoal(data: AppData, goal: Goal, ctx: OpContext): OpResult<Goal> {
@@ -527,7 +553,7 @@ export function restoreGoal(data: AppData, goal: Goal, ctx: OpContext): OpResult
  */
 export function allocateToGoal(
   data: AppData,
-  input: { goalId: string; amountMinor: number; allocationId?: string },
+  input: { goalId: string; amountMinor: number; allocationId?: string; reason?: AllocationReason },
   ctx: OpContext,
 ): OpResult<GoalAllocation> {
   const goal = data.goals.find((g) => g.id === input.goalId)
@@ -547,7 +573,13 @@ export function allocateToGoal(
   } else if (-amount > savedMinor) {
     return fail([{ path: 'amountMinor', code: 'exceedsSaved', params: { savedMinor } }])
   }
-  const allocation: GoalAllocation = { id: allocationId, amountMinor: amount, date: ctx.today, createdAt: ctx.now }
+  const allocation: GoalAllocation = {
+    id: allocationId,
+    amountMinor: amount,
+    date: ctx.today,
+    createdAt: ctx.now,
+    reason: input.reason ?? (amount > 0 ? 'contribution' : 'release'),
+  }
   const updated: Goal = { ...goal, allocations: [...goal.allocations, allocation], updatedAt: ctx.now }
   return { ok: true, data: touch({ ...data, goals: upsert(data.goals, updated) }, ctx.now), value: allocation }
 }
@@ -945,6 +977,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
       timeZone: input.timeZone,
       language: input.language,
       fallbackHorizonDays: input.income ? null : input.fallbackHorizonDays,
+      weeklyReview: true,
     },
     accounts: [],
     transactions: [],
@@ -958,6 +991,8 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     favorites: [],
     reconciliations: [],
     backup: { reminder: 'weekly' },
+    periodBudgets: [],
+    scenarios: [],
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,

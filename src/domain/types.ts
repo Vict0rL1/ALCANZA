@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 5 as const
+export const SCHEMA_VERSION = 6 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -163,6 +163,41 @@ export interface GoalAllocation {
   amountMinor: number
   date: LocalDate
   createdAt: Timestamp
+  /**
+   * Motivo (opcional; las copias antiguas no lo tienen):
+   * contribution = aporte confirmado; release = liberado a mano;
+   * payment = usado al pagar un gasto planificado; carry = sobrante que pasa al siguiente periodo.
+   */
+  reason?: AllocationReason
+}
+
+export type AllocationReason = 'contribution' | 'release' | 'payment' | 'carry'
+
+/** Un periodo ya pagado de un gasto planificado (historial). */
+export interface PlannedExpenseCycle {
+  dueDate: LocalDate
+  targetMinor: number
+  /** Lo que estaba apartado al pagar. */
+  reservedMinor: number
+  paidMinor: number
+  /** Movimiento real del pago. */
+  txId: string
+  /** Qué se hizo con el sobrante (si lo hubo). */
+  surplus: 'none' | 'release' | 'carry'
+  paidAt: Timestamp
+}
+
+/** Datos extra de una meta de tipo «gasto planificado» (matrícula, seguro, regalos…). */
+export interface PlannedExpense {
+  /** Cada cuántos meses se repite (1–24). Sin valor = una sola vez. */
+  repeatEveryMonths?: number
+  /** Ocurrencia del calendario que este dinero cubrirá (opcional). */
+  link?: { scheduleId: string; occurrenceDate: LocalDate }
+  /** Categoría del gasto real al pagar. */
+  categoryId?: string
+  history: PlannedExpenseCycle[]
+  /** Solo gastos de una vez: ya se pagó (queda como historial). */
+  paidAt?: Timestamp
 }
 
 export type GoalFunding = 'budget' | 'external'
@@ -170,8 +205,10 @@ export type GoalFunding = 'budget' | 'external'
 export interface Goal {
   id: string
   name: string
-  kind: 'goal' | 'emergency'
+  /** 'expense' = gasto planificado (anual o poco frecuente): exige fecha de vencimiento. */
+  kind: 'goal' | 'emergency' | 'expense'
   targetMinor: number
+  /** En gastos planificados, la fecha de vencimiento del periodo actual. */
   targetDate?: LocalDate
   currency: CurrencyCode
   /**
@@ -180,6 +217,8 @@ export interface Goal {
    */
   fundedFrom: GoalFunding
   allocations: GoalAllocation[]
+  /** Solo `kind: 'expense'`. */
+  plan?: PlannedExpense
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -302,6 +341,48 @@ export interface Settings {
   language: Language
   /** Horizonte (días) si no hay un próximo ingreso registrado. `null` = preguntar. */
   fallbackHorizonDays: number | null
+  /** Mostrar la revisión semanal en Inicio (por defecto sí). */
+  weeklyReview?: boolean
+}
+
+export type PeriodTemplate = 'semester' | 'trip' | 'custom'
+
+/**
+ * Presupuesto para un periodo (semestre, viaje…). ASIGNAR no mueve ni reserva dinero:
+ * es un límite para organizarse. Los movimientos se asocian por id (un movimiento puede
+ * pertenecer a varios periodos sin duplicarse).
+ */
+export interface PeriodBudget {
+  id: string
+  name: string
+  template: PeriodTemplate
+  startDate: LocalDate
+  endDate: LocalDate
+  allocatedMinor: number
+  currency: CurrencyCode
+  /** Gastos y devoluciones asociados (ids de movimientos). */
+  txIds: string[]
+  /** Meta de presupuesto usada para reservar dinero para el periodo (opcional). */
+  goalId?: string
+  archived: boolean
+  note?: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+/** Un cambio simulado. Nunca se aplica a los datos reales. */
+export type ScenarioChange =
+  | { type: 'purchase'; amountMinor: number; date: LocalDate; note?: string }
+  | { type: 'scheduleAmount'; scheduleId: string; newAmountMinor: number }
+
+export interface SavedScenario {
+  id: string
+  name: string
+  changes: ScenarioChange[]
+  /** Huella de los datos reales cuando se guardó o revisó por última vez. */
+  baseFingerprint: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
 }
 
 export interface AppData {
@@ -327,6 +408,8 @@ export interface AppData {
   favorites: Favorite[]
   reconciliations: Reconciliation[]
   backup: BackupState
+  periodBudgets: PeriodBudget[]
+  scenarios: SavedScenario[]
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

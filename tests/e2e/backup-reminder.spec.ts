@@ -70,7 +70,7 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
 
   // Migración: mismos importes, copia previa guardada y nada eliminado.
   await expect(page.getByTestId('available')).toHaveText('$136.78')
-  const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v5'))
+  const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v6'))
   expect(JSON.parse(preserved!).fromVersion).toBe(4)
   await expect(page.getByText('Haz una copia de seguridad')).toBeVisible()
   await expect(page.getByText('Nunca has exportado tus datos.')).toBeVisible()
