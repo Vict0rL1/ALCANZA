@@ -92,7 +92,14 @@ npm run preview
    en qué se va tu saldo, avisos y próximos pagos. Pulsa «¿Cómo se calculó?» para ver
    la cuenta completa.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
-   (realizados o previstos). Busca, filtra, edita y elimina (con «Deshacer»).
+   (realizados o previstos). Busca, filtra y edita. **Eliminar envía a la Papelera**
+   (enlace arriba en Movimientos): ahí ves la fecha de eliminación y los detalles, puedes
+   restaurar incluso después de cerrar la app, o eliminar definitivamente (uno o todos,
+   con confirmación). «Deshacer» sigue funcionando como acceso rápido.
+   **Favoritos**: plantillas de gastos o ingresos frecuentes («Añadir a favoritos» en el
+   formulario, o desde Movimientos › Favoritos). Aparecen como botones en Inicio y en el
+   formulario; abren el formulario con la fecha de hoy y tú confirmas. Nunca guardan nada
+   solos.
    Arriba verás el resumen del mes: ingresos, gasto neto, gasto por categoría y límites
    mensuales opcionales por categoría. Con «Importar CSV» cargas el historial que
    descargas de la web de tu banco: revisas cada fila (nuevas, posibles duplicados, ya
@@ -103,10 +110,31 @@ npm run preview
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
    que pulses «Registrar esta compra» y luego «Guardar».
 5. **Plan:** calendario de pagos (marcar pagado, omitir), metas (apartar/liberar) y
-   proyección de 30 días.
-6. **Ajustes:** idioma, formato de números y fechas, zona horaria, cuentas (y tarjetas con
+   proyección de 30 días. Un ingreso puede ser **variable** (mínimo, esperado y extra):
+   la proyección permite elegir el escenario (por defecto el mínimo) y compararlos, sin
+   cambiar tu disponible ni tus movimientos. Si recibes solo una parte, eliges si esperas
+   el resto o das la previsión por terminada.
+6. **Verificar saldo** (botón en Inicio): escribe el saldo que ves en tu banco o en tu
+   efectivo y su fecha; Margen lo compara con su cálculo para esa fecha. Si hay
+   diferencia, revisa los movimientos cercanos, añade el que falta o crea un **ajuste**
+   explícito con motivo (corrige el saldo, pero no cuenta como ingreso ni gasto). Queda
+   un historial, y si cambias movimientos de un periodo ya verificado se marca
+   «pendiente de revisión».
+7. **Ajustes:** idioma, formato de números y fechas, zona horaria, cuentas (y tarjetas con
    límite, tasa y fechas), categorías personalizadas, reglas de categoría, copia de seguridad,
    reinicio de la demo y borrado de datos.
+
+### Copias de seguridad (importante)
+
+Guardar en el navegador **no es una copia de seguridad**: si se borran los datos del sitio
+o cambias de dispositivo, se pierden. En Ajustes › Copia de seguridad:
+
+- **Exportar copia** descarga un archivo. La app registra que *pidió* la descarga, pero el
+  navegador no le dice dónde se guardó; por eso lo muestra así.
+- **Verificar una copia**: eliges el archivo que guardaste y la app comprueba que se puede
+  leer y que es de este presupuesto (no importa nada).
+- **Recordatorio** semanal (por defecto), mensual o desactivado. Aparece solo en Inicio
+  cuando hay datos nuevos sin respaldar, y se puede posponer 7 días.
 
 La demostración muestra un aviso morado permanente: **todos sus datos son ficticios**.
 
@@ -121,7 +149,11 @@ npm test
 Comprueban redondeos, saldos negativos, ingreso retrasado, devolución parcial,
 transferencias, pagos recurrentes marcados como realizados, reservas que no se
 descuentan dos veces, guardado repetido y recuperación, copias inválidas, cambio de mes
-y fechas límite (29/30/31, años bisiestos, zona horaria).
+y fechas límite (29/30/31, años bisiestos, zona horaria). También la papelera (vínculos,
+transferencias, reimportación), favoritos con referencias rotas, recordatorio de copias
+(fechas, posponer, exportación fallida), conciliación (exacta, diferencias, ajustes,
+tarjetas, cambios retroactivos), ingresos variables (retrasados, parciales, distintos,
+escenarios) y migración de copias antiguas.
 
 ### Pruebas en el navegador (celular 390 px, celular 320 px y escritorio)
 
@@ -136,7 +168,8 @@ npm run test:e2e
 ```
 
 Recorren los flujos principales (configuración, demo, movimientos, «¿Me alcanza?»,
-calendario, metas, proyección, copias de seguridad), comprueban que no haya
+calendario, metas, proyección, copias de seguridad, papelera, favoritos, recordatorio
+de copias, verificación de saldos e ingresos variables, en español e inglés), comprueban que no haya
 desplazamiento horizontal (también con texto al 200 %), la navegación con teclado y
 una auditoría automática de accesibilidad (axe) en modo claro y oscuro.
 

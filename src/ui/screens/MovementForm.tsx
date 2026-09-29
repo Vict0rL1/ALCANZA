@@ -1,30 +1,93 @@
 import { useMemo, useRef, useState } from 'react'
 import { categoriesForKind } from '../../domain/categories'
-import { isValidLocalDate } from '../../domain/dates'
+import { addDays, isValidLocalDate } from '../../domain/dates'
+import { favoritePrefill, type FavoritePrefill } from '../../domain/favorites'
 import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
-import { saveTransaction } from '../../domain/operations'
+import { markOccurrence, saveTransaction } from '../../domain/operations'
+import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
-import type { CategoryRule, TxKind, TxStatus } from '../../domain/types'
+import type { CategoryRule, Transaction, TxKind, TxStatus } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { LIMITS } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, EmptyState, PageHeader } from '../components/common'
-import { MoneyField, Segmented, SelectField, TextField, FieldShell } from '../components/fields'
+import { Alert, Card, EmptyState, PageHeader } from '../components/common'
+import { CheckboxField, MoneyField, Segmented, SelectField, TextField, FieldShell } from '../components/fields'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
+import { FavoriteChips, FavoriteDialog } from '../favoritesUi'
 import { useDeleteTransaction } from '../useDeleteTransaction'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle, withCurrent } from '../labels'
-import { href, navigate, type Route } from '../router'
+import { accountName, categoryLabel, fieldError, issueMessage, otherIssues, planItemName, transactionTitle, withCurrent } from '../labels'
+import { href, navigate, withQuery, type Route } from '../router'
 
-const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note']
+type FormKind = Exclude<TxKind, 'adjustment'>
+
+const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note', 'link', 'expectRemainder']
 
 export function MovementForm({ route }: { route: Route }) {
+  const { t } = useT()
+  const data = useData()
+  const editId = route.segments[0] === 'movimientos' && route.segments[1] === 'editar' ? route.segments[2] : undefined
+  const existing = editId ? data.transactions.find((tx) => tx.id === editId) : undefined
+  const returnTo = route.query.get('returnTo') || '/movimientos'
+
+  if (editId && !existing) {
+    return (
+      <div className="stack">
+        <PageHeader title={t('movementForm.notFound')} back={{ href: href('/movimientos'), label: t('nav.movements') }} />
+        <EmptyState icon="search" title={t('movementForm.notFoundText')} />
+      </div>
+    )
+  }
+  if (existing?.kind === 'adjustment') return <AdjustmentView tx={existing} returnTo={returnTo} />
+  return <MovementEditor route={route} existing={existing} returnTo={returnTo} />
+}
+
+/** Un ajuste de conciliación no se edita como un gasto: se muestra y se puede enviar a la papelera. */
+function AdjustmentView({ tx, returnTo }: { tx: Transaction; returnTo: string }) {
+  const { t } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const deleteTx = useDeleteTransaction()
+  const account = accountName(data.accounts, tx.accountId, t)
+  return (
+    <div className="stack">
+      <PageHeader title={t('adjustment.title')} back={{ href: href(returnTo), label: t('common.back') }} />
+      <Card>
+        <p className="lead">{t(tx.adjustmentDirection === 'decrease' ? 'adjustment.decrease' : 'adjustment.increase', { amount: fmt.money(tx.amountMinor) })}</p>
+        <p>
+          {fmt.date(tx.date)} · {account}
+        </p>
+        {tx.note && <p>{t('reconcile.reasonShown', { reason: tx.note })}</p>}
+        <p className="note">{t('adjustment.text', { account })}</p>
+        <div className="form__actions">
+          <a className="btn btn--secondary" href={href(withQuery('/conciliar', { cuenta: tx.accountId }))}>
+            <Icon name="scale" />
+            {t('adjustment.seeReconciliation')}
+          </a>
+          <button
+            type="button"
+            className="btn btn--danger-ghost"
+            onClick={async () => {
+              if (await deleteTx(tx.id)) navigate(returnTo)
+            }}
+          >
+            <Icon name="trash" />
+            {t('common.delete')}
+          </button>
+        </div>
+        <p className="note">{t('adjustment.deleteNote')}</p>
+      </Card>
+    </div>
+  )
+}
+
+function MovementEditor({ route, existing, returnTo }: { route: Route; existing: Transaction | undefined; returnTo: string }) {
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -32,27 +95,31 @@ export function MovementForm({ route }: { route: Route }) {
   const run = useRun()
   const toast = useToast()
   const deleteTx = useDeleteTransaction()
-
-  const editId = route.segments[0] === 'movimientos' && route.segments[1] === 'editar' ? route.segments[2] : undefined
-  const existing = editId ? data.transactions.find((tx) => tx.id === editId) : undefined
   const q = route.query
-  const returnTo = q.get('returnTo') || '/movimientos'
+
+  // Favorito: rellena el formulario (fecha de hoy) pero nunca guarda nada por sí solo.
+  const favorite = !existing && q.get('favorito') ? data.favorites.find((f) => f.id === q.get('favorito')) : undefined
+  const [prefill] = useState<FavoritePrefill | undefined>(() => (favorite ? favoritePrefill(data, favorite) : undefined))
 
   const defaultAccount = data.accounts.find((a) => a.includeInBudget) ?? data.accounts[0]!
-  const initialKind = (existing?.kind ?? (q.get('kind') as TxKind | null) ?? 'expense') as TxKind
+  const initialKind = ((existing?.kind as FormKind | undefined) ?? prefill?.kind ?? (q.get('kind') as FormKind | null) ?? 'expense') as FormKind
   const prefillAmount = q.get('amount')
   const [id] = useState(() => existing?.id ?? newId())
-  const [kind, setKind] = useState<TxKind>(initialKind)
+  const [kind, setKind] = useState<FormKind>(initialKind)
   const [status, setStatus] = useState<TxStatus>(existing?.status ?? 'realized')
-  const [amountText, setAmountText] = useState(() =>
-    existing ? fmt.moneyInput(existing.amountMinor) : prefillAmount && /^\d+$/.test(prefillAmount) ? fmt.moneyInput(Number(prefillAmount)) : '',
-  )
+  const [amountText, setAmountText] = useState(() => {
+    if (existing) return fmt.moneyInput(existing.amountMinor)
+    if (prefill?.amountMinor !== undefined) return fmt.moneyInput(prefill.amountMinor)
+    return prefillAmount && /^\d+$/.test(prefillAmount) ? fmt.moneyInput(Number(prefillAmount)) : ''
+  })
   const [date, setDate] = useState(existing?.date ?? (q.get('date') && isValidLocalDate(q.get('date')) ? q.get('date')! : today))
-  const [accountId, setAccountId] = useState(existing?.accountId ?? defaultAccount.id)
+  const [accountId, setAccountId] = useState(existing?.accountId ?? (prefill ? (prefill.accountId ?? '') : (q.get('account') ?? defaultAccount.id)))
   const [toAccountId, setToAccountId] = useState(existing?.toAccountId ?? data.accounts.find((a) => a.id !== accountId)?.id ?? '')
-  const [categoryId, setCategoryId] = useState(existing?.categoryId ?? q.get('category') ?? (initialKind === 'income' ? 'salary' : 'other_expense'))
+  const [categoryId, setCategoryId] = useState(
+    existing?.categoryId ?? (prefill ? (prefill.categoryId ?? '') : (q.get('category') ?? (initialKind === 'income' ? 'salary' : 'other_expense'))),
+  )
   const [refundOfId, setRefundOfId] = useState(existing?.refundOfId ?? '')
-  const [note, setNote] = useState(existing?.note ?? q.get('note') ?? '')
+  const [note, setNote] = useState(existing?.note ?? prefill?.note ?? q.get('note') ?? '')
   const [alreadyInBalance, setAlreadyInBalance] = useState(() => {
     if (!existing || existing.status !== 'realized') return false
     const acc = data.accounts.find((a) => a.id === existing.accountId)
@@ -61,10 +128,20 @@ export function MovementForm({ route }: { route: Route }) {
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [favoriteOpen, setFavoriteOpen] = useState(false)
   const submitting = useRef(false)
   // Regla de categoría: solo propone mientras la persona no elija la categoría a mano.
-  const [categoryTouched, setCategoryTouched] = useState(() => !!existing || !!q.get('category'))
+  const [categoryTouched, setCategoryTouched] = useState(() => !!existing || !!q.get('category') || !!prefill)
   const [ruleApplied, setRuleApplied] = useState<CategoryRule | undefined>(undefined)
+  // Vínculo con un pago o ingreso previsto (solo movimientos nuevos): evita contarlo dos veces.
+  const [linkKey, setLinkKey] = useState('')
+  const [expectRemainder, setExpectRemainder] = useState(false)
+
+  const linkCandidates = useMemo(() => {
+    if (existing || (kind !== 'income' && kind !== 'expense')) return []
+    return openItemsUntil(data, today, addDays(today, 14)).filter((i) => i.source === 'schedule' && i.direction === kind && i.date >= addDays(today, -45))
+  }, [data, today, kind, existing])
+  const linked = linkCandidates.find((i) => i.key === linkKey)
 
   const changeNote = (value: string) => {
     setNote(value)
@@ -79,9 +156,10 @@ export function MovementForm({ route }: { route: Route }) {
     }
   }
 
-  const changeKind = (k: TxKind) => {
+  const changeKind = (k: FormKind) => {
     setKind(k)
     setRuleApplied(undefined)
+    setLinkKey('')
     const valid = categoriesForKind(k, data.categories)
     if (k !== 'transfer' && !valid.includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
     if (k === 'transfer' && toAccountId === accountId) setToAccountId(data.accounts.find((a) => a.id !== accountId)?.id ?? '')
@@ -99,14 +177,7 @@ export function MovementForm({ route }: { route: Route }) {
       .slice(0, 50)
   }, [data.transactions, id, refundOfId])
 
-  if (editId && !existing) {
-    return (
-      <div className="stack">
-        <PageHeader title={t('movementForm.notFound')} back={{ href: href('/movimientos'), label: t('nav.movements') }} />
-        <EmptyState icon="search" title={t('movementForm.notFoundText')} />
-      </div>
-    )
-  }
+  const parsedAmount = parseMoneyText(amountText, fmt)
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
@@ -115,35 +186,64 @@ export function MovementForm({ route }: { route: Route }) {
     if (!parsed.ok || submitting.current) return
     submitting.current = true
     setBusy(true)
-    const { result, saved } = await run((d, c) =>
-      saveTransaction(
-        d,
-        {
-          id,
-          kind,
-          status,
-          amountMinor: parsed.minor,
-          date,
-          accountId,
-          ...(kind === 'transfer' ? { toAccountId } : { categoryId }),
-          ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
-          note,
-          ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate } : {}),
-          alreadyInBalance,
-        },
-        c,
-      ),
-    )
+    const useLink = !!linked && status === 'realized'
+    const { result, saved } = useLink
+      ? await run((d, c) =>
+          markOccurrence(
+            d,
+            {
+              scheduleId: linked.sourceId,
+              occurrenceDate: linked.date,
+              amountMinor: parsed.minor,
+              date,
+              accountId,
+              alreadyInBalance,
+              txId: id,
+              expectRemainder: expectRemainder && parsed.minor < linked.amountMinor,
+              categoryId,
+              note,
+            },
+            c,
+          ),
+        )
+      : await run((d, c) =>
+          saveTransaction(
+            d,
+            {
+              id,
+              kind,
+              status,
+              amountMinor: parsed.minor,
+              date,
+              accountId,
+              ...(kind === 'transfer' ? { toAccountId } : { categoryId }),
+              ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
+              note,
+              ...(existing?.scheduleId
+                ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement }
+                : {}),
+              alreadyInBalance,
+            },
+            c,
+          ),
+        )
     setBusy(false)
     if (!result.ok) {
       submitting.current = false
       setIssues(result.issues)
       return
     }
+    // Si otra pestaña ya cerró esa ocurrencia, no se crea nada: se avisa en vez de duplicar.
+    if (useLink && result.unchanged && result.value.id !== id) {
+      submitting.current = false
+      setIssues([{ path: 'link', code: 'occurrenceAlreadySettled', params: { date: fmt.date(linked.date) } }])
+      return
+    }
     toast({ message: saved ? t(existing ? 'movementForm.updated' : 'movementForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
     navigate(returnTo)
   }
 
+  const choose = { value: '', label: t('favorites.choose') }
   const accountOptions = data.accounts.map((a) => ({ value: a.id, label: a.name }))
   const schedule = existing?.scheduleId ? data.schedules.find((s) => s.id === existing.scheduleId) : undefined
   const unknownIssues = otherIssues(issues, FIELD_PATHS)
@@ -151,6 +251,15 @@ export function MovementForm({ route }: { route: Route }) {
   return (
     <div className="stack">
       <PageHeader title={existing ? t('movementForm.editTitle') : t('movementForm.newTitle')} back={{ href: href(returnTo), label: t('common.back') }} />
+
+      {!existing && !favorite && <FavoriteChips returnTo={returnTo} />}
+      {favorite && prefill && (
+        <Alert tone="info" icon="star" title={t('favorites.usingTitle', { name: favorite.name })}>
+          <p>{t('favorites.usingText')}</p>
+          {prefill.missingAccount && <p>{t('favorites.missingAccount')}</p>}
+          {prefill.missingCategory && <p>{t('favorites.missingCategory')}</p>}
+        </Alert>
+      )}
 
       <form
         className="form card"
@@ -206,7 +315,7 @@ export function MovementForm({ route }: { route: Route }) {
           label={kind === 'transfer' ? t('fields.fromAccount') : t('fields.account')}
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
-          options={accountOptions}
+          options={accountId ? accountOptions : [choose, ...accountOptions]}
           error={fieldError(t, fmt, issues, 'accountId')}
         />
 
@@ -235,7 +344,10 @@ export function MovementForm({ route }: { route: Route }) {
               setCategoryTouched(true)
               setRuleApplied(undefined)
             }}
-            options={withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
+            options={[
+              ...(categoryId ? [] : [choose]),
+              ...withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) })),
+            ]}
             error={fieldError(t, fmt, issues, 'categoryId')}
             hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
           />
@@ -263,6 +375,36 @@ export function MovementForm({ route }: { route: Route }) {
             ]}
             error={fieldError(t, fmt, issues, 'refundOfId')}
             hint={t('movementForm.refundOfHint')}
+          />
+        )}
+
+        {linkCandidates.length > 0 && status === 'realized' && (
+          <SelectField
+            label={t(kind === 'income' ? 'movementForm.linkIncome' : 'movementForm.linkExpense')}
+            value={linkKey}
+            onChange={(e) => {
+              setLinkKey(e.target.value)
+              setExpectRemainder(false)
+              const item = linkCandidates.find((i) => i.key === e.target.value)
+              if (item && !amountText.trim()) setAmountText(fmt.moneyInput(item.amountMinor))
+            }}
+            options={[
+              { value: '', label: t('movementForm.linkNone') },
+              ...linkCandidates.map((i) => ({
+                value: i.key,
+                label: t('movementForm.linkOption', { name: planItemName(i, t), date: fmt.date(i.date, { compact: true, today }), amount: fmt.money(i.amountMinor) }),
+              })),
+            ]}
+            hint={t('movementForm.linkHint')}
+            error={fieldError(t, fmt, issues, 'link')}
+          />
+        )}
+        {linked && parsedAmount.ok && parsedAmount.minor < linked.amountMinor && (
+          <CheckboxField
+            checked={expectRemainder}
+            onChange={setExpectRemainder}
+            label={t('movementForm.expectRemainder', { amount: fmt.money(linked.amountMinor - parsedAmount.minor) })}
+            hint={t('markPaid.partialHint')}
           />
         )}
 
@@ -319,6 +461,12 @@ export function MovementForm({ route }: { route: Route }) {
           <a className="btn btn--secondary btn--large" href={href(returnTo)}>
             {t('common.cancel')}
           </a>
+          {(kind === 'expense' || kind === 'income') && (
+            <button type="button" className="btn btn--ghost" onClick={() => setFavoriteOpen(true)}>
+              <Icon name="star" />
+              {t('favorites.saveAs')}
+            </button>
+          )}
           {existing && (
             <button
               type="button"
@@ -332,7 +480,23 @@ export function MovementForm({ route }: { route: Route }) {
             </button>
           )}
         </div>
+        {existing && <p className="note">{t('trash.deleteNote')}</p>}
       </form>
+
+      {favoriteOpen && (kind === 'expense' || kind === 'income') && (
+        <FavoriteDialog
+          favorite={null}
+          initial={{
+            name: (note.trim() || categoryLabel(t, categoryId)).slice(0, 40),
+            kind,
+            accountId,
+            categoryId,
+            amountMinor: parsedAmount.ok ? parsedAmount.minor : undefined,
+            note: note.trim() || undefined,
+          }}
+          onClose={() => setFavoriteOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -3,12 +3,14 @@ import { accountBalance } from '../../domain/balances'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
 import { deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
-import type { Account, AccountKind, AppData, DateStyle, Language, NumberLocale } from '../../domain/types'
-import { ACCOUNT_KINDS, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import { backupStatus, setBackupReminder } from '../../domain/backupReminder'
+import type { Account, AccountKind, AppData, BackupReminder, DateStyle, Language, NumberLocale } from '../../domain/types'
+import { ACCOUNT_KINDS, BACKUP_REMINDERS, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
-import { backupFileName, createBackup, MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
+import { MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
+import { APP_VERSION, useExportBackup, useVerifyBackup } from '../backupActions'
 import { usePwaState } from '../../pwa/register'
 import { useRun, useToday } from '../../state/hooks'
 import { getStore, useAppState, useData } from '../../state/store'
@@ -25,8 +27,6 @@ import { CardFields, CardSummaryView } from '../cardUi'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { CategoriesSection } from './CategoriesSection'
 import { RulesSection } from './RulesSection'
-
-export const APP_VERSION = '0.1.0'
 
 const COMMON_TIME_ZONES = [
   'America/Toronto',
@@ -45,18 +45,6 @@ const COMMON_TIME_ZONES = [
   'Europe/Madrid',
   'UTC',
 ]
-
-function download(filename: string, text: string) {
-  const blob = new Blob([text], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 
 export function Settings() {
   const { t } = useT()
@@ -82,10 +70,17 @@ export function Settings() {
     toast({ message: saved ? t('settings.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
   }
 
-  const exportData = () => {
-    const now = new Date()
-    download(backupFileName(now, data.isDemo), JSON.stringify(createBackup(data, now, APP_VERSION), null, 2))
-    toast({ message: t('settings.backup.exported') })
+  const exportData = useExportBackup()
+  const verifyBackup = useVerifyBackup()
+  const verifyRef = useRef<HTMLInputElement>(null)
+  const [verifyIssues, setVerifyIssues] = useState<ImportIssue[] | null>(null)
+  const backup = backupStatus(data, today)
+
+  const onVerifyFile = async (file: File | undefined) => {
+    if (verifyRef.current) verifyRef.current.value = ''
+    if (!file) return
+    const r = await verifyBackup(file)
+    setVerifyIssues(r.ok ? null : r.issues)
   }
 
   const onFile = async (file: File | undefined) => {
@@ -219,21 +214,72 @@ export function Settings() {
       <RulesSection />
 
       <Card labelledBy="backup-title">
-        <h2 id="backup-title" className="card__title">
-          {t('settings.backup.title')}
+        <h2 id="copia" className="card__title">
+          <span id="backup-title">{t('settings.backup.title')}</span>
         </h2>
         <p>{t('settings.backup.text')}</p>
+        <Alert tone="neutral" icon="shield" title={t('backup.localNotBackup')} />
+        <div className="backup-status" data-testid="backup-status">
+          <p className="field__label">{t('backup.statusTitle')}</p>
+          <ul className="bullets">
+            {backup.neverExported ? (
+              <li>
+                <strong>{t('backup.neverExported')}</strong>
+              </li>
+            ) : (
+              <li>
+                {t('backup.lastExport', { when: fmt.timestamp(backup.lastExportAt!) })}
+                <br />
+                <span className="muted">{t('backup.lastExportNote')}</span>
+              </li>
+            )}
+            <li>{backup.hasUnbackedChanges ? t('backup.unbacked') : t('backup.upToDate')}</li>
+            <li>
+              {backup.lastVerifiedAt
+                ? t('backup.verified', { exported: backup.verifiedExportedAt ? fmt.timestamp(backup.verifiedExportedAt) : '—', when: fmt.timestamp(backup.lastVerifiedAt) })
+                : t('backup.notVerified')}
+              {backup.lastVerifiedAt && backup.latestExportUnverified ? ` ${t('backup.latestUnverified')}` : ''}
+            </li>
+            {backup.snoozedUntil && backup.snoozedUntil > today ? (
+              <li>{t('backup.snoozedUntil', { date: fmt.date(backup.snoozedUntil) })}</li>
+            ) : backup.dueDate && !data.isDemo ? (
+              <li>{t('backup.nextDue', { date: fmt.date(backup.dueDate < today ? today : backup.dueDate) })}</li>
+            ) : null}
+          </ul>
+        </div>
         <div className="button-row">
-          <button type="button" className="btn btn--primary" onClick={exportData}>
+          <button type="button" className="btn btn--primary" onClick={() => void exportData()}>
             <Icon name="download" />
             {t('settings.backup.export')}
           </button>
+          <label className="btn btn--secondary file-button">
+            <Icon name="shield" />
+            {t('backup.verify')}
+            <input ref={verifyRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void onVerifyFile(e.target.files?.[0])} data-testid="verify-file" />
+          </label>
           <label className="btn btn--secondary file-button">
             <Icon name="upload" />
             {t('settings.backup.import')}
             <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} data-testid="import-file" />
           </label>
         </div>
+        <p className="note">{t('backup.verifyHint')}</p>
+        {verifyIssues && (
+          <Alert tone="critical" title={t('backup.verifyFailed')} role="alert">
+            <ul>
+              {verifyIssues.slice(0, 5).map((i, idx) => (
+                <li key={idx}>{issueMessage(t, fmt, i)}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+        <SelectField
+          label={t('backup.reminder')}
+          value={data.backup.reminder}
+          onChange={(e) => void run((d) => setBackupReminder(d, e.target.value as BackupReminder))}
+          options={BACKUP_REMINDERS.map((r) => ({ value: r, label: t(`backup.reminder.${r}` as MessageKey) }))}
+          hint={t('backup.reminderHint')}
+        />
         <p className="note">{t('settings.backup.importNote')}</p>
         {importState && 'issues' in importState && (
           <Alert tone="critical" title={t('settings.backup.invalidTitle')} role="alert">

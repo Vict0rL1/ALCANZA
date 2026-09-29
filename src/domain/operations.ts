@@ -9,15 +9,37 @@ import { computeBudget } from './budget'
 import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
+import { sumMinor } from './money'
 import { findSettlement } from './planItems'
-import type { Account, AppData, CardDetails, CategoryLimit, CategoryRule, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
+import { balanceAtDate, reconciliationFingerprint } from './reconcile'
+import type {
+  Account,
+  AppData,
+  CardDetails,
+  CategoryLimit,
+  CategoryRule,
+  CustomCategory,
+  Favorite,
+  Goal,
+  GoalAllocation,
+  LocalDate,
+  Reconciliation,
+  ReconciliationResolution,
+  Schedule,
+  Settings,
+  Timestamp,
+  Transaction,
+  TrashEntry,
+} from './types'
 import { SCHEMA_VERSION } from './types'
 import {
   validateAccount,
   validateCategory,
   validateCategoryLimit,
   validateCategoryRule,
+  validateFavorite,
   validateGoal,
+  validateReconciliation,
   validateSchedule,
   validateSettings,
   validateTransaction,
@@ -96,10 +118,18 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
     currency: data.settings.currency,
     date: draft.date,
     accountId: draft.accountId,
-    ...(draft.kind === 'transfer' ? { toAccountId: draft.toAccountId } : { categoryId: draft.categoryId }),
+    ...(draft.kind === 'transfer'
+      ? { toAccountId: draft.toAccountId }
+      : draft.kind === 'adjustment'
+        ? {
+            adjustmentDirection: draft.adjustmentDirection,
+            ...((draft.reconciliationId ?? existing?.reconciliationId) ? { reconciliationId: draft.reconciliationId ?? existing?.reconciliationId } : {}),
+          }
+        : { categoryId: draft.categoryId }),
     ...(draft.kind === 'refund' && draft.refundOfId ? { refundOfId: draft.refundOfId } : {}),
     ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
+    ...(draft.scheduleId && draft.partialSettlement ? { partialSettlement: true } : {}),
     ...(realizedAt ? { realizedAt } : {}),
     // La huella de importación se conserva al editar (evita reimportar la misma fila).
     ...((draft.importRef ?? existing?.importRef) ? { importRef: draft.importRef ?? existing?.importRef } : {}),
@@ -111,14 +141,25 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
   return { ok: true, data: touch({ ...data, transactions: upsert(data.transactions, tx) }, ctx.now), value: tx }
 }
 
-export function deleteTransaction(
-  data: AppData,
-  id: string,
-  ctx: OpContext,
-): OpResult<{ tx: Transaction; unlinkedRefundIds: string[] }> {
+/* ------------------------------------------------------------------ */
+/* Papelera                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Envía un movimiento a la papelera (ver docs/FORMULAS.md §12). Sale de
+ * `transactions`, así que deja de contar en saldos, presupuesto, proyección y
+ * reportes. Una transferencia es un solo registro: se van sus dos lados a la vez.
+ *
+ * Las devoluciones vinculadas a un gasto eliminado conservan su importe (el dinero
+ * sí volvió) pero pierden el vínculo; se guarda la lista para recuperarlo al restaurar.
+ */
+export function deleteTransaction(data: AppData, id: string, ctx: OpContext): OpResult<TrashEntry> {
   const tx = data.transactions.find((t) => t.id === id)
-  if (!tx) return fail([{ path: 'id', code: 'notFound' }])
-  // Las devoluciones vinculadas a este gasto conservan su importe pero pierden el vínculo.
+  if (!tx) {
+    const already = data.trash.find((e) => e.id === id)
+    if (already) return { ok: true, data, value: already, unchanged: true }
+    return fail([{ path: 'id', code: 'notFound' }])
+  }
   const unlinkedRefundIds: string[] = []
   const transactions = data.transactions
     .filter((t) => t.id !== id)
@@ -128,21 +169,100 @@ export function deleteTransaction(
       const { refundOfId: _removed, ...rest } = t
       return { ...rest, updatedAt: ctx.now }
     })
-  return { ok: true, data: touch({ ...data, transactions }, ctx.now), value: { tx, unlinkedRefundIds } }
+  const entry: TrashEntry = { id, deletedAt: ctx.now, transaction: tx, unlinkedRefundIds }
+  return {
+    ok: true,
+    data: touch({ ...data, transactions, trash: [...data.trash.filter((e) => e.id !== id), entry] }, ctx.now),
+    value: entry,
+  }
 }
 
-/** Deshacer: vuelve a insertar el mismo registro (mismo id, sin duplicar) y sus vínculos. */
-export function restoreTransaction(
-  data: AppData,
-  tx: Transaction,
-  ctx: OpContext,
-  relinkRefundIds: string[] = [],
-): OpResult<Transaction> {
-  if (data.transactions.some((t) => t.id === tx.id)) return { ok: true, data, value: tx, unchanged: true }
-  const transactions = data.transactions.map((t) =>
-    relinkRefundIds.includes(t.id) ? { ...t, refundOfId: tx.id, updatedAt: ctx.now } : t,
-  )
-  return { ok: true, data: touch({ ...data, transactions: [...transactions, tx] }, ctx.now), value: tx }
+export interface RestoreResult {
+  tx: Transaction
+  /** Devoluciones que recuperaron el vínculo con este gasto. */
+  relinkedRefundIds: string[]
+  /** La devolución restaurada ya no se pudo vincular a su gasto (eliminado o sin saldo por devolver). */
+  refundLinkDropped: boolean
+}
+
+/**
+ * Restaura un movimiento de la papelera con el mismo id (idempotente).
+ *
+ * Nunca deja referencias rotas ni cuenta dinero dos veces:
+ *  - Si liquidaba un pago del calendario que ya se liquidó con otro movimiento, NO se
+ *    restaura (`occurrenceAlreadySettled`): habría dos pagos del mismo recibo.
+ *  - Una devolución cuyo gasto ya no existe (o no admite más devoluciones) se
+ *    restaura sin vínculo; el dinero devuelto sigue contando.
+ *  - Las devoluciones que se desvincularon al eliminarlo se vuelven a vincular si
+ *    siguen existiendo, sin vínculo y sin superar el importe del gasto.
+ */
+export function restoreFromTrash(data: AppData, id: string, ctx: OpContext): OpResult<RestoreResult> {
+  const entry = data.trash.find((e) => e.id === id)
+  if (!entry) {
+    const live = data.transactions.find((t) => t.id === id)
+    if (live) return { ok: true, data, value: { tx: live, relinkedRefundIds: [], refundLinkDropped: false }, unchanged: true }
+    return fail([{ path: 'id', code: 'notFound' }])
+  }
+  let tx: Transaction = entry.transaction
+  if (data.transactions.some((t) => t.id === tx.id)) return fail([{ path: 'id', code: 'restoreConflict' }])
+
+  if (tx.status === 'realized' && tx.scheduleId && tx.occurrenceDate) {
+    const others = data.transactions.filter(
+      (t) => t.status === 'realized' && t.scheduleId === tx.scheduleId && t.occurrenceDate === tx.occurrenceDate,
+    )
+    // Una liquidación final ya existe, o esta era final y ya hay otras: restaurarla duplicaría el pago.
+    if (others.some((t) => !t.partialSettlement) || (!tx.partialSettlement && others.length > 0)) {
+      return fail([{ path: 'id', code: 'occurrenceAlreadySettled', params: { date: tx.occurrenceDate } }])
+    }
+  }
+
+  let refundLinkDropped = false
+  if (tx.refundOfId) {
+    const probe = validateTransaction(tx, { data }).some((i) => i.path === 'refundOfId' || i.code === 'refundExceeds')
+    if (probe) {
+      const { refundOfId: _dropped, ...rest } = tx
+      tx = { ...rest, updatedAt: ctx.now }
+      refundLinkDropped = true
+    }
+  }
+
+  const issues = validateTransaction(tx, { data })
+  if (issues.length) return fail(issues)
+
+  // Vuelve a vincular devoluciones, sin superar el importe del gasto restaurado.
+  const relinkedRefundIds: string[] = []
+  let refundedSoFar = 0
+  const transactions = data.transactions.map((t) => {
+    if (tx.kind !== 'expense' || !entry.unlinkedRefundIds.includes(t.id)) return t
+    if (t.kind !== 'refund' || t.refundOfId !== undefined || refundedSoFar + t.amountMinor > tx.amountMinor) return t
+    refundedSoFar += t.amountMinor
+    relinkedRefundIds.push(t.id)
+    return { ...t, refundOfId: tx.id, updatedAt: ctx.now }
+  })
+
+  return {
+    ok: true,
+    data: touch({ ...data, transactions: [...transactions, tx], trash: data.trash.filter((e) => e.id !== id) }, ctx.now),
+    value: { tx, relinkedRefundIds, refundLinkDropped },
+  }
+}
+
+/**
+ * Elimina definitivamente de la papelera (uno, varios o todos). Solo se conserva la
+ * huella de importación (sin importes ni descripciones) para que reimportar el mismo
+ * CSV ofrezca esas filas desmarcadas en vez de volver a crearlas sin avisar.
+ */
+export function purgeTrash(data: AppData, ids: string[] | 'all', ctx: OpContext): OpResult<{ purged: number }> {
+  const selected = ids === 'all' ? data.trash : data.trash.filter((e) => ids.includes(e.id))
+  if (selected.length === 0) return { ok: true, data, value: { purged: 0 }, unchanged: true }
+  const purgedIds = new Set(selected.map((e) => e.id))
+  const refs = new Set(data.purgedImportRefs)
+  for (const e of selected) if (e.transaction.importRef) refs.add(e.transaction.importRef)
+  return {
+    ok: true,
+    data: touch({ ...data, trash: data.trash.filter((e) => !purgedIds.has(e.id)), purgedImportRefs: [...refs] }, ctx.now),
+    value: { purged: selected.length },
+  }
 }
 
 /** Deshacer una edición: vuelve a dejar exactamente la versión anterior del registro. */
@@ -176,13 +296,16 @@ export interface ImportInput {
 
 /**
  * Importa movimientos realizados de un archivo del banco. Todo o nada: si una fila
- * no es válida, no se aplica ninguna. Las filas cuya huella ya existe se omiten.
+ * no es válida, no se aplica ninguna. Las filas cuya huella ya existe (en movimientos
+ * o en la papelera) se omiten. Las huellas eliminadas definitivamente solo se importan
+ * si la interfaz las envía (la persona las marcó a propósito).
  */
 export function importTransactions(data: AppData, input: ImportInput, ctx: OpContext): OpResult<{ ids: string[] }> {
   let next = data
   const ids: string[] = []
   const issues: Issue[] = []
-  const refs = new Set(data.transactions.map((t) => t.importRef).filter(Boolean))
+  // Las filas cuyo movimiento está en la papelera nunca se reimportan: se restauran desde la papelera.
+  const refs = new Set([...data.transactions.map((t) => t.importRef), ...data.trash.map((e) => e.transaction.importRef)].filter(Boolean))
   input.items.forEach((item, i) => {
     if (refs.has(item.importRef) || next.transactions.some((t) => t.id === item.id)) return
     refs.add(item.importRef)
@@ -222,6 +345,8 @@ export function saveSchedule(data: AppData, draft: ScheduleDraft, ctx: OpContext
     kind: draft.kind,
     amountMinor: draft.amountMinor,
     amountIsEstimate: draft.amountIsEstimate,
+    // El rango se valida también si llega en un gasto (y se rechaza): no se descarta en silencio.
+    ...(draft.range ? { range: { minMinor: draft.range.minMinor, extraMinor: draft.range.extraMinor } } : {}),
     currency: data.settings.currency,
     accountId: draft.accountId,
     categoryId: draft.categoryId,
@@ -262,11 +387,31 @@ export interface MarkOccurrenceInput {
   alreadyInBalance?: boolean
   /** Id generado al abrir el diálogo, para que un doble clic no duplique. */
   txId?: string
+  /**
+   * Cobro o pago PARCIAL: el importe es menor que lo que falta y todavía se espera el
+   * resto (la ocurrencia sigue abierta por la diferencia). Si es `false` o no se
+   * indica, la ocurrencia se da por terminada con el importe real.
+   */
+  expectRemainder?: boolean
+  /** Desde el formulario de movimientos: categoría y nota elegidas (por defecto, las del programado). */
+  categoryId?: string
+  note?: string
+}
+
+/** Lo que falta por recibir o pagar de una ocurrencia (esperado − parciales ya registrados). */
+export function occurrenceRemaining(data: AppData, scheduleId: string, occurrenceDate: LocalDate): number {
+  const schedule = data.schedules.find((s) => s.id === scheduleId)
+  if (!schedule) return 0
+  const partials = data.transactions.filter(
+    (t) => t.status === 'realized' && t.scheduleId === scheduleId && t.occurrenceDate === occurrenceDate && t.partialSettlement,
+  )
+  return Math.max(0, schedule.amountMinor - sumMinor(partials.map((t) => t.amountMinor)))
 }
 
 /**
  * Marca una ocurrencia como pagada/recibida creando UN movimiento realizado
- * vinculado. Si ya existe, no hace nada: nunca se descuenta dos veces.
+ * vinculado. Si ya está cerrada, no hace nada: nunca se descuenta dos veces.
+ * Un cobro parcial (`expectRemainder`) deja la ocurrencia abierta por la diferencia.
  */
 export function markOccurrence(data: AppData, input: MarkOccurrenceInput, ctx: OpContext): OpResult<Transaction> {
   const schedule = data.schedules.find((s) => s.id === input.scheduleId)
@@ -275,6 +420,10 @@ export function markOccurrence(data: AppData, input: MarkOccurrenceInput, ctx: O
   if (existing) return { ok: true, data, value: existing, unchanged: true }
   const byId = input.txId ? data.transactions.find((t) => t.id === input.txId) : undefined
   if (byId) return { ok: true, data, value: byId, unchanged: true }
+  if (input.expectRemainder && input.amountMinor >= occurrenceRemaining(data, input.scheduleId, input.occurrenceDate)) {
+    // Si llega todo lo que faltaba (o más), no queda nada pendiente: no puede ser parcial.
+    return fail([{ path: 'expectRemainder', code: 'invalidValue' }])
+  }
   const withoutSkip = schedule.skippedDates.includes(input.occurrenceDate)
     ? { ...data, schedules: upsert(data.schedules, { ...schedule, skippedDates: schedule.skippedDates.filter((d) => d !== input.occurrenceDate) }) }
     : data
@@ -287,14 +436,33 @@ export function markOccurrence(data: AppData, input: MarkOccurrenceInput, ctx: O
       amountMinor: input.amountMinor,
       date: input.date,
       accountId: input.accountId ?? schedule.accountId,
-      categoryId: schedule.categoryId,
-      note: schedule.name,
+      categoryId: input.categoryId ?? schedule.categoryId,
+      note: input.note?.trim() ? input.note : schedule.name,
       scheduleId: schedule.id,
       occurrenceDate: input.occurrenceDate,
+      ...(input.expectRemainder ? { partialSettlement: true } : {}),
       alreadyInBalance: input.alreadyInBalance,
     },
     ctx,
   )
+}
+
+/**
+ * Da por terminada una ocurrencia con cobros parciales sin esperar el resto: el último
+ * parcial pasa a ser la liquidación final (no se crea ningún movimiento nuevo).
+ */
+export function closeOccurrence(data: AppData, scheduleId: string, occurrenceDate: LocalDate, ctx: OpContext): OpResult<Transaction> {
+  if (findSettlement(data, scheduleId, occurrenceDate)) {
+    return { ok: true, data, value: findSettlement(data, scheduleId, occurrenceDate)!, unchanged: true }
+  }
+  const partials = data.transactions
+    .filter((t) => t.status === 'realized' && t.scheduleId === scheduleId && t.occurrenceDate === occurrenceDate && t.partialSettlement)
+    .sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? -1 : 1) : a.date < b.date ? -1 : 1))
+  const last = partials[partials.length - 1]
+  if (!last) return fail([{ path: 'occurrenceDate', code: 'notFound' }])
+  const { partialSettlement: _closed, ...rest } = last
+  const closed: Transaction = { ...rest, updatedAt: ctx.now }
+  return { ok: true, data: touch({ ...data, transactions: upsert(data.transactions, closed) }, ctx.now), value: closed }
 }
 
 export function setOccurrenceSkipped(data: AppData, scheduleId: string, date: LocalDate, skipped: boolean, ctx: OpContext): OpResult<Schedule> {
@@ -465,12 +633,17 @@ function cleanCard(card: CardDetails): CardDetails {
 export function deleteAccount(data: AppData, id: string, ctx: OpContext): OpResult<Account> {
   const account = data.accounts.find((a) => a.id === id)
   if (!account) return fail([{ path: 'id', code: 'notFound' }])
+  // También cuentan los movimientos de la papelera: si no, restaurarlos dejaría una cuenta inexistente.
+  const usesAccount = (t: Transaction) => t.accountId === id || t.toAccountId === id
   const used =
-    data.transactions.some((t) => t.accountId === id || t.toAccountId === id) || data.schedules.some((s) => s.accountId === id)
+    data.transactions.some(usesAccount) || data.trash.some((e) => usesAccount(e.transaction)) || data.schedules.some((s) => s.accountId === id)
   if (used) return fail([{ path: 'id', code: 'accountInUse' }])
   const accounts = data.accounts.filter((a) => a.id !== id)
   if (!accounts.some((a) => a.includeInBudget)) return fail([{ path: 'id', code: 'lastBudgetAccount' }])
-  return { ok: true, data: touch({ ...data, accounts }, ctx.now), value: account }
+  // Las conciliaciones de una cuenta eliminada ya no tienen sentido. Los favoritos se
+  // conservan: al usarlos, el formulario pide elegir otra cuenta.
+  const reconciliations = data.reconciliations.filter((r) => r.accountId !== id)
+  return { ok: true, data: touch({ ...data, accounts, reconciliations }, ctx.now), value: account }
 }
 
 /* ------------------------------------------------------------------ */
@@ -507,7 +680,10 @@ export function setCategoryArchived(data: AppData, id: string, archived: boolean
 export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpResult<CustomCategory> {
   const category = data.categories.find((c) => c.id === id)
   if (!category) return fail([{ path: 'id', code: 'notFound' }])
-  const used = data.transactions.some((t) => t.categoryId === id) || data.schedules.some((s) => s.categoryId === id)
+  const used =
+    data.transactions.some((t) => t.categoryId === id) ||
+    data.trash.some((e) => e.transaction.categoryId === id) ||
+    data.schedules.some((s) => s.categoryId === id)
   if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
   return {
     ok: true,
@@ -567,6 +743,163 @@ export function restoreCategoryRule(data: AppData, rule: CategoryRule, ctx: OpCo
 }
 
 /* ------------------------------------------------------------------ */
+/* Conciliación                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface ReconcileInput {
+  /** Id generado al abrir el formulario (guardar dos veces no duplica). */
+  id: string
+  accountId: string
+  date: LocalDate
+  /** Saldo observado. En tarjetas, la deuda en negativo. */
+  observedMinor: number
+  /**
+   * matched: no hay diferencia. unresolved: se guarda la diferencia para revisarla.
+   * adjusted: se crea un AJUSTE explícito por la diferencia (confirmado por la persona).
+   */
+  resolution: ReconciliationResolution
+  reason?: string
+  /** Id del ajuste, generado al abrir la confirmación. */
+  adjustmentTxId?: string
+}
+
+/**
+ * Registra una conciliación. Nunca cambia el saldo de referencia ni crea ajustes por
+ * su cuenta: el ajuste solo existe si la persona lo pide (`adjusted`), con fecha,
+ * motivo y vínculo a esta conciliación. El ajuste corrige el saldo sin contar como
+ * ingreso ni gasto.
+ */
+export function reconcileAccount(data: AppData, input: ReconcileInput, ctx: OpContext): OpResult<{ reconciliation: Reconciliation; adjustment?: Transaction }> {
+  const already = data.reconciliations.find((r) => r.id === input.id)
+  if (already) {
+    const adj = already.adjustmentTxId ? data.transactions.find((t) => t.id === already.adjustmentTxId) : undefined
+    return { ok: true, data, value: { reconciliation: already, adjustment: adj }, unchanged: true }
+  }
+  const account = data.accounts.find((a) => a.id === input.accountId)
+  if (!account) return fail([{ path: 'accountId', code: 'unknownAccount' }])
+  if (!isValidLocalDate(input.date)) return fail([{ path: 'date', code: 'invalidDate' }])
+  if (input.date > ctx.today) return fail([{ path: 'date', code: 'realizedInFuture' }])
+  const computedMinor = balanceAtDate(data, account, input.date)
+  if (computedMinor === null) return fail([{ path: 'date', code: 'beforeAnchor', params: { date: account.anchor.date } }])
+  if (!Number.isSafeInteger(input.observedMinor)) return fail([{ path: 'observedMinor', code: 'invalidAmount' }])
+  const differenceMinor = input.observedMinor - computedMinor
+  const reason = cleanText(input.reason)
+
+  if (input.resolution === 'matched' && differenceMinor !== 0) {
+    return fail([{ path: 'resolution', code: 'differenceNotZero', params: { differenceMinor } }])
+  }
+  // Sin diferencia no hay nada que resolver: se registra como coincidente.
+  const resolution: ReconciliationResolution = differenceMinor === 0 ? 'matched' : input.resolution
+
+  let next = data
+  let adjustment: Transaction | undefined
+  if (resolution === 'adjusted') {
+    if (!reason) return fail([{ path: 'reason', code: 'reasonRequired' }])
+    const r = saveTransaction(
+      data,
+      {
+        id: input.adjustmentTxId ?? newId(),
+        kind: 'adjustment',
+        status: 'realized',
+        amountMinor: Math.abs(differenceMinor),
+        date: input.date,
+        accountId: account.id,
+        adjustmentDirection: differenceMinor > 0 ? 'increase' : 'decrease',
+        reconciliationId: input.id,
+        note: reason,
+      },
+      ctx,
+    )
+    if (!r.ok) return r
+    next = r.data
+    adjustment = r.value
+  }
+
+  const reconciliation: Reconciliation = {
+    id: input.id,
+    accountId: account.id,
+    date: input.date,
+    observedMinor: input.observedMinor,
+    computedMinor,
+    differenceMinor,
+    resolution,
+    ...(adjustment ? { adjustmentTxId: adjustment.id } : {}),
+    ...(reason ? { reason } : {}),
+    // La huella incluye el ajuste recién creado: lo que se concilió es el estado final.
+    fingerprint: reconciliationFingerprint(next, account, input.date),
+    createdAt: ctx.now,
+    updatedAt: ctx.now,
+  }
+  const issues = validateReconciliation(reconciliation, { data: next })
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...next, reconciliations: [...next.reconciliations, reconciliation] }, ctx.now), value: { reconciliation, adjustment } }
+}
+
+/* ------------------------------------------------------------------ */
+/* Favoritos (plantillas; nunca registran movimientos por sí solos)    */
+/* ------------------------------------------------------------------ */
+
+export type FavoriteDraft = Pick<Favorite, 'id' | 'name' | 'kind' | 'accountId' | 'categoryId' | 'amountMinor' | 'note'>
+
+/** Posiciones consecutivas 0, 1, 2… respetando el orden actual. */
+function normalizeOrder(list: Favorite[]): Favorite[] {
+  return [...list].sort((a, b) => a.order - b.order).map((f, i) => (f.order === i ? f : { ...f, order: i }))
+}
+
+/** Crea o actualiza (mismo id = mismo favorito: pulsar dos veces no duplica). */
+export function saveFavorite(data: AppData, draft: FavoriteDraft, ctx: OpContext): OpResult<Favorite> {
+  const existing = data.favorites.find((f) => f.id === draft.id)
+  const favorite: Favorite = {
+    id: draft.id,
+    name: draft.name.trim(),
+    kind: draft.kind,
+    accountId: draft.accountId,
+    categoryId: draft.categoryId,
+    ...(draft.amountMinor !== undefined ? { amountMinor: draft.amountMinor } : {}),
+    ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
+    order: existing?.order ?? data.favorites.reduce((max, f) => Math.max(max, f.order + 1), 0),
+    createdAt: existing?.createdAt ?? ctx.now,
+    updatedAt: ctx.now,
+  }
+  if (existing && sameFavorite(existing, favorite)) return { ok: true, data, value: existing, unchanged: true }
+  const issues = validateFavorite(favorite, { data, checkReferences: true })
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...data, favorites: normalizeOrder(upsert(data.favorites, favorite)) }, ctx.now), value: favorite }
+}
+
+function sameFavorite(a: Favorite, b: Favorite): boolean {
+  return (
+    a.name === b.name && a.kind === b.kind && a.accountId === b.accountId && a.categoryId === b.categoryId && a.amountMinor === b.amountMinor && a.note === b.note
+  )
+}
+
+export function deleteFavorite(data: AppData, id: string, ctx: OpContext): OpResult<Favorite> {
+  const favorite = data.favorites.find((f) => f.id === id)
+  if (!favorite) return fail([{ path: 'id', code: 'notFound' }])
+  return { ok: true, data: touch({ ...data, favorites: normalizeOrder(data.favorites.filter((f) => f.id !== id)) }, ctx.now), value: favorite }
+}
+
+/** Deshacer: vuelve a su posición. */
+export function restoreFavorite(data: AppData, favorite: Favorite, ctx: OpContext): OpResult<Favorite> {
+  if (data.favorites.some((f) => f.id === favorite.id)) return { ok: true, data, value: favorite, unchanged: true }
+  const shifted = data.favorites.map((f) => (f.order >= favorite.order ? { ...f, order: f.order + 1 } : f))
+  return { ok: true, data: touch({ ...data, favorites: normalizeOrder([...shifted, favorite]) }, ctx.now), value: favorite }
+}
+
+/** Sube (−1) o baja (+1) un favorito una posición. */
+export function moveFavorite(data: AppData, id: string, direction: -1 | 1, ctx: OpContext): OpResult<Favorite[]> {
+  const list = normalizeOrder(data.favorites)
+  const index = list.findIndex((f) => f.id === id)
+  if (index === -1) return fail([{ path: 'id', code: 'notFound' }])
+  const target = index + direction
+  if (target < 0 || target >= list.length) return { ok: true, data, value: list, unchanged: true }
+  const reordered = list.slice()
+  ;[reordered[index], reordered[target]] = [reordered[target]!, reordered[index]!]
+  const favorites = reordered.map((f, i) => (f.order === i ? f : { ...f, order: i, updatedAt: ctx.now }))
+  return { ok: true, data: touch({ ...data, favorites }, ctx.now), value: favorites }
+}
+
+/* ------------------------------------------------------------------ */
 /* Ajustes                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -620,6 +953,11 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     categories: [],
     categoryLimits: [],
     categoryRules: [],
+    trash: [],
+    purgedImportRefs: [],
+    favorites: [],
+    reconciliations: [],
+    backup: { reminder: 'weekly' },
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,

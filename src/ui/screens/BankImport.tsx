@@ -182,6 +182,10 @@ export function BankImport() {
         return <Badge tone="neutral" icon="check">{t('bankImport.status.duplicate')}</Badge>
       case 'possibleDuplicate':
         return <Badge tone="warning" icon="alert">{t('bankImport.status.possibleDuplicate')}</Badge>
+      case 'trashed':
+        return <Badge tone="neutral" icon="trash">{t('bankImport.status.trashed')}</Badge>
+      case 'purged':
+        return <Badge tone="warning" icon="info">{t('bankImport.status.purged')}</Badge>
       default:
         return <Badge tone="good" icon="plus">{t('bankImport.status.new')}</Badge>
     }
@@ -327,6 +331,16 @@ export function BankImport() {
                   <Badge tone="neutral" icon="check">{tn('bankImport.count.duplicate', preview.counts.duplicate)}</Badge>
                 </li>
               )}
+              {preview.counts.trashed > 0 && (
+                <li>
+                  <Badge tone="neutral" icon="trash">{tn('bankImport.count.trashed', preview.counts.trashed)}</Badge>
+                </li>
+              )}
+              {preview.counts.purged > 0 && (
+                <li>
+                  <Badge tone="warning" icon="info">{tn('bankImport.count.purged', preview.counts.purged)}</Badge>
+                </li>
+              )}
               {preview.counts.error > 0 && (
                 <li>
                   <Badge tone="critical" icon="alert">{tn('bankImport.count.error', preview.counts.error)}</Badge>
@@ -336,6 +350,12 @@ export function BankImport() {
             {preview.tooManyRows && <Alert tone="warning" title={t('bankImport.tooManyRows', { max: MAX_IMPORT_ROWS })} />}
             {preview.counts.possibleDuplicate > 0 && <p className="note">{t('bankImport.possibleNote')}</p>}
             {preview.counts.duplicate > 0 && <p className="note">{t('bankImport.duplicateNote')}</p>}
+            {preview.counts.trashed > 0 && (
+              <p className="note">
+                {t('bankImport.trashedNote')} <a href={href('/movimientos/papelera')}>{t('trash.title')}</a>
+              </p>
+            )}
+            {preview.counts.purged > 0 && <p className="note">{t('bankImport.purgedNote')}</p>}
             {account && selected.some((r) => r.anchorRelation === 'before') && (
               <p className="note">{t('bankImport.beforeAnchorNote', { date: fmt.date(account.anchor.date) })}</p>
             )}

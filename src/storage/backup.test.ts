@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { computeBudget } from '../domain/budget'
-import { createInitialData, deleteTransaction, restoreTransaction, saveTransaction } from '../domain/operations'
+import { createInitialData, deleteTransaction, restoreFromTrash, saveTransaction } from '../domain/operations'
 import { projectBalance } from '../domain/projection'
+import { backupStatus } from '../domain/backupReminder'
 import { createDemoData } from '../demo/demoData'
-import { baseData, ctx, NOW, TODAY, tx, TZ } from '../test/fixtures'
+import { baseData, bill, ctx, NOW, TODAY, tx, TZ } from '../test/fixtures'
 import { createBackup, parseBackup, validateAppData } from './backup'
-import { MemoryRepository } from './localStorageRepository'
+import { LocalStorageRepository, MemoryRepository, PRE_MIGRATION_KEY_PREFIX, STORAGE_KEY } from './localStorageRepository'
 
 const backupText = (data = baseData({ transactions: [tx({ id: 't1' })] })) => JSON.stringify(createBackup(data, new Date(NOW), '0.1.0'))
 
@@ -105,10 +106,10 @@ describe('guardado y recuperación', () => {
     if (!del.ok) throw new Error('rechazado')
     expect(del.data.transactions.find((t) => t.id === 'ref')?.refundOfId).toBeUndefined()
     expect(validateAppData(del.data).ok).toBe(true)
-    const undo = restoreTransaction(del.data, del.value.tx, ctx, del.value.unlinkedRefundIds)
+    const undo = restoreFromTrash(del.data, 'buy', ctx)
     if (!undo.ok) throw new Error('rechazado')
     expect(undo.data.transactions.find((t) => t.id === 'ref')?.refundOfId).toBe('buy')
-    const undoAgain = restoreTransaction(undo.data, del.value.tx, ctx)
+    const undoAgain = restoreFromTrash(undo.data, 'buy', ctx)
     expect(undoAgain.ok && undoAgain.data.transactions.length).toBe(2)
   })
 })
@@ -174,11 +175,97 @@ describe('migraciones', () => {
     const r = validateAppData(v1)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.data.schemaVersion).toBe(4)
+      expect(r.data.schemaVersion).toBe(5)
       expect(r.data.categoryRules).toEqual([])
       expect(r.data.categories).toEqual([])
       expect(r.data.categoryLimits).toEqual([])
     }
+  })
+
+  it('una copia v4 real (sin papelera, favoritos, conciliaciones ni registro de copias) se migra sin perder nada', () => {
+    const v4: Record<string, unknown> = JSON.parse(
+      JSON.stringify(
+        baseData({
+          transactions: [tx({ id: 'keep', amountMinor: 1234, categoryId: 'dining', importRef: 'main|2026-09-28|-1234|cafe|1' })],
+          schedules: [bill('2026-10-01', 5000, { id: 'phone' })],
+        }),
+      ),
+    )
+    v4.schemaVersion = 4
+    for (const key of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup']) delete v4[key]
+    const r = validateAppData(v4)
+    if (!r.ok) throw new Error(JSON.stringify(r.issues))
+    expect(r.data).toMatchObject({ schemaVersion: 5, trash: [], purgedImportRefs: [], favorites: [], reconciliations: [], backup: { reminder: 'weekly' } })
+    expect(r.data.transactions).toEqual((v4.transactions as unknown[]))
+    expect(r.data.schedules).toEqual((v4.schedules as unknown[]))
+    expect(backupStatus(r.data, TODAY).neverExported).toBe(true)
+  })
+
+  it('una copia v4 dentro de un archivo de respaldo también se importa', () => {
+    const v4: Record<string, unknown> = JSON.parse(JSON.stringify(baseData()))
+    v4.schemaVersion = 4
+    delete v4.trash
+    delete v4.backup
+    const file = JSON.stringify({ format: 'margen-backup', formatVersion: 1, exportedAt: NOW, app: 'Margen', appVersion: '0.1.0', data: v4 })
+    expect(parseBackup(file)).toMatchObject({ ok: true, exportedAt: NOW })
+  })
+
+  it('al cargar datos antiguos del navegador se guarda una copia intacta antes de migrar', async () => {
+    const store = new Map<string, string>()
+    const fake = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    }
+    const original = (globalThis as { localStorage?: unknown }).localStorage
+    ;(globalThis as { localStorage?: unknown }).localStorage = fake
+    try {
+      const v4: Record<string, unknown> = JSON.parse(JSON.stringify(baseData()))
+      v4.schemaVersion = 4
+      delete v4.trash
+      const raw = JSON.stringify(v4)
+      store.set(STORAGE_KEY, raw)
+      const repo = new LocalStorageRepository()
+      const loaded = await repo.load()
+      expect(loaded.status).toBe('ok')
+      // Los datos originales no se sobrescriben al cargar; la copia previa conserva el texto exacto.
+      expect(store.get(STORAGE_KEY)).toBe(raw)
+      expect(JSON.parse(store.get(`${PRE_MIGRATION_KEY_PREFIX}5`)!)).toEqual({ fromVersion: 4, raw })
+      // Datos de una versión futura: se informan como no legibles y no se tocan.
+      const future = JSON.stringify({ ...v4, schemaVersion: 99 })
+      store.set(STORAGE_KEY, future)
+      expect((await repo.load()).status).toBe('corrupt')
+      expect(store.get(STORAGE_KEY)).toBe(future)
+    } finally {
+      ;(globalThis as { localStorage?: unknown }).localStorage = original
+    }
+  })
+
+  it('una versión futura se rechaza sin tocar nada; una migración que falla también', () => {
+    const future = { ...JSON.parse(JSON.stringify(baseData())), schemaVersion: 99 }
+    expect(validateAppData(future)).toMatchObject({ ok: false, issues: [{ code: 'schemaTooNew' }] })
+    // Una v4 con papelera mal formada no se "arregla" borrando: se rechaza.
+    const broken = { ...JSON.parse(JSON.stringify(baseData())), schemaVersion: 4, trash: 'no es una lista' }
+    expect(validateAppData(broken).ok).toBe(false)
+  })
+
+  it('la papelera, los favoritos y las conciliaciones de una copia se validan', () => {
+    const good = baseData({
+      trash: [{ id: 'gone', deletedAt: NOW, transaction: tx({ id: 'gone' }), unlinkedRefundIds: [] }],
+      favorites: [{ id: 'fav', name: 'Café', kind: 'expense', accountId: 'main', categoryId: 'dining', order: 0, createdAt: NOW, updatedAt: NOW }],
+    })
+    expect(validateAppData(JSON.parse(JSON.stringify(good))).ok).toBe(true)
+    const badTrash = { ...JSON.parse(JSON.stringify(good)), trash: [{ id: 'gone', deletedAt: NOW, transaction: { ...tx({ id: 'gone' }), amountMinor: 1.5 }, unlinkedRefundIds: [] }] }
+    expect(validateAppData(badTrash)).toMatchObject({ ok: false, issues: [{ path: 'trash[0].transaction.amountMinor' }] })
+    const clash = { ...JSON.parse(JSON.stringify(good)), transactions: [tx({ id: 'gone' })] }
+    expect(validateAppData(clash)).toMatchObject({ ok: false, issues: [{ path: 'trash[0].id', code: 'duplicateId' }] })
+    const badFav = { ...JSON.parse(JSON.stringify(good)), favorites: [{ ...good.favorites[0], amountMinor: -5 }] }
+    expect(validateAppData(badFav).ok).toBe(false)
+    const badRec = {
+      ...JSON.parse(JSON.stringify(good)),
+      reconciliations: [{ id: 'r', accountId: 'main', date: TODAY, observedMinor: 100, computedMinor: 50, differenceMinor: 10, resolution: 'unresolved', fingerprint: 'x', createdAt: NOW, updatedAt: NOW }],
+    }
+    expect(validateAppData(badRec)).toMatchObject({ ok: false, issues: [{ path: 'reconciliations[0].differenceMinor' }] })
   })
 
   it('conserva datos de tarjeta y categorías al exportar e importar', () => {

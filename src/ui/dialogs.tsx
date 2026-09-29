@@ -10,9 +10,9 @@ import { newId } from '../domain/ids'
 import {
   allocateToGoal,
   defaultPaymentDate,
-  deleteTransaction,
   markOccurrence,
   realizePlanned,
+  removeTransactions,
   revertTransaction,
   updateAccountBalance,
   updateSettings,
@@ -23,7 +23,7 @@ import type { Issue } from '../domain/validation'
 import { useT } from '../i18n'
 import { useRun, useToday } from '../state/hooks'
 import { useData } from '../state/store'
-import { CheckboxField, MoneyField, SelectField, TextField } from './components/fields'
+import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from './components/fields'
 import { parseMoneyText, moneyErrorMessage } from './moneyText'
 import { Dialog } from './components/Dialog'
 import { Alert } from './components/common'
@@ -100,8 +100,12 @@ export function MarkPaidDialog({ item, onClose }: { item: PlanItem; onClose: () 
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Ingreso parcial: por defecto se da por terminada (postura prudente); la persona elige.
+  const [partial, setPartial] = useState<'close' | 'expect'>('close')
   const isIncome = item.budgetEffectMinor > 0 || item.direction === 'income'
   const name = planItemName(item, t)
+  const typed = parseMoneyText(amountText, fmt)
+  const isPartial = item.source === 'schedule' && isIncome && typed.ok && typed.minor < item.amountMinor
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
@@ -112,7 +116,20 @@ export function MarkPaidDialog({ item, onClose }: { item: PlanItem; onClose: () 
     const { result, saved } =
       item.source === 'schedule'
         ? await run((d, c) =>
-            markOccurrence(d, { scheduleId: item.sourceId, occurrenceDate: item.date, amountMinor: parsed.minor, date, accountId, alreadyInBalance, txId }, c),
+            markOccurrence(
+              d,
+              {
+                scheduleId: item.sourceId,
+                occurrenceDate: item.date,
+                amountMinor: parsed.minor,
+                date,
+                accountId,
+                alreadyInBalance,
+                txId,
+                expectRemainder: isPartial && partial === 'expect',
+              },
+              c,
+            ),
           )
         : await run((d, c) => realizePlanned(d, item.sourceId, { date, amountMinor: parsed.minor, alreadyInBalance }, c))
     setBusy(false)
@@ -127,7 +144,8 @@ export function MarkPaidDialog({ item, onClose }: { item: PlanItem; onClose: () 
       action: {
         label: t('common.undo'),
         onClick: () => {
-          if (item.source === 'schedule') void run((d, c) => deleteTransaction(d, created.id, c))
+          // Deshacer una creación la descarta del todo (no pasa por la papelera).
+          if (item.source === 'schedule') void run((d, c) => removeTransactions(d, [created.id], c))
           else if (previous) void run((d, c) => revertTransaction(d, previous, c))
         },
       },
@@ -156,7 +174,21 @@ export function MarkPaidDialog({ item, onClose }: { item: PlanItem; onClose: () 
       <p className="dialog__lead">
         <strong>{name}</strong> · {t('markPaid.expected', { amount: fmt.money(item.amountMinor), date: fmt.date(item.date) })}
       </p>
+      {!!item.receivedMinor && item.state !== 'paid' && <p className="note">{t('markPaid.alreadyReceived', { amount: fmt.money(item.receivedMinor) })}</p>}
       <MoneyField label={t('markPaid.realAmount')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
+      {isPartial && typed.ok && (
+        <Segmented
+          legend={t('markPaid.partialLegend')}
+          name="partial"
+          value={partial}
+          onChange={setPartial}
+          options={[
+            { value: 'close', label: t('markPaid.partialClose') },
+            { value: 'expect', label: t('markPaid.partialExpect', { amount: fmt.money(item.amountMinor - typed.minor) }) },
+          ]}
+          hint={t('markPaid.partialHint')}
+        />
+      )}
       <TextField
         label={t(isIncome ? 'markPaid.dateIncome' : 'markPaid.dateExpense')}
         type="date"

@@ -7,11 +7,27 @@
  *  - El espacio es limitado (unos 5 MB por sitio).
  */
 import type { AppData } from '../domain/types'
+import { SCHEMA_VERSION } from '../domain/types'
 import { validateAppData } from './backup'
 import type { DataRepository, LoadResult, SaveResult } from './repository'
 
 export const STORAGE_KEY = 'margen.data.v1'
 const CORRUPT_KEY_PREFIX = 'margen.data.corrupt.'
+/** Copia exacta de los datos anteriores a una migración: `margen.data.before-v<versión nueva>`. */
+export const PRE_MIGRATION_KEY_PREFIX = 'margen.data.before-v'
+
+/**
+ * Antes de guardar datos migrados por primera vez se conserva el texto original,
+ * por si la migración tuviera un error. Solo se guarda una vez por versión.
+ */
+function preservePreMigration(storage: Storage, raw: string, fromVersion: number) {
+  const key = `${PRE_MIGRATION_KEY_PREFIX}${SCHEMA_VERSION}`
+  try {
+    if (storage.getItem(key) === null) storage.setItem(key, JSON.stringify({ fromVersion, raw }))
+  } catch {
+    // Sin espacio: la migración sigue siendo en memoria y validada; se pierde solo esta copia extra.
+  }
+}
 
 function getStorage(): Storage | null {
   try {
@@ -44,7 +60,11 @@ export class LocalStorageRepository implements DataRepository {
       return { status: 'corrupt', raw, issues: [{ path: 'file', code: 'invalidJson' }] }
     }
     const result = validateAppData(parsed)
+    // Datos de una versión futura, dañados o con migración fallida: NO se sobrescriben
+    // (la interfaz ofrece descargarlos antes de cualquier decisión).
     if (!result.ok) return { status: 'corrupt', raw, issues: result.issues }
+    const version = (parsed as { schemaVersion?: unknown }).schemaVersion
+    if (typeof version === 'number' && version < SCHEMA_VERSION) preservePreMigration(storage, raw, version)
     return { status: 'ok', data: result.data }
   }
 

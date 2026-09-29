@@ -5,7 +5,7 @@
  */
 import { addDays, localDateInTimeZone } from '../domain/dates'
 import { newId } from '../domain/ids'
-import type { Account, AppData, CategoryRule, Goal, Language, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
+import type { Account, AppData, CategoryRule, Favorite, Goal, Language, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 
 /** Textos de los datos ficticios en cada idioma (son datos, no textos de interfaz). */
@@ -142,6 +142,8 @@ export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es
     kind: 'income',
     amountMinor: 61240,
     amountIsEstimate: true,
+    // Ingreso variable: las horas cambian cada quincena.
+    range: { minMinor: 52000, extraMinor: 70000 },
     accountId: main.id,
     categoryId: 'salary',
     frequency: 'biweekly',
@@ -321,6 +323,15 @@ export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es
         [L.ruleCoffee, 'dining'],
       ] as const
     ).map(([pattern, categoryId]): CategoryRule => ({ id: newId(), pattern, kind: 'expense', categoryId, createdAt: nowTs, updatedAt: nowTs })),
+    trash: [],
+    purgedImportRefs: [],
+    // Plantillas de ejemplo: solo abren el formulario, nunca registran nada solas.
+    favorites: [
+      { id: newId(), name: L.coffee, kind: 'expense', accountId: main.id, categoryId: 'dining', amountMinor: 425, order: 0, createdAt: nowTs, updatedAt: nowTs },
+      { id: newId(), name: L.bus, kind: 'expense', accountId: cash.id, categoryId: 'transport', amountMinor: 335, order: 1, createdAt: nowTs, updatedAt: nowTs },
+    ] satisfies Favorite[],
+    reconciliations: [],
+    backup: { reminder: 'weekly' },
     createdAt: nowTs,
     updatedAt: nowTs,
     revision: 0,

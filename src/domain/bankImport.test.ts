@@ -105,7 +105,7 @@ const CSV = [
 describe('vista previa de la importación', () => {
   it('clasifica filas, calcula tipo e importe en enteros y marca la relación con el saldo', () => {
     const p = previewImport(CSV, data(), options())
-    expect(p.counts).toEqual({ new: 5, duplicate: 0, possibleDuplicate: 0, error: 4 })
+    expect(p.counts).toEqual({ new: 5, duplicate: 0, possibleDuplicate: 0, trashed: 0, purged: 0, error: 4 })
     const [before, sameDay, cafe1, cafe2, salary] = p.rows
     expect(before).toMatchObject({ line: 2, kind: 'expense', amountMinor: 1000, anchorRelation: 'before' })
     expect(sameDay).toMatchObject({ anchorRelation: 'sameDay' })

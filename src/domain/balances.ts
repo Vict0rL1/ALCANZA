@@ -35,7 +35,14 @@ export function txEffectOnAccount(tx: Transaction, accountId: string): number {
       if (tx.toAccountId === accountId) effect += tx.amountMinor
       return effect
     }
+    case 'adjustment':
+      return tx.accountId === accountId ? adjustmentSign(tx) * tx.amountMinor : 0
   }
+}
+
+/** +1 si el ajuste sube el saldo, −1 si lo baja. */
+export function adjustmentSign(tx: Pick<Transaction, 'adjustmentDirection'>): 1 | -1 {
+  return tx.adjustmentDirection === 'decrease' ? -1 : 1
 }
 
 export interface AccountBalance {
@@ -79,7 +86,10 @@ export function spendableBalance(data: Pick<AppData, 'transactions' | 'accounts'
  * una transferencia entre dos cuentas del presupuesto no cambia nada;
  * hacia una cuenta fuera del presupuesto (p. ej. ahorro) lo reduce.
  */
-export function txEffectOnBudgetPool(tx: Pick<Transaction, 'kind' | 'amountMinor' | 'accountId' | 'toAccountId'>, accounts: Account[]): number {
+export function txEffectOnBudgetPool(
+  tx: Pick<Transaction, 'kind' | 'amountMinor' | 'accountId' | 'toAccountId' | 'adjustmentDirection'>,
+  accounts: Account[],
+): number {
   const included = (id: string | undefined) => !!id && accounts.some((a) => a.id === id && a.includeInBudget)
   switch (tx.kind) {
     case 'income':
@@ -93,6 +103,8 @@ export function txEffectOnBudgetPool(tx: Pick<Transaction, 'kind' | 'amountMinor
       if (from === to) return 0
       return from ? -tx.amountMinor : tx.amountMinor
     }
+    case 'adjustment':
+      return included(tx.accountId) ? adjustmentSign(tx) * tx.amountMinor : 0
   }
 }
 

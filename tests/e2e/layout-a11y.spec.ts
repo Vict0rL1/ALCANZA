@@ -2,7 +2,21 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { go, startDemo } from './helpers'
 
-const ROUTES = ['/', '/movimientos', '/movimientos/nuevo', '/alcanza', '/plan/calendario', '/plan/metas', '/plan/proyeccion', '/ajustes', '/plan/programado/nuevo', '/plan/metas/nueva']
+const ROUTES = [
+  '/',
+  '/movimientos',
+  '/movimientos/nuevo',
+  '/alcanza',
+  '/plan/calendario',
+  '/plan/metas',
+  '/plan/proyeccion',
+  '/ajustes',
+  '/plan/programado/nuevo',
+  '/plan/metas/nueva',
+  '/movimientos/papelera',
+  '/movimientos/favoritos',
+  '/conciliar',
+]
 
 async function horizontalOverflow(page: import('@playwright/test').Page) {
   return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
@@ -20,7 +34,7 @@ test('ninguna pantalla tiene desplazamiento horizontal', async ({ page }) => {
 test('con texto ampliado al 200 % no aparece desplazamiento horizontal', async ({ page }) => {
   await startDemo(page)
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
-  for (const route of ['/', '/movimientos', '/alcanza', '/plan/calendario']) {
+  for (const route of ['/', '/movimientos', '/alcanza', '/plan/calendario', '/plan/proyeccion', '/movimientos/favoritos', '/conciliar']) {
     await go(page, route)
     expect(await horizontalOverflow(page), route).toBeLessThanOrEqual(0)
   }

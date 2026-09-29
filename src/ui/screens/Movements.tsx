@@ -14,7 +14,7 @@ import { useFormat } from '../format'
 import { accountName, categoryLabel, transactionTitle } from '../labels'
 import { href } from '../router'
 
-const KIND_ICON: Record<TxKind, IconName> = { income: 'arrowDown', expense: 'arrowUp', transfer: 'transfer', refund: 'refund' }
+const KIND_ICON: Record<TxKind, IconName> = { income: 'arrowDown', expense: 'arrowUp', transfer: 'transfer', refund: 'refund', adjustment: 'sliders' }
 const PAGE = 60
 
 export function Movements() {
@@ -82,6 +82,18 @@ export function Movements() {
           {t('movements.add')}
         </a>
       </PageHeader>
+      <p className="link-row">
+        <a href={href('/movimientos/favoritos')}>
+          <Icon name="star" size={16} />
+          {t('favorites.title')}
+          {data.favorites.length > 0 ? ` (${data.favorites.length})` : ''}
+        </a>
+        <a href={href('/movimientos/papelera')}>
+          <Icon name="trash" size={16} />
+          {t('trash.link')}
+          {data.trash.length > 0 ? ` (${data.trash.length})` : ''}
+        </a>
+      </p>
 
       {data.transactions.length === 0 ? (
         <EmptyState
@@ -115,7 +127,7 @@ export function Movements() {
               label={t('filters.kind')}
               value={kind}
               onChange={(e) => setKind(e.target.value as typeof kind)}
-              options={[{ value: 'all', label: t('filters.allKinds') }, ...(['expense', 'income', 'transfer', 'refund'] as const).map((k) => ({ value: k, label: t(`txKind.${k}` as MessageKey) }))]}
+              options={[{ value: 'all', label: t('filters.allKinds') }, ...(['expense', 'income', 'transfer', 'refund', 'adjustment'] as const).map((k) => ({ value: k, label: t(`txKind.${k}` as MessageKey) }))]}
             />
             <SelectField
               label={t('filters.status')}
@@ -201,7 +213,12 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
             {g.items.map((tx) => {
               const account = data.accounts.find((a) => a.id === tx.accountId)
               const includedInAnchor = tx.status === 'realized' && account && !txAppliesToAccount(tx, account) && tx.date >= account.anchor.date
-              const sign = tx.kind === 'income' || tx.kind === 'refund' ? '+' : tx.kind === 'expense' ? '−' : ''
+              const sign =
+                tx.kind === 'income' || tx.kind === 'refund' || (tx.kind === 'adjustment' && tx.adjustmentDirection === 'increase')
+                  ? '+'
+                  : tx.kind === 'expense' || tx.kind === 'adjustment'
+                    ? '−'
+                    : ''
               return (
                 <li key={tx.id}>
                   <a className="item item--link" href={href(`/movimientos/editar/${tx.id}`)}>
@@ -212,12 +229,13 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
                       <span className="item__title">{transactionTitle(tx, data.accounts, t)}</span>
                       <span className="item__meta">
                         {!groupByDate && <>{fmt.date(tx.date, { compact: true, today })} · </>}
-                        {tx.kind === 'transfer' ? t('txKind.transfer') : categoryLabel(t, tx.categoryId)}
+                        {tx.kind === 'transfer' ? t('txKind.transfer') : tx.kind === 'adjustment' ? t('adjustment.title') : categoryLabel(t, tx.categoryId)}
                         {tx.kind !== 'transfer' && data.accounts.length > 1 && <> · {accountName(data.accounts, tx.accountId, t)}</>}
                       </span>
                       <span className="item__badges">
                         {tx.status === 'planned' ? <Badge tone="info" icon="clock">{t('status.planned')}</Badge> : null}
                         {tx.scheduleId ? <Badge icon="calendar">{t('movements.fromCalendar')}</Badge> : null}
+                        {tx.kind === 'adjustment' ? <Badge icon="scale">{t('adjustment.title')}</Badge> : null}
                         {tx.refundOfId ? <Badge icon="refund">{t('movements.linkedRefund')}</Badge> : null}
                         {includedInAnchor ? <Badge icon="lock">{t('movements.includedInBalance')}</Badge> : null}
                       </span>

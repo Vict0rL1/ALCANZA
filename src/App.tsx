@@ -8,16 +8,19 @@ import { Icon, type IconName } from './ui/components/Icon'
 import { ToastProvider } from './ui/components/Toasts'
 import { href, useRoute, type Route } from './ui/router'
 import { Afford } from './ui/screens/Afford'
-import { GoalForm } from './ui/screens/Goals'
 import { Home } from './ui/screens/Home'
 import { MovementForm } from './ui/screens/MovementForm'
 import { Movements } from './ui/screens/Movements'
-import { Plan } from './ui/screens/Plan'
-import { ScheduleForm } from './ui/screens/ScheduleForm'
 import { Setup } from './ui/screens/Setup'
 
-// Pantallas de uso ocasional: se cargan aparte (el service worker las guarda igual para usarlas sin conexión).
+// Pantallas secundarias: se cargan aparte (el service worker las guarda igual para usarlas sin conexión).
+const Plan = lazy(() => import('./ui/screens/Plan').then((m) => ({ default: m.Plan })))
+const ScheduleForm = lazy(() => import('./ui/screens/ScheduleForm').then((m) => ({ default: m.ScheduleForm })))
+const GoalForm = lazy(() => import('./ui/screens/Goals').then((m) => ({ default: m.GoalForm })))
+const Favorites = lazy(() => import('./ui/screens/Favorites').then((m) => ({ default: m.Favorites })))
+const Trash = lazy(() => import('./ui/screens/Trash').then((m) => ({ default: m.Trash })))
 const Settings = lazy(() => import('./ui/screens/Settings').then((m) => ({ default: m.Settings })))
+const Reconcile = lazy(() => import('./ui/screens/Reconcile').then((m) => ({ default: m.Reconcile })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
@@ -258,7 +261,9 @@ function Shell() {
           })}
         </nav>
         <main className="main" id="main" ref={mainRef} tabIndex={-1}>
-          <Screen route={route} />
+          <Suspense fallback={null}>
+            <Screen route={route} />
+          </Suspense>
         </main>
       </div>
     </div>
@@ -272,21 +277,15 @@ function Screen({ route }: { route: Route }) {
   if (!a) return <Home key={key} />
   if (a === 'alcanza') return <Afford key={key} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />
-  if (a === 'movimientos' && b === 'importar') return (
-      <Suspense fallback={null}>
-        <BankImport key={key} />
-      </Suspense>
-    )
+  if (a === 'movimientos' && b === 'importar') return <BankImport key={key} />
+  if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
+  if (a === 'movimientos' && b === 'favoritos') return <Favorites key={key} />
+  if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos') return <Movements key={key} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
-  if (a === 'ajustes')
-    return (
-      <Suspense fallback={null}>
-        <Settings key={key} />
-      </Suspense>
-    )
+  if (a === 'ajustes') return <Settings key={key} />
   return (
     <div className="stack">
       <h1 id="page-title" tabIndex={-1}>

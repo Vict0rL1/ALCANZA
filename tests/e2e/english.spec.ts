@@ -24,6 +24,25 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
     expect(results.violations.map((v) => v.id), route).toEqual([])
   }
 
+  // New screens in English: trash, favorites, balance verification and backup status.
+  await go(page, '/')
+  await expect(page.getByRole('navigation', { name: 'Favorites' }).getByRole('link', { name: /Coffee/ })).toBeVisible()
+  await expect(page.getByTestId('verification')).toContainText('Last recorded transaction')
+  for (const [route, heading] of [
+    ['/movimientos/papelera', 'Trash'],
+    ['/movimientos/favoritos', 'Favorites'],
+    ['/conciliar', 'Verify balance'],
+  ] as const) {
+    await go(page, route)
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    expect(results.violations.map((v) => v.id), route).toEqual([])
+  }
+  await go(page, '/plan/proyeccion')
+  await expect(page.getByRole('group', { name: 'Variable income scenario' })).toBeVisible()
+  await go(page, '/ajustes')
+  await expect(page.getByTestId('backup-status')).toContainText('You have never exported a backup.')
+
   await go(page, '/ajustes')
   await page.getByLabel('Language').selectOption('es')
   await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()

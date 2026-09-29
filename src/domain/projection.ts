@@ -6,6 +6,8 @@
  *  - Se suman ingresos y se restan pagos PREVISTOS en su fecha.
  *  - Los pagos vencidos sin marcar se restan hoy (postura prudente).
  *  - Los ingresos retrasados NO se suman (no se sabe cuándo llegarán).
+ *  - Ingresos variables: se usa el escenario elegido (por defecto el mínimo); con
+ *    cobros parciales solo se proyecta lo que falta por llegar.
  *  - Opcional: un gasto diario estimado que se resta cada día, incluido hoy.
  *  - Los apartados de metas no se restan del saldo (siguen en tu cuenta), pero se
  *    señala si el saldo proyectado cae por debajo de ellos.
@@ -15,7 +17,7 @@ import { addDays, daysBetween } from './dates'
 import { goalsReservedFromBudget } from './goals'
 import { floorDiv, sumMinor } from './money'
 import { openItemsUntil, type PlanItem } from './planItems'
-import type { AppData, LocalDate } from './types'
+import type { AppData, IncomeScenario, LocalDate } from './types'
 
 export interface ProjectionDay {
   date: LocalDate
@@ -33,6 +35,11 @@ export interface ProjectionOptions {
   dailySpendMinor?: number
   /** Compra simulada que se resta hoy (para "¿Me alcanza?"). */
   extraOutflowTodayMinor?: number
+  /**
+   * Escenario de los ingresos variables. Por defecto el MÍNIMO (postura prudente).
+   * Solo cambia la proyección: nunca los movimientos reales ni el disponible.
+   */
+  scenario?: IncomeScenario
 }
 
 export interface ProjectionResult {
@@ -48,17 +55,23 @@ export interface ProjectionResult {
   estimatedItems: PlanItem[]
   hasIncomeInRange: boolean
   dailySpendMinor: number
+  scenario: IncomeScenario
+  /** Ingresos con rango (variables) dentro de la proyección. */
+  variableIncomes: PlanItem[]
+  /** Saldo proyectado al final del último día. */
+  endMinor: number
 }
 
 export function projectBalance(data: AppData, today: LocalDate, options: ProjectionOptions = {}): ProjectionResult {
   const totalDays = Math.max(1, options.days ?? 30)
   const dailySpendMinor = Math.max(0, options.dailySpendMinor ?? 0)
   const extraToday = Math.max(0, options.extraOutflowTodayMinor ?? 0)
+  const scenario = options.scenario ?? 'min'
   const lastDay = addDays(today, totalDays - 1)
   const { totalMinor: startMinor } = spendableBalance(data)
   const goalsReservedMinor = goalsReservedFromBudget(data.goals)
 
-  const open = openItemsUntil(data, today, lastDay).filter((i) => i.budgetEffectMinor !== 0)
+  const open = openItemsUntil(data, today, lastDay, scenario).filter((i) => i.budgetEffectMinor !== 0)
   const lateIncomesExcluded = open.filter((i) => i.state === 'overdue' && i.budgetEffectMinor > 0)
   const overdueOutflowsToday = open.filter((i) => i.state === 'overdue' && i.budgetEffectMinor < 0)
   const counted = open.filter((i) => !(i.state === 'overdue' && i.budgetEffectMinor > 0))
@@ -103,7 +116,30 @@ export function projectBalance(data: AppData, today: LocalDate, options: Project
     estimatedItems: counted.filter((i) => i.isEstimate),
     hasIncomeInRange: counted.some((i) => i.budgetEffectMinor > 0 && i.source === 'schedule'),
     dailySpendMinor,
+    scenario,
+    variableIncomes: counted.filter((i) => !!i.range),
+    endMinor: balance,
   }
+}
+
+export interface ScenarioComparison {
+  scenario: IncomeScenario
+  incomeMinor: number
+  endMinor: number
+  lowest: { date: LocalDate; minor: number }
+  firstNegativeDate: LocalDate | null
+}
+
+/**
+ * Misma proyección con cada escenario de ingresos (mínimo, esperado, extra). Solo
+ * cambian los ingresos futuros estimados; el saldo de partida es el real en los tres.
+ */
+export function compareScenarios(data: AppData, today: LocalDate, options: Omit<ProjectionOptions, 'scenario'> = {}): ScenarioComparison[] {
+  return (['min', 'expected', 'extra'] as const).map((scenario) => {
+    const p = projectBalance(data, today, { ...options, scenario })
+    const incomeMinor = sumMinor(p.days.flatMap((d) => d.events).filter((e) => e.budgetEffectMinor > 0).map((e) => e.budgetEffectMinor))
+    return { scenario, incomeMinor, endMinor: p.endMinor, lowest: p.lowest, firstNegativeDate: p.firstNegativeDate }
+  })
 }
 
 export interface DailySpendEstimate {

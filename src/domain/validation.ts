@@ -8,7 +8,22 @@ import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
 import { normalizeText, RULE_PATTERN_MAX, RULE_PATTERN_MIN } from './rules'
-import type { Account, AppData, CategoryLimit, CategoryRule, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
+import type {
+  Account,
+  AppData,
+  BackupState,
+  CategoryLimit,
+  CategoryRule,
+  CustomCategory,
+  Favorite,
+  Goal,
+  IncomeRange,
+  Reconciliation,
+  Schedule,
+  Settings,
+  Transaction,
+  TrashEntry,
+} from './types'
 
 export type IssueCode =
   | 'required'
@@ -42,6 +57,16 @@ export type IssueCode =
   | 'duplicateRule'
   | 'patternTooShort'
   | 'notFound'
+  | 'rangeOrder'
+  | 'occurrenceAlreadySettled'
+  | 'restoreConflict'
+  | 'favoriteAccountMissing'
+  | 'favoriteCategoryMissing'
+  | 'beforeAnchor'
+  | 'differenceNotZero'
+  | 'nothingToAdjust'
+  | 'reasonRequired'
+  | 'notABackupOfThisBudget'
 
 export interface Issue {
   /** Campo afectado, por ejemplo 'amountMinor' o 'transactions[3].date'. */
@@ -57,7 +82,7 @@ export const LIMITS = {
   horizonMaxDays: 90,
 } as const
 
-export const TX_KINDS = ['income', 'expense', 'transfer', 'refund'] as const
+export const TX_KINDS = ['income', 'expense', 'transfer', 'refund', 'adjustment'] as const
 export const TX_STATUSES = ['planned', 'realized'] as const
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings', 'credit', 'other'] as const
 export const FREQUENCIES = ['once', 'weekly', 'biweekly', 'monthly', 'yearly'] as const
@@ -216,11 +241,27 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
       issues.push({ path: `${p}toAccountId`, code: 'sameAccount' })
     }
     if (tx.categoryId !== undefined) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+  } else if (tx.kind === 'adjustment') {
+    // Un ajuste corrige el saldo de una sola cuenta: sin categoría, destino ni vínculos de pago.
+    if (tx.status !== 'realized') issues.push({ path: `${p}status`, code: 'invalidValue' })
+    if (tx.adjustmentDirection !== 'increase' && tx.adjustmentDirection !== 'decrease') {
+      issues.push({ path: `${p}adjustmentDirection`, code: 'invalidValue' })
+    }
+    if (tx.toAccountId !== undefined) issues.push({ path: `${p}toAccountId`, code: 'invalidValue' })
+    if (tx.categoryId !== undefined) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+    if (tx.scheduleId !== undefined || tx.refundOfId !== undefined) issues.push({ path: `${p}kind`, code: 'invalidValue' })
+    if (tx.reconciliationId !== undefined && !isValidId(tx.reconciliationId)) issues.push({ path: `${p}reconciliationId`, code: 'invalidId' })
   } else if (isOneOf(TX_KINDS, tx.kind)) {
     if (tx.toAccountId !== undefined) issues.push({ path: `${p}toAccountId`, code: 'invalidValue' })
     if (!tx.categoryId || !categoriesForKind(tx.kind, ctx.data.categories, { includeArchived: true }).includes(tx.categoryId)) {
       issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
     }
+  }
+  if (tx.kind !== 'adjustment' && (tx.adjustmentDirection !== undefined || tx.reconciliationId !== undefined)) {
+    issues.push({ path: `${p}adjustmentDirection`, code: 'invalidValue' })
+  }
+  if (tx.partialSettlement !== undefined && (tx.partialSettlement !== true || tx.scheduleId === undefined || tx.status !== 'realized')) {
+    issues.push({ path: `${p}partialSettlement`, code: 'invalidValue' })
   }
 
   if (tx.status === 'realized' && ctx.today && isValidLocalDate(tx.date) && tx.date > ctx.today) {
@@ -264,6 +305,23 @@ export function validateSchedule(s: Schedule, ctx: ValidationContext): Issue[] {
   if (s.kind !== 'income' && s.kind !== 'expense') issues.push({ path: `${p}kind`, code: 'invalidValue' })
   checkPositiveAmount(s.amountMinor, `${p}amountMinor`, issues)
   if (typeof s.amountIsEstimate !== 'boolean') issues.push({ path: `${p}amountIsEstimate`, code: 'invalidValue' })
+  if (s.range !== undefined) {
+    const r = s.range as Partial<IncomeRange> | null
+    if (s.kind !== 'income' || !r || typeof r !== 'object') {
+      issues.push({ path: `${p}range`, code: 'invalidValue' })
+    } else {
+      // 0 ≤ mínimo ≤ esperado ≤ extra (todo en enteros).
+      if (!isMinorAmount(r.minMinor) || r.minMinor < 0) issues.push({ path: `${p}range.minMinor`, code: 'invalidAmount' })
+      if (!isMinorAmount(r.extraMinor) || r.extraMinor < 0) issues.push({ path: `${p}range.extraMinor`, code: 'invalidAmount' })
+      else if (r.extraMinor > MAX_AMOUNT_MINOR) issues.push({ path: `${p}range.extraMinor`, code: 'amountTooLarge' })
+      if (isMinorAmount(r.minMinor) && isMinorAmount(s.amountMinor) && r.minMinor > s.amountMinor) {
+        issues.push({ path: `${p}range.minMinor`, code: 'rangeOrder' })
+      }
+      if (isMinorAmount(r.extraMinor) && isMinorAmount(s.amountMinor) && r.extraMinor < s.amountMinor) {
+        issues.push({ path: `${p}range.extraMinor`, code: 'rangeOrder' })
+      }
+    }
+  }
   if (s.currency !== ctx.data.settings.currency) {
     issues.push({ path: `${p}currency`, code: 'currencyMismatch', params: { expected: ctx.data.settings.currency } })
   }
@@ -326,5 +384,99 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
     }
   }
   checkTimestamps(g, p, issues)
+  return issues
+}
+
+/**
+ * Movimiento en la papelera: se valida su ESTRUCTURA (tipos, importes, moneda,
+ * cuentas existentes). Los vínculos con otros movimientos (devolución → gasto) se
+ * vuelven a comprobar al restaurar, porque pueden haber cambiado mientras tanto.
+ */
+export function validateTrashEntry(e: TrashEntry, ctx: ValidationContext): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  if (!e || typeof e !== 'object' || !e.transaction || typeof e.transaction !== 'object') {
+    return [{ path: `${p}transaction`, code: 'required' }]
+  }
+  if (!isValidId(e.id) || e.id !== e.transaction.id) issues.push({ path: `${p}id`, code: 'invalidId' })
+  if (!isValidTimestamp(e.deletedAt)) issues.push({ path: `${p}deletedAt`, code: 'invalidTimestamp' })
+  if (!Array.isArray(e.unlinkedRefundIds) || !e.unlinkedRefundIds.every(isValidId)) {
+    issues.push({ path: `${p}unlinkedRefundIds`, code: 'invalidId' })
+  }
+  const { refundOfId, ...structural } = e.transaction
+  if (refundOfId !== undefined && !isValidId(refundOfId)) issues.push({ path: `${p}transaction.refundOfId`, code: 'invalidId' })
+  issues.push(...validateTransaction(structural as Transaction, { data: { ...ctx.data, transactions: [] }, prefix: `${p}transaction.` }))
+  return issues
+}
+
+export const FAVORITE_NAME_MAX = 40
+
+/**
+ * Favorito. Con `checkReferences` (al guardar desde la app) exige que la cuenta y la
+ * categoría existan y estén activas; en una copia se aceptan referencias a cuentas
+ * o categorías que ya no existen (el formulario pedirá elegir otras).
+ */
+export function validateFavorite(
+  f: Favorite,
+  ctx: { data: Pick<AppData, 'accounts' | 'categories'>; prefix?: string; checkReferences?: boolean },
+): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  if (!isValidId(f.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
+  checkName(f.name, `${p}name`, issues, FAVORITE_NAME_MAX)
+  const kindOk = f.kind === 'expense' || f.kind === 'income'
+  if (!kindOk) issues.push({ path: `${p}kind`, code: 'invalidValue' })
+  if (f.amountMinor !== undefined) checkPositiveAmount(f.amountMinor, `${p}amountMinor`, issues)
+  checkOptionalText(f.note, `${p}note`, issues)
+  if (!Number.isInteger(f.order) || f.order < 0) issues.push({ path: `${p}order`, code: 'invalidValue' })
+  if (!isValidId(f.accountId)) issues.push({ path: `${p}accountId`, code: 'unknownAccount' })
+  if (typeof f.categoryId !== 'string' || f.categoryId === '') issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+  if (ctx.checkReferences && kindOk) {
+    if (!ctx.data.accounts.some((a) => a.id === f.accountId)) issues.push({ path: `${p}accountId`, code: 'favoriteAccountMissing' })
+    if (!categoriesForKind(f.kind, ctx.data.categories).includes(f.categoryId)) issues.push({ path: `${p}categoryId`, code: 'favoriteCategoryMissing' })
+  }
+  checkTimestamps(f, p, issues)
+  return issues
+}
+
+export const RECONCILIATION_RESOLUTIONS = ['matched', 'adjusted', 'unresolved'] as const
+
+export function validateReconciliation(r: Reconciliation, ctx: { data: Pick<AppData, 'accounts'>; prefix?: string }): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  if (!isValidId(r.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
+  if (!ctx.data.accounts.some((a) => a.id === r.accountId)) issues.push({ path: `${p}accountId`, code: 'unknownAccount' })
+  checkDate(r.date, `${p}date`, issues)
+  for (const key of ['observedMinor', 'computedMinor', 'differenceMinor'] as const) {
+    const v = r[key]
+    if (!isMinorAmount(v)) issues.push({ path: `${p}${key}`, code: 'invalidAmount' })
+    else if (Math.abs(v) > MAX_AMOUNT_MINOR) issues.push({ path: `${p}${key}`, code: 'amountTooLarge' })
+  }
+  if (isMinorAmount(r.observedMinor) && isMinorAmount(r.computedMinor) && r.differenceMinor !== r.observedMinor - r.computedMinor) {
+    issues.push({ path: `${p}differenceMinor`, code: 'invalidValue' })
+  }
+  if (!isOneOf(RECONCILIATION_RESOLUTIONS, r.resolution)) issues.push({ path: `${p}resolution`, code: 'invalidValue' })
+  if (r.resolution === 'matched' && r.differenceMinor !== 0) issues.push({ path: `${p}resolution`, code: 'differenceNotZero' })
+  if (r.resolution === 'adjusted' ? !isValidId(r.adjustmentTxId) : r.adjustmentTxId !== undefined) {
+    issues.push({ path: `${p}adjustmentTxId`, code: 'invalidId' })
+  }
+  checkOptionalText(r.reason, `${p}reason`, issues)
+  if (typeof r.fingerprint !== 'string' || r.fingerprint.length === 0 || r.fingerprint.length > 64) {
+    issues.push({ path: `${p}fingerprint`, code: 'invalidValue' })
+  }
+  checkTimestamps(r, p, issues)
+  return issues
+}
+
+export const BACKUP_REMINDERS = ['weekly', 'monthly', 'off'] as const
+
+export function validateBackupState(b: BackupState, prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!b || typeof b !== 'object') return [{ path: `${prefix}`, code: 'required' }]
+  if (!isOneOf(BACKUP_REMINDERS, b.reminder)) issues.push({ path: `${prefix}reminder`, code: 'invalidValue' })
+  for (const key of ['lastExportAt', 'lastExportDataAt', 'lastVerifiedAt', 'verifiedExportedAt'] as const) {
+    if (b[key] !== undefined && !isValidTimestamp(b[key])) issues.push({ path: `${prefix}${key}`, code: 'invalidTimestamp' })
+  }
+  if (b.snoozedUntil !== undefined) checkDate(b.snoozedUntil, `${prefix}snoozedUntil`, issues)
   return issues
 }

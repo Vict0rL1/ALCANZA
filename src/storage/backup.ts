@@ -5,17 +5,36 @@
  * se cambia nada. Se copian solo los campos conocidos (se descarta lo demás).
  */
 import { isValidId } from '../domain/ids'
-import type { Account, AppData, CategoryLimit, CategoryRule, CustomCategory, Goal, GoalAllocation, Schedule, Settings, Transaction } from '../domain/types'
+import type {
+  Account,
+  AppData,
+  BackupState,
+  CategoryLimit,
+  CategoryRule,
+  CustomCategory,
+  Favorite,
+  Goal,
+  GoalAllocation,
+  Reconciliation,
+  Schedule,
+  Settings,
+  Transaction,
+  TrashEntry,
+} from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 import {
   validateAccount,
+  validateBackupState,
   validateCategory,
   validateCategoryLimit,
   validateCategoryRule,
+  validateFavorite,
   validateGoal,
+  validateReconciliation,
   validateSchedule,
   validateSettings,
   validateTransaction,
+  validateTrashEntry,
   type Issue,
 } from '../domain/validation'
 import { migrate } from './migrations'
@@ -34,7 +53,7 @@ export interface BackupFile {
   data: AppData
 }
 
-export type BackupIssueCode = 'invalidJson' | 'notABackup' | 'schemaTooNew' | 'tooLarge' | 'tooManyRecords' | 'noAccounts'
+export type BackupIssueCode = 'invalidJson' | 'notABackup' | 'schemaTooNew' | 'tooLarge' | 'tooManyRecords' | 'noAccounts' | 'migrationFailed'
 
 export type ImportIssue = Issue | { path: string; code: BackupIssueCode; params?: Record<string, string | number> }
 
@@ -48,6 +67,26 @@ export function createBackup(data: AppData, now: Date, appVersion: string): Back
     app: 'Margen',
     appVersion,
     data,
+  }
+}
+
+/**
+ * Genera el archivo y se lo entrega a `write` (en la app: pedir la descarga al
+ * navegador). Si algo falla, devuelve `ok: false` y quien llama NO debe registrar
+ * la exportación como hecha.
+ */
+export function performExport(
+  data: AppData,
+  now: Date,
+  appVersion: string,
+  write: (filename: string, text: string) => void,
+): { ok: true; exportedAt: string; filename: string } | { ok: false } {
+  try {
+    const filename = backupFileName(now, data.isDemo)
+    write(filename, JSON.stringify(createBackup(data, now, appVersion), null, 2))
+    return { ok: true, exportedAt: now.toISOString(), filename }
+  } catch {
+    return { ok: false }
   }
 }
 
@@ -72,14 +111,25 @@ const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPayment
 const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'createdAt', 'updatedAt'] as const
 const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
-  'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef', 'createdAt', 'updatedAt',
+  'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef',
+  'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'createdAt', 'updatedAt',
 ] as const
 const SCHEDULE_KEYS = [
-  'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'currency', 'accountId', 'categoryId', 'frequency',
+  'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'range', 'currency', 'accountId', 'categoryId', 'frequency',
   'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'createdAt', 'updatedAt',
 ] as const
 const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'createdAt', 'updatedAt'] as const
 const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt'] as const
+
+/** Lista opcional de objetos (ausente en copias antiguas = vacía). */
+function listOf(value: unknown, path: string, issues: ImportIssue[]): Obj[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || value.length > MAX_RECORDS || !value.every(isObj)) {
+    issues.push({ path, code: 'invalidValue' })
+    return []
+  }
+  return value
+}
 
 function checkDuplicates(list: { id: string }[], path: string, issues: ImportIssue[]) {
   const seen = new Set<string>()
@@ -98,7 +148,13 @@ export function validateAppData(raw: unknown): ImportResult {
     return { ok: false, issues: [{ path: 'schemaVersion', code: 'notABackup' }] }
   }
   if (version > SCHEMA_VERSION) return { ok: false, issues: [{ path: 'schemaVersion', code: 'schemaTooNew', params: { version } }] }
-  const migrated = migrate(raw)
+  let migrated: Obj
+  try {
+    migrated = migrate(raw)
+  } catch {
+    // Nunca se borra nada por un fallo de migración: los datos originales quedan intactos.
+    return { ok: false, issues: [{ path: 'schemaVersion', code: 'migrationFailed', params: { version } }] }
+  }
 
   if (!isValidId(migrated.budgetId)) issues.push({ path: 'budgetId', code: 'invalidId' })
   if (typeof migrated.isDemo !== 'boolean') issues.push({ path: 'isDemo', code: 'invalidValue' })
@@ -157,15 +213,57 @@ export function validateAppData(raw: unknown): ImportResult {
   checkDuplicates(transactions, 'transactions', issues)
   checkDuplicates(schedules, 'schedules', issues)
   checkDuplicates(goals, 'goals', issues)
-  // Una ocurrencia programada solo puede liquidarse una vez.
+  // Una ocurrencia programada tiene como mucho UNA liquidación final (las parciales pueden ser varias).
   const settled = new Set<string>()
   transactions.forEach((t, i) => {
-    if (t.status === 'realized' && t.scheduleId && t.occurrenceDate) {
+    if (t.status === 'realized' && t.scheduleId && t.occurrenceDate && !t.partialSettlement) {
       const key = `${t.scheduleId}:${t.occurrenceDate}`
       if (settled.has(key)) issues.push({ path: `transactions[${i}].occurrenceDate`, code: 'duplicateId' })
       settled.add(key)
     }
   })
+
+  // v5: papelera, huellas purgadas, favoritos, conciliaciones y registro de copias (opcionales en copias antiguas).
+  const rawTrash = listOf(migrated.trash, 'trash', issues)
+  const trash = rawTrash.map((e) => {
+    const entry = pick<TrashEntry>(e, ['id', 'deletedAt', 'unlinkedRefundIds'])
+    if (isObj(e.transaction)) entry.transaction = pick<Transaction>(e.transaction, TX_KEYS)
+    return entry
+  })
+  trash.forEach((e, i) => issues.push(...validateTrashEntry(e, { data: ctxData, prefix: `trash[${i}].` })))
+  checkDuplicates(trash, 'trash', issues)
+  const liveIds = new Set(transactions.map((t) => t.id))
+  trash.forEach((e, i) => {
+    if (liveIds.has(e.id)) issues.push({ path: `trash[${i}].id`, code: 'duplicateId' })
+  })
+
+  const rawRefs = Array.isArray(migrated.purgedImportRefs) ? migrated.purgedImportRefs : []
+  if (migrated.purgedImportRefs !== undefined && !Array.isArray(migrated.purgedImportRefs)) issues.push({ path: 'purgedImportRefs', code: 'invalidValue' })
+  if (rawRefs.length > MAX_RECORDS || !rawRefs.every((r) => typeof r === 'string' && r.length > 0 && r.length <= 200)) {
+    issues.push({ path: 'purgedImportRefs', code: 'invalidValue' })
+  }
+  const purgedImportRefs = [...new Set(rawRefs as string[])]
+
+  const favorites = listOf(migrated.favorites, 'favorites', issues).map((f) =>
+    pick<Favorite>(f, ['id', 'name', 'kind', 'accountId', 'categoryId', 'amountMinor', 'note', 'order', 'createdAt', 'updatedAt']),
+  )
+  favorites.forEach((f, i) => issues.push(...validateFavorite(f, { data: { accounts, categories }, prefix: `favorites[${i}].` })))
+  checkDuplicates(favorites, 'favorites', issues)
+
+  const reconciliations = listOf(migrated.reconciliations, 'reconciliations', issues).map((r) =>
+    pick<Reconciliation>(r, [
+      'id', 'accountId', 'date', 'observedMinor', 'computedMinor', 'differenceMinor', 'resolution',
+      'adjustmentTxId', 'reason', 'fingerprint', 'createdAt', 'updatedAt',
+    ]),
+  )
+  reconciliations.forEach((r, i) => issues.push(...validateReconciliation(r, { data: { accounts }, prefix: `reconciliations[${i}].` })))
+  checkDuplicates(reconciliations, 'reconciliations', issues)
+
+  const backup = isObj(migrated.backup)
+    ? pick<BackupState>(migrated.backup, ['reminder', 'lastExportAt', 'lastExportDataAt', 'lastVerifiedAt', 'verifiedExportedAt', 'snoozedUntil'])
+    : ({ reminder: 'weekly' } as BackupState)
+  if (migrated.backup !== undefined && !isObj(migrated.backup)) issues.push({ path: 'backup', code: 'invalidValue' })
+  issues.push(...validateBackupState(backup, 'backup.'))
   if (issues.length) return { ok: false, issues: issues.slice(0, 50) }
 
   const data: AppData = {
@@ -180,6 +278,11 @@ export function validateAppData(raw: unknown): ImportResult {
     categories,
     categoryLimits,
     categoryRules,
+    trash,
+    purgedImportRefs,
+    favorites: [...favorites].sort((a, b) => a.order - b.order),
+    reconciliations,
+    backup,
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

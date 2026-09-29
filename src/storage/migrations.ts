@@ -19,6 +19,22 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
   2: (raw) => ({ ...raw, schemaVersion: 3 }),
   /** v3 → v4: reglas de categoría (lista vacía). */
   3: (raw) => ({ ...raw, schemaVersion: 4, categoryRules: Array.isArray(raw.categoryRules) ? raw.categoryRules : [] }),
+  /**
+   * v4 → v5: papelera, huellas de importación purgadas, favoritos, conciliaciones y
+   * registro de copias (recordatorio semanal por defecto, sin exportaciones previas).
+   * Los campos nuevos de movimientos y pagos programados son opcionales: nada existente cambia.
+   */
+  // Solo se rellenan los campos AUSENTES. Si existen con un formato incorrecto se
+  // conservan tal cual para que la validación rechace el archivo: nunca se borran datos.
+  4: (raw) => ({
+    ...raw,
+    schemaVersion: 5,
+    trash: raw.trash ?? [],
+    purgedImportRefs: raw.purgedImportRefs ?? [],
+    favorites: raw.favorites ?? [],
+    reconciliations: raw.reconciliations ?? [],
+    backup: raw.backup ?? { reminder: 'weekly' },
+  }),
 }
 
 export function migrate(raw: Raw): Raw {

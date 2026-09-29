@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { addDays, addMonthsClamped, endOfMonth, startOfMonth, weekday } from '../../domain/dates'
-import { deleteTransaction, restoreTransaction, setOccurrenceSkipped } from '../../domain/operations'
+import { closeOccurrence, deleteTransaction, revertTransaction, setOccurrenceSkipped } from '../../domain/operations'
+import { useRestoreFromTrash } from '../useDeleteTransaction'
 import { nextOccurrenceOnOrAfter } from '../../domain/recurrence'
 import { planItems, type PlanItem } from '../../domain/planItems'
 import { useT, type MessageKey } from '../../i18n'
@@ -26,6 +27,7 @@ export function Calendar() {
   const [month, setMonth] = useState(() => startOfMonth(today))
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
+  const restore = useRestoreFromTrash()
 
   const monthEnd = endOfMonth(month)
   const monthItems = useMemo(() => planItems(data, { today, from: month, to: monthEnd }), [data, today, month, monthEnd])
@@ -51,15 +53,34 @@ export function Calendar() {
     })
   }
 
+  // Cobro parcial: dar la previsión por terminada (el último parcial pasa a ser el final).
+  const close = async (item: PlanItem) => {
+    const previous = data.transactions.filter((x) => item.partialTxIds?.includes(x.id))
+    const { result, saved } = await run((d, c) => closeOccurrence(d, item.sourceId, item.date, c))
+    if (!result.ok) return
+    toast({
+      message: saved ? t('calendar.closed', { name: planItemName(item, t) }) : t('save.error.generic'),
+      tone: saved ? 'good' : 'critical',
+      action: {
+        label: t('common.undo'),
+        onClick: () => {
+          const last = previous.find((x) => x.id === result.value.id)
+          if (last) void run((d, c) => revertTransaction(d, last, c))
+        },
+      },
+    })
+  }
+
+  // Desmarcar = enviar el movimiento que lo pagó a la papelera (la ocurrencia vuelve a reservarse).
   const unmark = async (item: PlanItem) => {
     if (!item.settledByTxId) return
-    const { result, saved } = await run((d, c) => deleteTransaction(d, item.settledByTxId!, c))
+    const txId = item.settledByTxId
+    const { result, saved } = await run((d, c) => deleteTransaction(d, txId, c))
     if (!result.ok) return
-    const { tx, unlinkedRefundIds } = result.value
     toast({
       message: saved ? t('calendar.unmarked', { name: planItemName(item, t) }) : t('save.error.generic'),
       tone: saved ? 'good' : 'critical',
-      action: { label: t('common.undo'), onClick: () => void run((d, c) => restoreTransaction(d, tx, c, unlinkedRefundIds)) },
+      action: { label: t('common.undo'), onClick: () => void restore(txId) },
     })
   }
 
@@ -84,6 +105,12 @@ export function Calendar() {
               <Badge icon={i.direction === 'income' ? 'arrowDown' : i.direction === 'transfer' ? 'transfer' : 'arrowUp'}>{t(`txKind.${i.direction}` as MessageKey)}</Badge>
               {i.isEstimate && <Badge>{t('state.estimate')}</Badge>}
             </p>
+            {i.range && i.state !== 'paid' && (
+              <p className="item__meta">{t('calendar.range', { min: fmt.money(i.range.minMinor), extra: fmt.money(i.range.extraMinor) })}</p>
+            )}
+            {!!i.receivedMinor && i.state !== 'paid' && (
+              <p className="item__meta">{t('calendar.partialReceived', { received: fmt.money(i.receivedMinor), remaining: fmt.money(i.amountMinor) })}</p>
+            )}
           </div>
           <p className="item__amount">{fmt.money(i.amountMinor)}</p>
         </div>
@@ -95,7 +122,14 @@ export function Calendar() {
               <span className="sr-only">: {name}</span>
             </button>
           )}
-          {i.source === 'schedule' && (i.state === 'pending' || i.state === 'overdue') && (
+          {i.source === 'schedule' && (i.state === 'pending' || i.state === 'overdue') && !!i.partialTxIds?.length && (
+            <button type="button" className="btn btn--small btn--secondary" onClick={() => void close(i)}>
+              <Icon name="check" size={16} />
+              {t('calendar.closeRemaining')}
+              <span className="sr-only">: {name}</span>
+            </button>
+          )}
+          {i.source === 'schedule' && (i.state === 'pending' || i.state === 'overdue') && !i.partialTxIds?.length && (
             <button type="button" className="btn btn--small btn--secondary" onClick={() => void skip(i, true)}>
               <Icon name="skip" size={16} />
               {t('calendar.skip')}

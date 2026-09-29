@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 4 as const
+export const SCHEMA_VERSION = 5 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -67,8 +67,14 @@ export interface Account {
   updatedAt: Timestamp
 }
 
-export type TxKind = 'income' | 'expense' | 'transfer' | 'refund'
+/**
+ * 'adjustment' = ajuste de conciliación: corrige el saldo de UNA cuenta para que
+ * coincida con el saldo observado en el banco. No es ingreso ni gasto: no aparece
+ * en resúmenes de consumo ni en el promedio de gasto diario.
+ */
+export type TxKind = 'income' | 'expense' | 'transfer' | 'refund' | 'adjustment'
 export type TxStatus = 'planned' | 'realized'
+export type AdjustmentDirection = 'increase' | 'decrease'
 
 export interface Transaction {
   id: string
@@ -100,9 +106,28 @@ export interface Transaction {
    * descripción + nº de repetición). Evita importar dos veces la misma fila.
    */
   importRef?: string
+  /** Solo ajustes: si sube o baja el saldo de la cuenta (el importe siempre es positivo). */
+  adjustmentDirection?: AdjustmentDirection
+  /** Solo ajustes: conciliación que lo originó. */
+  reconciliationId?: string
+  /**
+   * Solo liquidaciones de ocurrencias: `true` = pago o cobro parcial, todavía se espera
+   * el resto. Una ocurrencia queda cerrada cuando tiene una liquidación NO parcial.
+   */
+  partialSettlement?: boolean
   createdAt: Timestamp
   updatedAt: Timestamp
 }
+
+/** Rango de un ingreso variable. El importe esperado es `Schedule.amountMinor`. */
+export interface IncomeRange {
+  /** Mínimo estimado (≥ 0). También es una estimación, no una garantía. */
+  minMinor: number
+  /** Escenario extra u optimista (≥ esperado). */
+  extraMinor: number
+}
+
+export type IncomeScenario = 'min' | 'expected' | 'extra'
 
 export type Frequency = 'once' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
 export type ScheduleKind = 'income' | 'expense'
@@ -115,6 +140,8 @@ export interface Schedule {
   amountMinor: number
   /** Importe aproximado (por ejemplo, ingresos variables). */
   amountIsEstimate: boolean
+  /** Solo ingresos variables: mínimo y extra. `amountMinor` es el esperado. */
+  range?: IncomeRange
   currency: CurrencyCode
   accountId: string
   categoryId?: string
@@ -188,7 +215,82 @@ export interface CategoryRule {
   updatedAt: Timestamp
 }
 
-export type NumberLocale = 'es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
+/**
+ * Movimiento en la papelera. Ya NO está en `transactions`, así que no participa en
+ * saldos, presupuestos, proyecciones ni reportes. Una transferencia es un único
+ * registro con sus dos lados, por lo que se elimina y restaura completa.
+ */
+export interface TrashEntry {
+  /** Igual al id del movimiento. */
+  id: string
+  deletedAt: Timestamp
+  transaction: Transaction
+  /** Devoluciones que perdieron el vínculo con este gasto al eliminarlo (se recuperan al restaurar). */
+  unlinkedRefundIds: string[]
+}
+
+/** Plantilla de un gasto o ingreso frecuente. Nunca registra nada por sí sola. */
+export interface Favorite {
+  id: string
+  name: string
+  kind: 'expense' | 'income'
+  /** Puede apuntar a una cuenta que ya no existe: el formulario pide elegir otra. */
+  accountId: string
+  categoryId: string
+  amountMinor?: number
+  note?: string
+  /** Posición en la lista (0, 1, 2…). */
+  order: number
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+export type ReconciliationResolution = 'matched' | 'adjusted' | 'unresolved'
+
+/** Comparación entre el saldo de la app y el saldo observado en el banco o en efectivo. */
+export interface Reconciliation {
+  id: string
+  accountId: string
+  /** Fecha del saldo observado (fin de ese día). */
+  date: LocalDate
+  /** Saldo observado. En tarjetas, negativo = deuda. */
+  observedMinor: number
+  /** Saldo calculado por la app para esa fecha, ANTES de cualquier ajuste. */
+  computedMinor: number
+  /** observado − calculado. */
+  differenceMinor: number
+  resolution: ReconciliationResolution
+  /** Solo si se resolvió con un ajuste. */
+  adjustmentTxId?: string
+  /** Motivo del ajuste o nota de la persona. */
+  reason?: string
+  /** Huella del saldo de referencia y los movimientos hasta `date` al conciliar (detecta cambios posteriores). */
+  fingerprint: string
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+export type BackupReminder = 'weekly' | 'monthly' | 'off'
+
+/**
+ * Registro de copias de seguridad de ESTE dispositivo. Cambiarlo no cuenta como
+ * "dato nuevo" (no modifica `AppData.updatedAt`).
+ */
+export interface BackupState {
+  reminder: BackupReminder
+  /** Cuándo se generó y se pidió al navegador descargar la última copia (no prueba que se guardara). */
+  lastExportAt?: Timestamp
+  /** `updatedAt` de los datos exportados: si los datos cambian después, hay cambios sin respaldar. */
+  lastExportDataAt?: Timestamp
+  /** Cuándo la persona eligió un archivo de copia y la app comprobó que es válido y de este presupuesto. */
+  lastVerifiedAt?: Timestamp
+  /** Fecha de exportación del archivo verificado. */
+  verifiedExportedAt?: Timestamp
+  /** No mostrar el recordatorio antes de esta fecha. */
+  snoozedUntil?: LocalDate
+}
+
+export type NumberLocale ='es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
 export type DateStyle = 'short' | 'medium' | 'iso'
 export type Language = 'es' | 'en'
 
@@ -215,6 +317,16 @@ export interface AppData {
   categories: CustomCategory[]
   categoryLimits: CategoryLimit[]
   categoryRules: CategoryRule[]
+  /** Movimientos eliminados que aún se pueden restaurar. */
+  trash: TrashEntry[]
+  /**
+   * Huellas de importación de movimientos eliminados definitivamente (sin datos
+   * financieros). Al reimportar un CSV, esas filas se ofrecen desmarcadas.
+   */
+  purgedImportRefs: string[]
+  favorites: Favorite[]
+  reconciliations: Reconciliation[]
+  backup: BackupState
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

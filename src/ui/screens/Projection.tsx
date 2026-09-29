@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { computeBudget } from '../../domain/budget'
-import { estimateDailySpend, projectBalance } from '../../domain/projection'
-import { useT } from '../../i18n'
+import { compareScenarios, estimateDailySpend, projectBalance } from '../../domain/projection'
+import type { IncomeScenario } from '../../domain/types'
+import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { ProjectionChart } from '../components/charts'
@@ -25,7 +26,11 @@ export function Projection() {
   const customMinor = custom && custom.ok ? custom.minor : 0
   const dailySpendMinor = mode === 'average' ? estimate.dailyMinor : mode === 'custom' ? customMinor : 0
 
-  const projection = projectBalance(data, today, { dailySpendMinor })
+  // Por defecto, el escenario prudente: el mínimo de los ingresos variables.
+  const [scenario, setScenario] = useState<IncomeScenario>('min')
+  const hasVariable = data.schedules.some((s) => s.kind === 'income' && !!s.range)
+  const projection = projectBalance(data, today, { dailySpendMinor, scenario })
+  const comparison = hasVariable ? compareScenarios(data, today, { dailySpendMinor }) : []
   const budget = useMemo(() => computeBudget(data, today), [data, today])
   const eventDays = projection.days.filter((d) => d.events.length > 0 || d.endMinor < 0)
 
@@ -47,9 +52,60 @@ export function Projection() {
             {t('projection.belowGoalsText', { amount: fmt.money(projection.goalsReservedMinor) })}
           </Alert>
         )}
+        {hasVariable && (
+          <Segmented
+            legend={t('projection.scenario')}
+            name="scenario"
+            value={scenario}
+            onChange={setScenario}
+            options={(['min', 'expected', 'extra'] as const).map((s) => ({ value: s, label: t(`projection.scenario.${s}` as MessageKey) }))}
+            hint={t('projection.scenarioHint')}
+          />
+        )}
         <ProjectionChart projection={projection} fmt={fmt} today={today} />
         <p className="note">{t('projection.chartNote')}</p>
       </Card>
+
+      {hasVariable && (
+        <Card labelledBy="compare-title">
+          <h2 id="compare-title" className="card__title">
+            {t('projection.compareTitle')}
+          </h2>
+          {/* Enfocable: en pantallas estrechas la tabla se desplaza y debe poder recorrerse con teclado. */}
+          <div className="table-scroll" tabIndex={0} role="region" aria-labelledby="compare-title">
+            <table className="data-table" data-testid="scenario-table">
+              <caption className="sr-only">{t('projection.compareCaption')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('projection.colScenario')}</th>
+                  <th scope="col" className="num">
+                    {t('projection.colIncome')}
+                  </th>
+                  <th scope="col" className="num">
+                    {t('projection.colLowest')}
+                  </th>
+                  <th scope="col" className="num">
+                    {t('projection.colEnd')}
+                  </th>
+                  <th scope="col">{t('projection.colShortfall')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.map((c) => (
+                  <tr key={c.scenario} className={c.firstNegativeDate ? 'is-negative' : undefined} aria-current={c.scenario === scenario ? 'true' : undefined}>
+                    <th scope="row">{t(`projection.scenario.${c.scenario}` as MessageKey)}</th>
+                    <td className="num">{fmt.money(c.incomeMinor)}</td>
+                    <td className="num">{fmt.money(c.lowest.minor)}</td>
+                    <td className="num">{fmt.money(c.endMinor)}</td>
+                    <td>{c.firstNegativeDate ? `⚠ ${t('projection.shortfallFrom', { date: fmt.date(c.firstNegativeDate, { compact: true, today }) })}` : t('projection.noShortfallShort')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="note">{t('projection.scenarioHint')}</p>
+        </Card>
+      )}
 
       <Card labelledBy="assumptions-title">
         <h2 id="assumptions-title" className="card__title">
@@ -83,6 +139,7 @@ export function Projection() {
             </li>
           )}
           {projection.estimatedItems.length > 0 && <li>{t('projection.assumeEstimates')}</li>}
+          {hasVariable && <li>{t('projection.assumeScenario', { scenario: t(`projection.scenario.${scenario}` as MessageKey) })}</li>}
           <li>{t('projection.assumeGoals')}</li>
           <li>{t('projection.assumeNoCards')}</li>
         </ul>

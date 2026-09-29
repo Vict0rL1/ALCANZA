@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
+import { backupStatus, SNOOZE_OPTIONS } from '../../domain/backupReminder'
 import { computeBudget, upcomingItems } from '../../domain/budget'
+import { verificationSummary } from '../../domain/reconcile'
+import { useExportBackup, useSnoozeBackup } from '../backupActions'
+import { FavoriteChips } from '../favoritesUi'
 import { cardPaymentReminders } from '../../domain/cards'
-import { endOfMonth, startOfMonth } from '../../domain/dates'
+import { endOfMonth, localDateInTimeZone, startOfMonth } from '../../domain/dates'
 import { limitStatuses, periodSummary } from '../../domain/insights'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
@@ -35,6 +39,10 @@ export function Home() {
   )
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
   const [balanceOpen, setBalanceOpen] = useState(false)
+  const backup = useMemo(() => backupStatus(data, today), [data, today])
+  const verification = useMemo(() => verificationSummary(data, today), [data, today])
+  const exportBackup = useExportBackup()
+  const snooze = useSnoozeBackup()
 
   const rel = (date: string) => {
     const r = relativeDayKey(date, today)
@@ -149,6 +157,26 @@ export function Home() {
           {t('home.alert.goalsExceedText')}
         </Alert>
       )}
+      {backup.due && (
+        <Alert
+          tone="info"
+          icon="shield"
+          title={t('home.backup.title')}
+          actions={
+            <>
+              <button type="button" className="btn btn--small btn--primary" onClick={() => void exportBackup()}>
+                <Icon name="download" size={16} />
+                {t('home.backup.export')}
+              </button>
+              <button type="button" className="btn btn--small btn--secondary" onClick={() => void snooze(SNOOZE_OPTIONS[1])}>
+                {t('home.backup.snooze', { days: SNOOZE_OPTIONS[1] })}
+              </button>
+            </>
+          }
+        >
+          {backup.neverExported ? t('home.backup.textNever') : t('home.backup.textOld', { date: fmt.date(localDateInTimeZone(new Date(backup.lastExportAt!), data.settings.timeZone)) })}
+        </Alert>
+      )}
 
       <div className="home-grid">
         <div className="stack">
@@ -257,6 +285,7 @@ export function Home() {
                 {t('home.canIAfford')}
               </a>
             </div>
+            <FavoriteChips returnTo="/" limit={4} />
           </Card>
           {/* Recordatorios dentro de la app */}
           {(otherReminders.length > 0 || cardReminders.length > 0) && (
@@ -371,10 +400,40 @@ export function Home() {
                 {budget.balanceAgeDays !== null && <span className="muted">({tn('home.freshnessAge', budget.balanceAgeDays)})</span>}
               </p>
             )}
+            <ul className="bullets" data-testid="verification">
+              <li>
+                {verification.lastMovementDate
+                  ? t('home.verify.lastMovement', { date: fmt.date(verification.lastMovementDate, { compact: true, today }) })
+                  : t('home.verify.noMovements')}
+              </li>
+              {verification.oldestVerifiedDate ? (
+                <li>
+                  {t('home.verify.verified', {
+                    date: fmt.date(verification.oldestVerifiedDate, { compact: true, today }),
+                    age: tn('home.freshnessAge', verification.daysSinceVerified ?? 0),
+                  })}
+                </li>
+              ) : (
+                <li>{tn('home.verify.unverified', verification.unverifiedAccounts.length)}</li>
+              )}
+              {verification.needsAttention.length > 0 && (
+                <li>
+                  <Badge tone="warning" icon="alert">
+                    {tn('home.verify.attention', verification.needsAttention.length)}
+                  </Badge>
+                </li>
+              )}
+            </ul>
             <p className="note">{t('home.freshnessNote')}</p>
-            <button type="button" className="btn btn--secondary" onClick={() => setBalanceOpen(true)}>
-              {t('home.updateBalance')}
-            </button>
+            <div className="button-row">
+              <a className="btn btn--primary" href={href('/conciliar')}>
+                <Icon name="scale" />
+                {t('home.verify.action')}
+              </a>
+              <button type="button" className="btn btn--secondary" onClick={() => setBalanceOpen(true)}>
+                {t('home.updateBalance')}
+              </button>
+            </div>
           </Card>
 
           {/* Metas */}

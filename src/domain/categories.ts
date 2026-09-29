@@ -45,11 +45,12 @@ export function isCustomCategoryId(id: string | undefined): boolean {
  * (para formularios); la validación las incluye para no invalidar datos antiguos.
  */
 export function categoriesForKind(
-  kind: 'income' | 'expense' | 'refund' | 'transfer',
+  kind: 'income' | 'expense' | 'refund' | 'transfer' | 'adjustment',
   custom: readonly CustomCategory[] = [],
   options: { includeArchived?: boolean } = {},
 ): readonly string[] {
-  if (kind === 'transfer') return []
+  // Transferencias y ajustes de conciliación no llevan categoría.
+  if (kind === 'transfer' || kind === 'adjustment') return []
   const base = kind === 'income' ? INCOME_CATEGORY_IDS : EXPENSE_CATEGORY_IDS
   const want = kind === 'income' ? 'income' : 'expense'
   const extra = custom.filter((c) => c.kind === want && (options.includeArchived || !c.archived)).map((c) => c.id)

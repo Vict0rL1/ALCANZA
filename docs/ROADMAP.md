@@ -42,6 +42,15 @@ Hecho:
 - ✅ **Reglas de categoría:** «si la descripción contiene…» → categoría; se aplican al
   importar CSV (con opción de crear una regla desde una fila) y al escribir la nota de un
   movimiento nuevo. Formato de datos v4 con migración.
+- ✅ **Papelera:** los movimientos eliminados se guardan (persistente), se restauran o se
+  eliminan definitivamente con confirmación; vínculos y reimportaciones sin doble conteo.
+- ✅ **Favoritos:** plantillas de gastos e ingresos frecuentes (nunca registran solas).
+- ✅ **Recordatorio de copia de seguridad:** exportación solicitada vs. copia verificada,
+  recordatorio semanal/mensual con posponer, dentro de la app.
+- ✅ **Conciliación de saldos:** saldo calculado vs. observado a una fecha, ajustes
+  explícitos, historial y revisión si cambian movimientos del periodo.
+- ✅ **Ingresos variables:** mínimo/esperado/extra, escenarios en la proyección, cobros
+  parciales. Formato de datos v5 con migración probada y copia previa.
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
@@ -49,7 +58,7 @@ Pendiente:
 
 | Tarea | Notas |
 |---|---|
-| Papelera (*tombstones*) | Marcar eliminados con `deletedAt` en vez de borrar: necesario para sincronizar después. |
+| Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
 
 ## Fase 2 — Cuentas de usuario y sincronización
@@ -106,7 +115,6 @@ Pendiente:
 | Importar OFX/QFX | Ninguno | CSV ya está hecho (Fase 1.5); OFX/QFX reutilizaría la misma vista previa y huella. |
 | Conexión bancaria automática | Agregador (Plaid, Flinks, MX…) con contrato y costos | Requiere seguridad y cumplimiento adicionales; opcional. |
 | Planificación de deudas | Ninguno | Métodos bola de nieve / avalancha, intereses con enteros y redondeo documentado. |
-| Ingresos variables | Ninguno | Rango (mínimo/esperado) por ingreso y presupuesto con el escenario prudente. |
 | Modo viaje / presupuesto por semestre | Ninguno | Horizontes personalizados y metas por periodo. |
 
 ## Fase 4 — Captura asistida

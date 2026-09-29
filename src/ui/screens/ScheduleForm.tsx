@@ -35,6 +35,11 @@ export function ScheduleForm({ route }: { route: Route }) {
   const [name, setName] = useState(existing?.name ?? '')
   const [amountText, setAmountText] = useState(existing ? fmt.moneyInput(existing.amountMinor) : '')
   const [isEstimate, setIsEstimate] = useState(existing?.amountIsEstimate ?? false)
+  // Ingreso variable: mínimo y extra (el importe principal es el esperado).
+  const [variable, setVariable] = useState(!!existing?.range)
+  const [minText, setMinText] = useState(existing?.range ? fmt.moneyInput(existing.range.minMinor) : '')
+  const [extraText, setExtraText] = useState(existing?.range ? fmt.moneyInput(existing.range.extraMinor) : '')
+  const [rangeErrors, setRangeErrors] = useState<{ min: string | null; extra: string | null }>({ min: null, extra: null })
   const [frequency, setFrequency] = useState<Frequency>(existing?.frequency ?? 'monthly')
   const [startDate, setStartDate] = useState(existing?.startDate ?? today)
   const [endDate, setEndDate] = useState(existing?.endDate ?? '')
@@ -63,6 +68,14 @@ export function ScheduleForm({ route }: { route: Route }) {
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
     setAmountError(moneyErrorMessage(t, parsed))
+    let range: { minMinor: number; extraMinor: number } | undefined
+    if (kind === 'income' && variable) {
+      const min = parseMoneyText(minText, fmt, { allowZero: true })
+      const extra = parseMoneyText(extraText, fmt, { allowZero: true })
+      setRangeErrors({ min: moneyErrorMessage(t, min), extra: moneyErrorMessage(t, extra) })
+      if (!min.ok || !extra.ok) return
+      range = { minMinor: min.minor, extraMinor: extra.minor }
+    }
     if (!parsed.ok || busy) return
     setBusy(true)
     const { result, saved } = await run((d, c) =>
@@ -73,7 +86,8 @@ export function ScheduleForm({ route }: { route: Route }) {
           name,
           kind,
           amountMinor: parsed.minor,
-          amountIsEstimate: isEstimate,
+          amountIsEstimate: isEstimate || !!range,
+          range,
           accountId,
           categoryId,
           frequency,
@@ -108,7 +122,7 @@ export function ScheduleForm({ route }: { route: Route }) {
   }
 
   const day = startDate ? parseLocalDate(startDate).day : 0
-  const unknown = otherIssues(issues, ['name', 'amountMinor', 'startDate', 'endDate', 'accountId', 'categoryId'])
+  const unknown = otherIssues(issues, ['name', 'amountMinor', 'startDate', 'endDate', 'accountId', 'categoryId', 'range.minMinor', 'range.extraMinor'])
 
   return (
     <div className="stack">
@@ -133,7 +147,18 @@ export function ScheduleForm({ route }: { route: Route }) {
         />
         <TextField label={t('fields.name')} value={name} maxLength={LIMITS.nameMax} onChange={(e) => setName(e.target.value)} placeholder={t(kind === 'income' ? 'scheduleForm.namePlaceholderIncome' : 'scheduleForm.namePlaceholderExpense')} error={fieldError(t, fmt, issues, 'name')} required />
         <MoneyField label={t('fields.amount')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
-        <CheckboxField checked={isEstimate} onChange={setIsEstimate} label={t('scheduleForm.estimate')} hint={t('scheduleForm.estimateHint')} />
+        {!(kind === 'income' && variable) && (
+          <CheckboxField checked={isEstimate} onChange={setIsEstimate} label={t('scheduleForm.estimate')} hint={t('scheduleForm.estimateHint')} />
+        )}
+        {kind === 'income' && (
+          <CheckboxField checked={variable} onChange={setVariable} label={t('scheduleForm.variable')} hint={t('scheduleForm.variableHint')} />
+        )}
+        {kind === 'income' && variable && (
+          <div className="form-grid">
+            <MoneyField label={t('scheduleForm.min')} value={minText} onChange={setMinText} error={rangeErrors.min ?? fieldError(t, fmt, issues, 'range.minMinor')} fmt={fmt} />
+            <MoneyField label={t('scheduleForm.extra')} value={extraText} onChange={setExtraText} error={rangeErrors.extra ?? fieldError(t, fmt, issues, 'range.extraMinor')} fmt={fmt} />
+          </div>
+        )}
         <SelectField
           label={t('fields.frequency')}
           value={frequency}

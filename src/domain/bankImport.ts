@@ -214,7 +214,11 @@ export interface ImportOptions {
 
 export type ImportRowError = 'date' | 'amount' | 'zero' | 'future' | 'tooLarge'
 
-export type ImportRowStatus = 'new' | 'duplicate' | 'possibleDuplicate' | 'error'
+/**
+ * - trashed: el movimiento de esa fila está en la papelera → no se importa (se restaura desde la papelera).
+ * - purged: se importó antes y se eliminó definitivamente → se ofrece desmarcada.
+ */
+export type ImportRowStatus = 'new' | 'duplicate' | 'possibleDuplicate' | 'trashed' | 'purged' | 'error'
 
 export interface ImportRow {
   /** Número de fila en el archivo (empezando en 1, contando la cabecera). */
@@ -277,6 +281,9 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
 
   const existingRefs = new Map<string, string>()
   for (const tx of data.transactions) if (tx.importRef) existingRefs.set(tx.importRef, tx.id)
+  const trashedRefs = new Map<string, string>()
+  for (const e of data.trash) if (e.transaction.importRef) trashedRefs.set(e.transaction.importRef, e.id)
+  const purgedRefs = new Set(data.purgedImportRefs)
   // Candidatos a posible duplicado: movimientos realizados de la cuenta registrados a mano.
   const candidates = data.transactions.filter(
     (tx) => tx.status === 'realized' && !tx.importRef && tx.accountId === options.accountId && (tx.kind === 'income' || tx.kind === 'expense'),
@@ -307,6 +314,9 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
 
     const exact = existingRefs.get(importRef)
     if (exact) return { ...base, status: 'duplicate', matchId: exact }
+    const trashed = trashedRefs.get(importRef)
+    if (trashed) return { ...base, status: 'trashed', matchId: trashed }
+    if (purgedRefs.has(importRef)) return { ...base, status: 'purged' }
     const match = candidates.find(
       (tx) =>
         !usedCandidates.has(tx.id) &&
@@ -322,7 +332,7 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
     return { ...base, status: 'new' }
   })
 
-  const counts: Record<ImportRowStatus, number> = { new: 0, duplicate: 0, possibleDuplicate: 0, error: 0 }
+  const counts: Record<ImportRowStatus, number> = { new: 0, duplicate: 0, possibleDuplicate: 0, trashed: 0, purged: 0, error: 0 }
   for (const r of rows) counts[r.status]++
   return { rows, counts, tooManyRows }
 }
@@ -333,5 +343,5 @@ export function defaultSelection(preview: ImportPreview): Set<number> {
 }
 
 export function isImportable(row: ImportRow): row is ImportRow & Required<Pick<ImportRow, 'date' | 'kind' | 'amountMinor' | 'importRef'>> {
-  return row.status !== 'error' && row.status !== 'duplicate' && !!row.date && !!row.kind && !!row.amountMinor && !!row.importRef
+  return row.status !== 'error' && row.status !== 'duplicate' && row.status !== 'trashed' && !!row.date && !!row.kind && !!row.amountMinor && !!row.importRef
 }

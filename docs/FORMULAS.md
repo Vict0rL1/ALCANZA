@@ -327,3 +327,124 @@ normalizar = minúsculas, sin acentos, espacios simples
 - La importación de copias valida todo el archivo (tipos, importes enteros, moneda,
   fechas reales, referencias entre registros, duplicados) y **no aplica nada si hay un
   solo error**.
+
+## 12. Papelera
+
+- Eliminar un movimiento lo **saca de `transactions`** y lo guarda en `trash` con la fecha
+  de eliminación. Por eso deja de contar en saldos, disponible, proyección, resúmenes,
+  límites y conciliaciones sin que cada cálculo tenga que acordarse de filtrarlo.
+- La papelera es persistente (se guarda con los datos y en las copias de seguridad). No hay
+  borrado automático por antigüedad: solo «Eliminar definitivamente» (uno) o «Vaciar
+  papelera» (todos), ambos con confirmación explícita.
+- **Transferencias**: son un único registro con origen y destino, así que se eliminan y
+  restauran completas (ambas cuentas a la vez, de forma atómica).
+- **Devoluciones**: si se elimina un gasto, sus devoluciones siguen contando (el dinero sí
+  volvió) pero pierden el vínculo; la lista se guarda en la papelera y al restaurar el
+  gasto se vuelven a vincular si siguen existiendo, sin vínculo y sin superar el importe.
+  Una devolución restaurada cuyo gasto ya no existe (o no admite más devoluciones) se
+  restaura **sin vínculo**. Nunca quedan referencias rotas.
+- **Pagos del calendario**: eliminar el movimiento que liquidó una ocurrencia la deja otra
+  vez pendiente o vencida (vuelve a reservarse). Si después se registra otro pago para esa
+  misma ocurrencia, restaurar el primero se **bloquea** (`occurrenceAlreadySettled`): se
+  contaría dos veces.
+- **Ajustes de conciliación**: eliminarlos deja la conciliación «pendiente de revisión».
+- **Importaciones CSV**: una fila cuyo movimiento está en la papelera aparece como «En la
+  papelera» y no se puede importar (se restaura desde la papelera). Al eliminar
+  definitivamente solo se conserva su huella `importRef` (sin importes ni descripciones);
+  si se vuelve a importar el archivo, la fila aparece «Eliminado antes», **desmarcada**.
+- No se puede eliminar una cuenta ni una categoría usada por movimientos de la papelera.
+- «Deshacer» tras eliminar es un acceso rápido a la misma restauración. Deshacer una
+  creación (marcar pagado, importar) descarta el registro sin pasar por la papelera.
+
+## 13. Favoritos
+
+- Plantilla de gasto o ingreso: nombre, tipo, cuenta, categoría, importe y nota opcionales,
+  y un orden. Abrir un favorito rellena el formulario con la **fecha de hoy**; la persona
+  revisa y pulsa Guardar. No es un pago recurrente y **nunca crea movimientos solo**.
+- Si su cuenta ya no existe o su categoría fue archivada o eliminada, el formulario deja
+  ese campo vacío y pide elegir uno válido; guardar sin elegir da error.
+- El id se genera al abrir el diálogo: pulsar Guardar dos veces actualiza el mismo favorito.
+
+## 14. Conciliación de saldos
+
+```
+Saldo calculado al final del día D = saldo de referencia
+                                   + Σ movimientos REALIZADOS aplicados a ese saldo con fecha ≤ D
+Diferencia = saldo observado − saldo calculado
+```
+
+- D ≥ fecha del saldo de referencia (antes de esa fecha la app no conoce el saldo) y D ≤ hoy.
+- Solo movimientos realizados; nunca previstos ni pagos programados. La regla de «ya
+  incluido en el saldo» (§3) es la misma que usa el saldo actual, así que para D = hoy el
+  saldo calculado coincide con el saldo de la cuenta.
+- **Qué saldo comparar**: el contabilizado o «actual» del banco al final de ese día. El
+  «disponible» puede descontar retenciones o movimientos pendientes; esos pendientes
+  pueden explicar una diferencia.
+- **Tarjetas**: el saldo es negativo = deuda. La persona escribe lo que debe (positivo) y se
+  guarda en negativo. El crédito disponible nunca se compara: no es dinero propio.
+- **Resolución**: `matched` (diferencia 0), `unresolved` (se guarda la diferencia para
+  revisarla) o `adjusted`. Nunca se cambia el saldo de referencia ni se crea un ajuste
+  sin confirmación.
+- **Ajuste** (`kind: 'adjustment'`): importe = |diferencia|, fecha D, dirección sube/baja,
+  motivo obligatorio y `reconciliationId`. Corrige el saldo de la cuenta (y el disponible
+  si la cuenta está en el presupuesto) pero **no es ingreso ni gasto**: no entra en el
+  resumen del mes, límites, promedio de gasto diario ni proyección de ingresos.
+- **Huella**: al conciliar se guarda una huella del saldo de referencia y de los
+  movimientos (id, tipo, importe, fecha, cuentas) que forman el saldo hasta D. Si cambia
+  (editar importe o fecha, eliminar, restaurar, añadir un movimiento con fecha ≤ D), la
+  conciliación pasa a «pendiente de revisión». Cambiar solo una nota no la altera. Un
+  saldo de referencia posterior a D la deja «reemplazada».
+- **Inicio** muestra por separado «Último movimiento registrado» (fecha del último
+  movimiento realizado) y «Saldos verificados» (fecha verificada más antigua entre las
+  cuentas del presupuesto, o cuántas faltan). La antigüedad se muestra en días, sin
+  porcentajes de confianza inventados.
+
+## 15. Recordatorio de copia de seguridad
+
+- Guardar en el navegador **no es una copia de seguridad**.
+- `lastExportAt`: la app generó el archivo y **pidió** al navegador descargarlo; no puede
+  comprobar dónde se guardó. Si generar o pedir la descarga falla, no se registra nada.
+- `lastVerifiedAt`: la persona eligió un archivo y la app comprobó que es una copia válida
+  de **este** presupuesto (`budgetId`). No se importa nada.
+- Cambios sin respaldar = `updatedAt` de los datos > `updatedAt` en el momento de exportar.
+  Registrar copias, verificarlas o posponer no cuentan como datos nuevos.
+- Recordatorio (semanal por defecto; mensual o desactivado): aparece solo en Inicio si hay
+  cambios sin respaldar y pasaron 7 / 30 días desde la última exportación (o desde que se
+  crearon los datos si nunca se exportó). «Recordar en 7 días» lo pospone. No se muestra
+  con datos de demostración y no usa notificaciones del sistema.
+
+## 16. Ingresos variables
+
+- Un ingreso programado puede tener rango: **mínimo ≤ esperado ≤ extra** (enteros ≥ 0; el
+  esperado es el importe principal y debe ser > 0). Incluso el mínimo es una estimación.
+- **Disponible** (§6): no cambia. Nunca suma ingresos futuros en ningún escenario.
+- **Proyección** (§9): usa el escenario elegido; por defecto el **mínimo** (prudente). La
+  tabla «Comparar escenarios» muestra, para cada uno, ingresos estimados, saldo más bajo,
+  saldo final y primer faltante. «¿Me alcanza?» también usa el mínimo. Cambiar de
+  escenario nunca modifica movimientos ni saldos reales.
+- **Retrasado**: si pasa la fecha sin registrarlo, queda «vencido»: no se suma al
+  disponible ni a la proyección (§9) y el periodo pasa a terminar en el siguiente ingreso
+  pendiente. Inicio avisa y ofrece registrarlo, omitirlo o cambiar la fecha.
+- **Importe distinto**: se registra lo real y la ocurrencia se cierra con ese importe.
+- **Parcial**: si llega menos de lo que falta, la persona elige:
+  - «Espero el resto»: movimiento con `partialSettlement: true`; la ocurrencia sigue
+    abierta por `esperado − recibido` (y en la proyección, `escenario − recibido`, nunca
+    negativo). Se pueden registrar más parciales y una liquidación final.
+  - «Dar por terminado»: se cierra con lo recibido (el último parcial pasa a ser final,
+    sin crear movimientos).
+- Como mucho **una** liquidación final por ocurrencia (se valida también en las copias).
+- **Vincular**: al registrar un ingreso (o gasto) a mano, el formulario ofrece vincularlo
+  con una ocurrencia abierta cercana; así la previsión queda liquidada y no se cuenta dos
+  veces. Una ocurrencia ya cerrada no se ofrece.
+
+## 17. Formato de datos y migraciones
+
+- Versión actual: **5**. Migraciones encadenadas v1 → v2 → v3 → v4 → v5 en
+  `src/storage/migrations.ts`, con pruebas.
+- v4 → v5 añade `trash`, `purgedImportRefs`, `favorites`, `reconciliations` y `backup`
+  solo si **faltan**; si existen con un formato incorrecto se conservan para que la
+  validación rechace el archivo. Nunca se borran datos para resolver un error de esquema.
+- Antes de guardar por primera vez datos migrados, se conserva el texto original en
+  `localStorage` (`margen.data.before-v5`).
+- Datos o copias de una versión futura se rechazan (`schemaTooNew`) sin tocar los datos
+  actuales; si una migración falla, se informa (`migrationFailed`) y no se modifica nada.
