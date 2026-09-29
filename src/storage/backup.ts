@@ -5,11 +5,12 @@
  * se cambia nada. Se copian solo los campos conocidos (se descarta lo demás).
  */
 import { isValidId } from '../domain/ids'
-import type { Account, AppData, CustomCategory, Goal, GoalAllocation, Schedule, Settings, Transaction } from '../domain/types'
+import type { Account, AppData, CategoryLimit, CustomCategory, Goal, GoalAllocation, Schedule, Settings, Transaction } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 import {
   validateAccount,
   validateCategory,
+  validateCategoryLimit,
   validateGoal,
   validateSchedule,
   validateSettings,
@@ -137,6 +138,12 @@ export function validateAppData(raw: unknown): ImportResult {
   const categories = (migrated.categories as Obj[]).map((c) => pick<CustomCategory>(c, CATEGORY_KEYS))
   categories.forEach((c, i) => issues.push(...validateCategory(c, categories, `categories[${i}].`)))
   checkDuplicates(categories, 'categories', issues)
+  // Opcional: copias v2 anteriores a los límites no lo traen.
+  const rawLimits = Array.isArray(migrated.categoryLimits) ? migrated.categoryLimits : []
+  if (rawLimits.length > MAX_RECORDS || !rawLimits.every(isObj)) issues.push({ path: 'categoryLimits', code: 'invalidValue' })
+  const categoryLimits = (rawLimits as Obj[]).map((l) => pick<CategoryLimit>(l, ['categoryId', 'monthlyLimitMinor']))
+  categoryLimits.forEach((l, i) => issues.push(...validateCategoryLimit(l, categories, `categoryLimits[${i}].`)))
+  if (new Set(categoryLimits.map((l) => l.categoryId)).size !== categoryLimits.length) issues.push({ path: 'categoryLimits', code: 'duplicateId' })
   const ctxData = { accounts, transactions, settings, categories }
   transactions.forEach((t, i) => issues.push(...validateTransaction(t, { data: ctxData, prefix: `transactions[${i}].` })))
   schedules.forEach((s, i) => issues.push(...validateSchedule(s, { data: ctxData, prefix: `schedules[${i}].` })))
@@ -165,6 +172,7 @@ export function validateAppData(raw: unknown): ImportResult {
     schedules,
     goals,
     categories,
+    categoryLimits,
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

@@ -34,6 +34,8 @@ Hecho:
   e intereses estimados (en enteros) y recordatorio del pago en Inicio.
 - ✅ **Categorías personalizadas:** crear, renombrar, archivar y eliminar si no se usan.
   Formato de datos v2 con migración probada desde v1.
+- ✅ **Resumen mensual y límites por categoría:** ingresos, gasto neto por categoría,
+  límites mensuales con aviso en Inicio (informativos).
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 

@@ -12,6 +12,7 @@ import { useData } from '../../state/store'
 import { useFormat } from '../format'
 import { categoryLabel } from '../labels'
 import { StatTile } from './common'
+import { LimitsSection } from './LimitsSection'
 import { Icon } from './Icon'
 
 const TOP = 5
@@ -91,6 +92,7 @@ export function MonthSummary() {
           )}
         </>
       )}
+      <LimitsSection summary={summary} />
       <p className="note">{t('summary.note')}</p>
     </section>
   )

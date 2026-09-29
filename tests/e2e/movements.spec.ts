@@ -104,3 +104,27 @@ test('resumen del mes: gasto por categoría ordenado y navegación entre meses',
   await expect(summary.getByRole('heading', { name: /agosto de 2026/i })).toBeVisible()
   await expect(summary.getByText('No hay gastos realizados en este mes.')).toBeVisible()
 })
+
+test('límite mensual por categoría: progreso, aviso en Inicio y quitar con deshacer', async ({ page }) => {
+  await startDemo(page)
+  await go(page, '/movimientos')
+  const summary = page.locator('.month-summary')
+  await summary.getByRole('button', { name: 'Agregar límite' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await dialog.getByLabel('Límite por mes').fill('30')
+  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  // En septiembre la demo gasta 37.05 en comida fuera.
+  await expect(summary.getByText('$37.05 de $30.00')).toBeVisible()
+  await expect(summary.getByText('Pasado por $7.05')).toBeVisible()
+
+  await go(page, '/')
+  await expect(page.getByText('Te pasaste del límite en 1 categoría')).toBeVisible()
+  await expect(page.getByTestId('available')).toHaveText('$136.78') // informativo: no cambia el disponible
+
+  await go(page, '/movimientos')
+  await summary.getByRole('button', { name: /Quitar.*Comida fuera/ }).click()
+  await expect(summary.getByText('Sin límites.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Deshacer' }).click()
+  await expect(summary.getByText('$37.05 de $30.00')).toBeVisible()
+})

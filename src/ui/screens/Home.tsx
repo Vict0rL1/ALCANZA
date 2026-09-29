@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { computeBudget, upcomingItems } from '../../domain/budget'
 import { cardPaymentReminders } from '../../domain/cards'
+import { endOfMonth, startOfMonth } from '../../domain/dates'
+import { limitStatuses, periodSummary } from '../../domain/insights'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped } from '../../domain/operations'
@@ -13,7 +15,7 @@ import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
 import { relativeDayKey, useFormat } from '../format'
-import { planItemName } from '../labels'
+import { categoryLabel, planItemName } from '../labels'
 import { href } from '../router'
 
 export function Home() {
@@ -27,6 +29,10 @@ export function Home() {
   const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 6), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
   const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
+  const overLimits = useMemo(
+    () => limitStatuses(periodSummary(data, startOfMonth(today), endOfMonth(today)), data.categoryLimits).filter((l) => l.over),
+    [data, today],
+  )
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
   const [balanceOpen, setBalanceOpen] = useState(false)
 
@@ -121,6 +127,21 @@ export function Home() {
           }
         >
           {t('home.alert.staleText')}
+        </Alert>
+      )}
+      {overLimits.length > 0 && (
+        <Alert
+          tone="warning"
+          title={tn('home.alert.limitOverTitle', overLimits.length)}
+          actions={
+            <a className="btn btn--small btn--secondary" href={href('/movimientos')}>
+              {t('home.alert.seeSummary')}
+            </a>
+          }
+        >
+          {t('home.alert.limitOverText', {
+            list: overLimits.map((l) => `${categoryLabel(t, l.categoryId)} (${t('limits.over', { amount: fmt.money(-l.remainingMinor) })})`).join(' · '),
+          })}
         </Alert>
       )}
       {budget.goalsExceedMoney && (

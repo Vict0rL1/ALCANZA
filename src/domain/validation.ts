@@ -7,7 +7,7 @@ import { categoriesForKind } from './categories'
 import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
-import type { Account, AppData, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
+import type { Account, AppData, CategoryLimit, CustomCategory, Goal, Schedule, Settings, Transaction } from './types'
 
 export type IssueCode =
   | 'required'
@@ -160,6 +160,15 @@ export function validateCategory(c: CustomCategory, all: readonly CustomCategory
     }
   }
   checkTimestamps(c, prefix, issues)
+  return issues
+}
+
+export function validateCategoryLimit(l: CategoryLimit, custom: readonly CustomCategory[], prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (typeof l.categoryId !== 'string' || !categoriesForKind('expense', custom, { includeArchived: true }).includes(l.categoryId)) {
+    issues.push({ path: `${prefix}categoryId`, code: 'invalidCategory' })
+  }
+  checkPositiveAmount(l.monthlyLimitMinor, `${prefix}monthlyLimitMinor`, issues)
   return issues
 }
 

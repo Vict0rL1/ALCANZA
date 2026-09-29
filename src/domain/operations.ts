@@ -10,11 +10,12 @@ import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
 import { findSettlement } from './planItems'
-import type { Account, AppData, CardDetails, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
+import type { Account, AppData, CardDetails, CategoryLimit, CustomCategory, Goal, GoalAllocation, LocalDate, Schedule, Settings, Timestamp, Transaction } from './types'
 import { SCHEMA_VERSION } from './types'
 import {
   validateAccount,
   validateCategory,
+  validateCategoryLimit,
   validateGoal,
   validateSchedule,
   validateSettings,
@@ -464,7 +465,25 @@ export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpRes
   if (!category) return fail([{ path: 'id', code: 'notFound' }])
   const used = data.transactions.some((t) => t.categoryId === id) || data.schedules.some((s) => s.categoryId === id)
   if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
-  return { ok: true, data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id) }, ctx.now), value: category }
+  return {
+    ok: true,
+    data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id), categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id) }, ctx.now),
+    value: category,
+  }
+}
+
+/** Crea o cambia el límite mensual de una categoría de gasto (uno por categoría). */
+export function setCategoryLimit(data: AppData, limit: CategoryLimit, ctx: OpContext): OpResult<CategoryLimit> {
+  const issues = validateCategoryLimit(limit, data.categories)
+  if (issues.length) return fail(issues)
+  const others = data.categoryLimits.filter((l) => l.categoryId !== limit.categoryId)
+  return { ok: true, data: touch({ ...data, categoryLimits: [...others, limit] }, ctx.now), value: limit }
+}
+
+export function removeCategoryLimit(data: AppData, categoryId: string, ctx: OpContext): OpResult<CategoryLimit> {
+  const limit = data.categoryLimits.find((l) => l.categoryId === categoryId)
+  if (!limit) return fail([{ path: 'categoryId', code: 'notFound' }])
+  return { ok: true, data: touch({ ...data, categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== categoryId) }, ctx.now), value: limit }
 }
 
 /* ------------------------------------------------------------------ */
@@ -519,6 +538,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     schedules: [],
     goals: [],
     categories: [],
+    categoryLimits: [],
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,

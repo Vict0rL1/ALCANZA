@@ -176,6 +176,7 @@ describe('migraciones', () => {
     if (r.ok) {
       expect(r.data.schemaVersion).toBe(2)
       expect(r.data.categories).toEqual([])
+      expect(r.data.categoryLimits).toEqual([])
     }
   })
 
@@ -186,6 +187,7 @@ describe('migraciones', () => {
         { ...baseData().accounts[0]!, id: 'visa', kind: 'credit', card: { limitMinor: 50000, aprBps: 1999, dueDay: 15 } },
       ],
       categories: [{ id: 'c_pets', name: 'Mascotas', kind: 'expense', archived: false, createdAt: NOW, updatedAt: NOW }],
+      categoryLimits: [{ categoryId: 'c_pets', monthlyLimitMinor: 5000 }],
     })
     const r = parseBackup(JSON.stringify(createBackup(data, new Date(NOW), '0.2.0')))
     expect(r.ok && r.data).toEqual(data)

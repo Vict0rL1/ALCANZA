@@ -164,6 +164,12 @@ export interface CustomCategory {
   updatedAt: Timestamp
 }
 
+/** Límite mensual de gasto neto para una categoría (informativo: no cambia el disponible). */
+export interface CategoryLimit {
+  categoryId: string
+  monthlyLimitMinor: number
+}
+
 export type NumberLocale = 'es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
 export type DateStyle = 'short' | 'medium' | 'iso'
 export type Language = 'es' | 'en'
@@ -189,6 +195,7 @@ export interface AppData {
   schedules: Schedule[]
   goals: Goal[]
   categories: CustomCategory[]
+  categoryLimits: CategoryLimit[]
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

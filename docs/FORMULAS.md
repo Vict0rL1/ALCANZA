@@ -262,6 +262,17 @@ Gasto neto del mes        = Σ gasto neto de todas las categorías
 Las transferencias (incluidos los pagos de tarjeta) y los previstos no cuentan.
 Incluye todas las cuentas, también las que están fuera del presupuesto.
 
+**Límites mensuales por categoría** (opcionales, solo categorías de gasto):
+
+```
+Gastado     = max(0, gasto neto de la categoría en el mes)
+Queda       = límite − gastado        (negativo = «pasado por»)
+Cerca       = gastado ≥ 80 % del límite y sin pasarse
+```
+
+Son informativos: **no** cambian «Puedes gastar». Inicio avisa si en el mes actual
+alguna categoría se pasó de su límite.
+
 ## 11. Integridad de datos
 
 - Identificadores únicos (UUID v4) generados al abrir cada formulario: guardar dos
