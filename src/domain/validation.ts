@@ -228,6 +228,7 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
   if (tx.occurrenceDate !== undefined) checkDate(tx.occurrenceDate, `${p}occurrenceDate`, issues)
   if (tx.realizedAt !== undefined && !isValidTimestamp(tx.realizedAt)) issues.push({ path: `${p}realizedAt`, code: 'invalidTimestamp' })
   checkOptionalText(tx.note, `${p}note`, issues)
+  checkOptionalText(tx.importRef, `${p}importRef`, issues, 200)
   checkTimestamps(tx, p, issues)
   return issues
 }

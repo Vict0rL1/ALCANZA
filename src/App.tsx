@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { Language } from './domain/types'
 import { I18nContext, createTranslator, useT } from './i18n'
 import { usePwaState } from './pwa/register'
@@ -14,8 +14,11 @@ import { MovementForm } from './ui/screens/MovementForm'
 import { Movements } from './ui/screens/Movements'
 import { Plan } from './ui/screens/Plan'
 import { ScheduleForm } from './ui/screens/ScheduleForm'
-import { Settings } from './ui/screens/Settings'
 import { Setup } from './ui/screens/Setup'
+
+// Pantallas de uso ocasional: se cargan aparte (el service worker las guarda igual para usarlas sin conexión).
+const Settings = lazy(() => import('./ui/screens/Settings').then((m) => ({ default: m.Settings })))
+const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
   const state = useAppState()
@@ -255,11 +258,21 @@ function Screen({ route }: { route: Route }) {
   if (!a) return <Home key={key} />
   if (a === 'alcanza') return <Afford key={key} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'movimientos' && b === 'importar') return (
+      <Suspense fallback={null}>
+        <BankImport key={key} />
+      </Suspense>
+    )
   if (a === 'movimientos') return <Movements key={key} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
-  if (a === 'ajustes') return <Settings key={key} />
+  if (a === 'ajustes')
+    return (
+      <Suspense fallback={null}>
+        <Settings key={key} />
+      </Suspense>
+    )
   return (
     <div className="stack">
       <h1 id="page-title" tabIndex={-1}>

@@ -94,7 +94,10 @@ npm run preview
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
    (realizados o previstos). Busca, filtra, edita y elimina (con «Deshacer»).
    Arriba verás el resumen del mes: ingresos, gasto neto, gasto por categoría y límites
-   mensuales opcionales por categoría.
+   mensuales opcionales por categoría. Con «Importar CSV» cargas el historial que
+   descargas de la web de tu banco: revisas cada fila (nuevas, posibles duplicados, ya
+   importadas, con error) y nada se guarda hasta confirmar. Importar el mismo archivo
+   dos veces no duplica nada, y se puede deshacer.
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
    que pulses «Registrar esta compra» y luego «Guardar».
 5. **Plan:** calendario de pagos (marcar pagado, omitir), metas (apartar/liberar) y
@@ -188,8 +191,8 @@ aparece el aviso «Actualizar ahora». En modo desarrollo (`npm run dev`) y al a
 IP en la red local no se activa el uso sin conexión (el navegador lo exige así).
 
 **No incluye todavía (y la app no finge tenerlo):** cuentas de usuario, sincronización,
-conexión bancaria, varias monedas, notificaciones del teléfono, límites e intereses de
-tarjetas, IA. Ver `docs/ROADMAP.md`.
+conexión bancaria automática (sí se pueden importar archivos CSV descargados), varias
+monedas, notificaciones del teléfono, IA. Ver `docs/ROADMAP.md`.
 
 ## 9. Solución de problemas
 

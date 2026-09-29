@@ -36,6 +36,9 @@ Hecho:
   Formato de datos v2 con migración probada desde v1.
 - ✅ **Resumen mensual y límites por categoría:** ingresos, gasto neto por categoría,
   límites mensuales con aviso en Inicio (informativos).
+- ✅ **Importar CSV del banco:** mapeo de columnas, formatos de fecha, cargos/abonos,
+  vista previa, duplicados exactos (huella) y posibles (±3 días), todo o nada, deshacer.
+  Formato de datos v3 (`importRef`). Todo en el dispositivo.
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
@@ -97,7 +100,7 @@ Pendiente:
 |---|---|---|
 | Presupuestos compartidos | Fase 2 | Invitaciones, roles (ver/editar), auditoría de cambios. |
 | Varias monedas | Proveedor de tasas de cambio con histórico (de pago o gratuito con límites) | Guardar la **tasa fechada** usada en cada conversión; nunca sumar monedas sin convertir. |
-| Importar archivos bancarios | Ninguno para CSV/OFX/QFX subidos por la persona | Mapeo de columnas, detección de duplicados (fecha + importe + descripción normalizada + ventana de días), vista previa antes de importar. |
+| Importar OFX/QFX | Ninguno | CSV ya está hecho (Fase 1.5); OFX/QFX reutilizaría la misma vista previa y huella. Reglas para categorizar por descripción. |
 | Conexión bancaria automática | Agregador (Plaid, Flinks, MX…) con contrato y costos | Requiere seguridad y cumplimiento adicionales; opcional. |
 | Planificación de deudas | Ninguno | Métodos bola de nieve / avalancha, intereses con enteros y redondeo documentado. |
 | Ingresos variables | Ninguno | Rango (mínimo/esperado) por ingreso y presupuesto con el escenario prudente. |

@@ -51,6 +51,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Mensuales en 29/30/31 → último día del mes corto.
 - Operaciones idempotentes: el id se genera al abrir el formulario; guardar dos veces
   actualiza el mismo registro.
+- Importación CSV (`domain/bankImport.ts`): huella `importRef` evita reimportar; posibles
+  duplicados desmarcados; todo o nada; el archivo nunca sale del dispositivo.
 
 ## Interfaz y accesibilidad
 

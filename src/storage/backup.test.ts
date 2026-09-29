@@ -167,14 +167,14 @@ describe('datos iniciales y demostración', () => {
 })
 
 describe('migraciones', () => {
-  it('una copia de la versión 1 se migra a la 2 (categorías vacías)', () => {
+  it('una copia de la versión 1 se migra a la actual (categorías y límites vacíos)', () => {
     const v1 = JSON.parse(JSON.stringify(baseData())) as Record<string, unknown>
     v1.schemaVersion = 1
     delete v1.categories
     const r = validateAppData(v1)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.data.schemaVersion).toBe(2)
+      expect(r.data.schemaVersion).toBe(3)
       expect(r.data.categories).toEqual([])
       expect(r.data.categoryLimits).toEqual([])
     }

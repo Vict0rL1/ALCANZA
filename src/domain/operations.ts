@@ -100,6 +100,8 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
     ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
     ...(realizedAt ? { realizedAt } : {}),
+    // La huella de importación se conserva al editar (evita reimportar la misma fila).
+    ...((draft.importRef ?? existing?.importRef) ? { importRef: draft.importRef ?? existing?.importRef } : {}),
     createdAt: existing?.createdAt ?? ctx.now,
     updatedAt: ctx.now,
   }
@@ -162,6 +164,47 @@ export function realizePlanned(
     { ...tx, status: 'realized', date: input.date, amountMinor: input.amountMinor ?? tx.amountMinor, alreadyInBalance: input.alreadyInBalance },
     ctx,
   )
+}
+
+export interface ImportInput {
+  /** Ids generados al abrir la vista previa: confirmar dos veces no duplica. */
+  items: (Pick<Transaction, 'id' | 'kind' | 'amountMinor' | 'date' | 'accountId' | 'categoryId' | 'note'> & { importRef: string })[]
+  /** Filas del mismo día que el saldo de referencia: ¿ya estaban incluidas en él? */
+  sameDayAlreadyInBalance: boolean
+}
+
+/**
+ * Importa movimientos realizados de un archivo del banco. Todo o nada: si una fila
+ * no es válida, no se aplica ninguna. Las filas cuya huella ya existe se omiten.
+ */
+export function importTransactions(data: AppData, input: ImportInput, ctx: OpContext): OpResult<{ ids: string[] }> {
+  let next = data
+  const ids: string[] = []
+  const issues: Issue[] = []
+  const refs = new Set(data.transactions.map((t) => t.importRef).filter(Boolean))
+  input.items.forEach((item, i) => {
+    if (refs.has(item.importRef) || next.transactions.some((t) => t.id === item.id)) return
+    refs.add(item.importRef)
+    const r = saveTransaction(next, { ...item, status: 'realized', alreadyInBalance: input.sameDayAlreadyInBalance }, ctx)
+    if (!r.ok) {
+      issues.push(...r.issues.map((issue) => ({ ...issue, path: `items[${i}].${issue.path}` })))
+      return
+    }
+    next = r.data
+    ids.push(item.id)
+  })
+  if (issues.length) return fail(issues)
+  if (!ids.length) return { ok: true, data, value: { ids }, unchanged: true }
+  return { ok: true, data: next, value: { ids } }
+}
+
+/** Deshacer una importación: quita exactamente los movimientos creados. */
+export function removeTransactions(data: AppData, ids: string[], ctx: OpContext): OpResult<{ removed: number }> {
+  const set = new Set(ids)
+  const transactions = data.transactions.filter((t) => !set.has(t.id))
+  const removed = data.transactions.length - transactions.length
+  if (!removed) return { ok: true, data, value: { removed }, unchanged: true }
+  return { ok: true, data: touch({ ...data, transactions }, ctx.now), value: { removed } }
 }
 
 /* ------------------------------------------------------------------ */

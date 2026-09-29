@@ -73,6 +73,10 @@ export function Movements() {
   return (
     <div className="stack">
       <PageHeader title={t('movements.title')}>
+        <a className="btn btn--secondary" href={href('/movimientos/importar')}>
+          <Icon name="upload" />
+          {t('movements.import')}
+        </a>
         <a className="btn btn--primary" href={href('/movimientos/nuevo')}>
           <Icon name="plus" />
           {t('movements.add')}

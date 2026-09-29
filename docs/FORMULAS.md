@@ -273,6 +273,36 @@ Cerca       = gastado ≥ 80 % del límite y sin pasarse
 Son informativos: **no** cambian «Puedes gastar». Inicio avisa si en el mes actual
 alguna categoría se pasó de su límite.
 
+## 10 d. Importar movimientos del banco (CSV)
+
+El archivo se lee **solo en el dispositivo** (`src/domain/bankImport.ts`); nada se
+guarda hasta confirmar la vista previa. Límites: 2 MB y 5000 filas.
+
+- **Lectura:** separador `,`, `;` o tabulador (el más frecuente fuera de comillas),
+  comillas dobles con `""`, CRLF, BOM; UTF-8 o, si no lo es, Windows-1252.
+- **Fechas:** `AAAA-MM-DD` (también `/`, `.`, compacta o con hora), día/mes/año,
+  mes/día/año y `28 Sep 2026`. Solo se proponen los formatos con los que **todas** las
+  fechas son válidas; si caben día/mes y mes/día, la persona elige.
+- **Importe:** con `parseMoney` (enteros, sin flotantes) y el formato numérico de
+  Ajustes. Una columna con signo (− = gasto) o dos columnas (cargo resta, abono suma,
+  sin importar su signo). `(12.34)` = −12.34. Opción de invertir el signo (tarjetas).
+  Positivo → ingreso; negativo → gasto; cero, fecha futura o inválida → fila con error.
+- **Huella** `importRef = cuenta | fecha | importe con signo | descripción normalizada |
+  nº de repetición`. La descripción se normaliza (minúsculas, sin acentos, espacios
+  simples, 80 caracteres). El nº de repetición distingue dos filas idénticas del mismo
+  archivo (dos cafés iguales el mismo día).
+- **Duplicado exacto:** ya existe un movimiento con la misma huella → no se puede
+  importar. Importar dos veces el mismo archivo no crea nada.
+- **Posible duplicado:** movimiento realizado de la misma cuenta, mismo tipo e importe,
+  fecha a ±3 días y sin huella (registrado a mano). Cada movimiento empareja una sola
+  fila. Se muestra **desmarcado**.
+- **Saldo:** se guardan como realizados y siguen la regla del §3. Las filas anteriores a
+  la fecha del saldo de referencia quedan como historial y no cambian el saldo. Las del
+  mismo día: por defecto «ya incluidas» (`realizedAt = setAt`), con casilla para cambiarlo.
+- **Todo o nada:** si una fila elegida no pasa la validación, no se importa ninguna.
+  «Deshacer» quita exactamente los movimientos creados. Editar un movimiento importado
+  conserva su huella.
+
 ## 11. Integridad de datos
 
 - Identificadores únicos (UUID v4) generados al abrir cada formulario: guardar dos

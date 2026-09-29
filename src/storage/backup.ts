@@ -71,7 +71,7 @@ const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPayment
 const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'createdAt', 'updatedAt'] as const
 const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
-  'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'createdAt', 'updatedAt',
+  'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef', 'createdAt', 'updatedAt',
 ] as const
 const SCHEDULE_KEYS = [
   'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'currency', 'accountId', 'categoryId', 'frequency',

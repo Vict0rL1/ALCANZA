@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 2 as const
+export const SCHEMA_VERSION = 3 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -95,6 +95,11 @@ export interface Transaction {
    * si ya estaba incluido en el saldo de referencia de la cuenta.
    */
   realizedAt?: Timestamp
+  /**
+   * Huella de la fila del archivo bancario de la que vino (cuenta + fecha + importe +
+   * descripción + nº de repetición). Evita importar dos veces la misma fila.
+   */
+  importRef?: string
   createdAt: Timestamp
   updatedAt: Timestamp
 }
