@@ -438,6 +438,7 @@ export interface SetupInput {
   currency: string
   timeZone: string
   numberLocale: Settings['numberLocale']
+  language: Settings['language']
   accountName: string
   balanceMinor: number
   balanceDate: LocalDate
@@ -447,7 +448,8 @@ export interface SetupInput {
   /** Si no hay ingreso: horizonte en días. */
   fallbackHorizonDays: number | null
   bills: { name: string; amountMinor: number; date: LocalDate; frequency: Schedule['frequency'] }[]
-  reserve: { amountMinor: number; fundedFrom: Goal['fundedFrom'] } | null
+  /** `name` llega traducido desde la interfaz (p. ej. «Reserva de emergencia»). */
+  reserve: { amountMinor: number; fundedFrom: Goal['fundedFrom']; name: string } | null
 }
 
 export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<AppData> {
@@ -461,7 +463,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
       numberLocale: input.numberLocale,
       dateStyle: 'medium',
       timeZone: input.timeZone,
-      language: 'es',
+      language: input.language,
       fallbackHorizonDays: input.income ? null : input.fallbackHorizonDays,
     },
     accounts: [],
@@ -477,7 +479,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
 
   const account: Account = {
     id: accountId,
-    name: input.accountName.trim() || 'Cuenta principal',
+    name: input.accountName.trim(),
     kind: 'bank',
     includeInBudget: true,
     anchor: { amountMinor: input.balanceMinor, date: input.balanceDate, setAt: ctx.now },
@@ -535,7 +537,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     const goalId = newId()
     const goal: Goal = {
       id: goalId,
-      name: 'Reserva de emergencia',
+      name: input.reserve.name,
       kind: 'emergency',
       targetMinor: input.reserve.amountMinor,
       currency: input.currency,

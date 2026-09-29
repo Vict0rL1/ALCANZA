@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Language } from './domain/types'
 import { I18nContext, createTranslator, useT } from './i18n'
 import { usePwaState } from './pwa/register'
 import { getStore, useAppState, type SaveStatus } from './state/store'
@@ -18,7 +19,9 @@ import { Setup } from './ui/screens/Setup'
 
 export function App() {
   const state = useAppState()
-  const language = state.phase === 'ready' && state.data ? state.data.settings.language : 'es'
+  // Antes de configurar, el idioma se elige en la bienvenida; después se guarda en Ajustes.
+  const [setupLanguage, setSetupLanguage] = useState<Language>('es')
+  const language = state.phase === 'ready' && state.data ? state.data.settings.language : setupLanguage
   const translator = useMemo(() => createTranslator(language), [language])
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export function App() {
         {state.phase === 'ready' && !state.data && (
           <>
             {state.storage === 'memory' && <MemoryWarning />}
-            <Setup />
+            <Setup language={setupLanguage} onLanguageChange={setSetupLanguage} />
           </>
         )}
         {state.phase === 'ready' && state.data && <Shell />}

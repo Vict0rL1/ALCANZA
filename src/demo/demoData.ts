@@ -5,16 +5,84 @@
  */
 import { addDays, localDateInTimeZone } from '../domain/dates'
 import { newId } from '../domain/ids'
-import type { Account, AppData, Goal, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
+import type { Account, AppData, Goal, Language, LocalDate, Schedule, Timestamp, Transaction } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
+
+/** Textos de los datos ficticios en cada idioma (son datos, no textos de interfaz). */
+const DEMO_TEXTS = {
+  es: {
+    checking: 'Cuenta de cheques',
+    cash: 'Efectivo',
+    savings: 'Ahorros',
+    salary: 'Sueldo (trabajo de medio tiempo)',
+    salaryNote: 'Las horas varían; el importe es aproximado.',
+    rent: 'Renta de habitación',
+    music: 'Suscripción de música',
+    phone: 'Plan de celular',
+    transit: 'Pase mensual de transporte',
+    electricity: 'Recibo de luz',
+    tuition: 'Cuota de matrícula',
+    headphones: 'Audífonos',
+    groceries: 'Supermercado',
+    bus: 'Pasaje de autobús',
+    lunch: 'Almuerzo con amigos',
+    books: 'Libros usados',
+    movies: 'Cine (precio de estudiante)',
+    toiletries: 'Artículos de higiene',
+    saving: 'Ahorro quincenal',
+    coffeeBread: 'Café y pan',
+    refund: 'Devolución parcial: audífonos (ajuste de precio)',
+    pharmacy: 'Farmacia',
+    fastFood: 'Comida rápida',
+    boardGame: 'Juego de mesa usado',
+    coffee: 'Café',
+    friendRefund: 'Reembolso de Ana por la cena',
+    birthday: 'Regalo de cumpleaños',
+    emergency: 'Fondo de emergencia',
+    laptop: 'Laptop para la escuela',
+  },
+  en: {
+    checking: 'Chequing account',
+    cash: 'Cash',
+    savings: 'Savings',
+    salary: 'Salary (part-time job)',
+    salaryNote: 'Hours vary; the amount is an estimate.',
+    rent: 'Room rent',
+    music: 'Music subscription',
+    phone: 'Phone plan',
+    transit: 'Monthly transit pass',
+    electricity: 'Electricity bill',
+    tuition: 'Tuition installment',
+    headphones: 'Headphones',
+    groceries: 'Groceries',
+    bus: 'Bus fare',
+    lunch: 'Lunch with friends',
+    books: 'Used books',
+    movies: 'Movies (student price)',
+    toiletries: 'Toiletries',
+    saving: 'Biweekly saving',
+    coffeeBread: 'Coffee and bread',
+    refund: 'Partial refund: headphones (price adjustment)',
+    pharmacy: 'Pharmacy',
+    fastFood: 'Fast food',
+    boardGame: 'Used board game',
+    coffee: 'Coffee',
+    friendRefund: 'Ana paying me back for dinner',
+    birthday: 'Birthday gift',
+    emergency: 'Emergency fund',
+    laptop: 'Laptop for school',
+  },
+} satisfies Record<Language, Record<string, string>>
 
 export interface DemoOptions {
   now: Date
   timeZone: string
   currency?: string
+  language?: Language
 }
 
-export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions): AppData {
+export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es' }: DemoOptions): AppData {
+  const L = DEMO_TEXTS[language]
   const nowTs: Timestamp = now.toISOString()
   const today = localDateInTimeZone(now, timeZone)
   const d = (offset: number): LocalDate => addDays(today, offset)
@@ -28,7 +96,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
 
   const main: Account = {
     id: newId(),
-    name: 'Cuenta de cheques',
+    name: L.checking,
     kind: 'bank',
     includeInBudget: true,
     anchor: { amountMinor: 90512, date: anchorDate, setAt: anchorSetAt },
@@ -37,7 +105,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
   }
   const cash: Account = {
     id: newId(),
-    name: 'Efectivo',
+    name: L.cash,
     kind: 'cash',
     includeInBudget: true,
     anchor: { amountMinor: 4250, date: anchorDate, setAt: anchorSetAt },
@@ -46,7 +114,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
   }
   const savings: Account = {
     id: newId(),
-    name: 'Ahorros',
+    name: L.savings,
     kind: 'savings',
     includeInBudget: false,
     anchor: { amountMinor: 40000, date: anchorDate, setAt: anchorSetAt },
@@ -64,7 +132,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
   })
 
   const salary = schedule({
-    name: 'Sueldo (trabajo de medio tiempo)',
+    name: L.salary,
     kind: 'income',
     amountMinor: 61240,
     amountIsEstimate: true,
@@ -73,10 +141,10 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     frequency: 'biweekly',
     startDate: d(-22),
     reminderDaysBefore: 0,
-    note: 'Las horas varían; el importe es aproximado.',
+    note: L.salaryNote,
   })
   const rent = schedule({
-    name: 'Renta de habitación',
+    name: L.rent,
     kind: 'expense',
     amountMinor: 65000,
     amountIsEstimate: false,
@@ -87,7 +155,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     reminderDaysBefore: 3,
   })
   const music = schedule({
-    name: 'Suscripción de música',
+    name: L.music,
     kind: 'expense',
     amountMinor: 1199,
     amountIsEstimate: false,
@@ -98,7 +166,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     reminderDaysBefore: 1,
   })
   const phone = schedule({
-    name: 'Plan de celular',
+    name: L.phone,
     kind: 'expense',
     amountMinor: 3500,
     amountIsEstimate: false,
@@ -109,7 +177,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     reminderDaysBefore: 2,
   })
   const transit = schedule({
-    name: 'Pase mensual de transporte',
+    name: L.transit,
     kind: 'expense',
     amountMinor: 12815,
     amountIsEstimate: false,
@@ -120,7 +188,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     reminderDaysBefore: 2,
   })
   const electricity = schedule({
-    name: 'Recibo de luz',
+    name: L.electricity,
     kind: 'expense',
     amountMinor: 4280,
     amountIsEstimate: false,
@@ -131,7 +199,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     reminderDaysBefore: 2,
   })
   const tuition = schedule({
-    name: 'Cuota de matrícula',
+    name: L.tuition,
     kind: 'expense',
     amountMinor: 40000,
     amountIsEstimate: false,
@@ -157,7 +225,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
   const spend = (offset: number, amountMinor: number, categoryId: string, note: string, account = main, recent = false) =>
     tx({ kind: 'expense', status: 'realized', amountMinor, date: d(offset), accountId: account.id, categoryId, note, recent })
 
-  const headphones = spend(-17, 4999, 'shopping', 'Audífonos')
+  const headphones = spend(-17, 4999, 'shopping', L.headphones)
 
   const transactions: Transaction[] = [
     tx({ kind: 'income', status: 'realized', amountMinor: 64000, date: d(-22), accountId: main.id, categoryId: 'salary', note: salary.name, scheduleId: salary.id, occurrenceDate: d(-22) }),
@@ -165,37 +233,37 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     tx({ kind: 'expense', status: 'realized', amountMinor: 1199, date: d(-25), accountId: main.id, categoryId: 'subscriptions', note: music.name, scheduleId: music.id, occurrenceDate: d(-25) }),
     tx({ kind: 'expense', status: 'realized', amountMinor: 3500, date: d(-20), accountId: main.id, categoryId: 'phone_internet', note: phone.name, scheduleId: phone.id, occurrenceDate: d(-20) }),
     tx({ kind: 'expense', status: 'realized', amountMinor: 12815, date: d(-18), accountId: main.id, categoryId: 'transport', note: transit.name, scheduleId: transit.id, occurrenceDate: d(-18) }),
-    spend(-26, 5230, 'groceries', 'Supermercado'),
-    spend(-25, 335, 'transport', 'Pasaje de autobús', cash),
-    spend(-24, 1475, 'dining', 'Almuerzo con amigos'),
-    spend(-22, 2800, 'education', 'Libros usados'),
-    spend(-20, 4785, 'groceries', 'Supermercado'),
-    spend(-19, 1200, 'entertainment', 'Cine (precio de estudiante)'),
+    spend(-26, 5230, 'groceries', L.groceries),
+    spend(-25, 335, 'transport', L.bus, cash),
+    spend(-24, 1475, 'dining', L.lunch),
+    spend(-22, 2800, 'education', L.books),
+    spend(-20, 4785, 'groceries', L.groceries),
+    spend(-19, 1200, 'entertainment', L.movies),
     headphones,
-    spend(-15, 1840, 'personal', 'Artículos de higiene'),
+    spend(-15, 1840, 'personal', L.toiletries),
     tx({ kind: 'income', status: 'realized', amountMinor: 59810, date: d(-8), accountId: main.id, categoryId: 'salary', note: salary.name, scheduleId: salary.id, occurrenceDate: d(-8) }),
-    tx({ kind: 'transfer', status: 'realized', amountMinor: 5000, date: d(-8), accountId: main.id, toAccountId: savings.id, note: 'Ahorro quincenal' }),
-    spend(-13, 6120, 'groceries', 'Supermercado'),
-    spend(-10, 625, 'dining', 'Café y pan', cash),
-    tx({ kind: 'refund', status: 'realized', amountMinor: 1500, date: d(-9), accountId: main.id, categoryId: 'shopping', refundOfId: headphones.id, note: 'Devolución parcial: audífonos (ajuste de precio)' }),
-    spend(-8, 2200, 'health', 'Farmacia'),
-    spend(-6, 4410, 'groceries', 'Supermercado'),
-    spend(-4, 1180, 'dining', 'Comida rápida'),
-    spend(-3, 1500, 'entertainment', 'Juego de mesa usado', cash),
+    tx({ kind: 'transfer', status: 'realized', amountMinor: 5000, date: d(-8), accountId: main.id, toAccountId: savings.id, note: L.saving }),
+    spend(-13, 6120, 'groceries', L.groceries),
+    spend(-10, 625, 'dining', L.coffeeBread, cash),
+    tx({ kind: 'refund', status: 'realized', amountMinor: 1500, date: d(-9), accountId: main.id, categoryId: 'shopping', refundOfId: headphones.id, note: L.refund }),
+    spend(-8, 2200, 'health', L.pharmacy),
+    spend(-6, 4410, 'groceries', L.groceries),
+    spend(-4, 1180, 'dining', L.fastFood),
+    spend(-3, 1500, 'entertainment', L.boardGame, cash),
     // Posteriores al saldo de referencia: sí cambian el saldo actual.
-    spend(0, 425, 'dining', 'Café', main, true),
-    spend(0, 335, 'transport', 'Pasaje de autobús', cash, true),
+    spend(0, 425, 'dining', L.coffee, main, true),
+    spend(0, 335, 'transport', L.bus, cash, true),
     // Previstos (no cambian el saldo hasta marcarlos como realizados).
-    tx({ kind: 'income', status: 'planned', amountMinor: 1800, date: d(2), accountId: main.id, categoryId: 'other_income', note: 'Reembolso de Ana por la cena' }),
-    tx({ kind: 'expense', status: 'planned', amountMinor: 2500, date: d(9), accountId: main.id, categoryId: 'gifts', note: 'Regalo de cumpleaños' }),
+    tx({ kind: 'income', status: 'planned', amountMinor: 1800, date: d(2), accountId: main.id, categoryId: 'other_income', note: L.friendRefund }),
+    tx({ kind: 'expense', status: 'planned', amountMinor: 2500, date: d(9), accountId: main.id, categoryId: 'gifts', note: L.birthday }),
   ]
   // Ayer, después del saldo de referencia: también cambia el saldo actual.
-  transactions.push(spend(-1, 3845, 'groceries', 'Supermercado', main, true))
+  transactions.push(spend(-1, 3845, 'groceries', L.groceries, main, true))
 
   const goals: Goal[] = [
     {
       id: newId(),
-      name: 'Fondo de emergencia',
+      name: L.emergency,
       kind: 'emergency',
       targetMinor: 100000,
       targetDate: d(180),
@@ -210,7 +278,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
     },
     {
       id: newId(),
-      name: 'Laptop para la escuela',
+      name: L.laptop,
       kind: 'goal',
       targetMinor: 90000,
       targetDate: d(120),
@@ -231,7 +299,7 @@ export function createDemoData({ now, timeZone, currency = 'CAD' }: DemoOptions)
       numberLocale: 'es-MX',
       dateStyle: 'medium',
       timeZone,
-      language: 'es',
+      language,
       fallbackHorizonDays: null,
     },
     accounts: [main, cash, savings],

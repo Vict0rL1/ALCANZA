@@ -162,7 +162,7 @@ src/
   storage/     Guardado en el navegador, copias de seguridad y migraciones
   state/       Estado de la app y conexión con el almacenamiento
   ui/          Pantallas, componentes, gráficos y formato
-  i18n/        Textos (es.ts completo, en.ts preparado)
+  i18n/        Textos en español (es.ts) e inglés (en.ts)
   demo/        Generador de datos de demostración
 tests/e2e/     Pruebas en navegador
 docs/          FORMULAS.md (cálculos) y ROADMAP.md (siguientes fases)
@@ -177,6 +177,7 @@ servidor más adelante basta con otra implementación de `DataRepository`
 
 **Incluye:** todo lo descrito arriba, persistencia local, validación de copias,
 tarjetas de crédito (la compra es un gasto de la tarjeta y el pago una transferencia),
+interfaz en español e inglés (se elige en la bienvenida o en Ajustes),
 modo oscuro y diseño desde 320 px hasta escritorio. En la versión compilada
 (`npm run build` + `npm run preview`, o publicada con https) la app se guarda en el
 dispositivo y **abre sin internet** tras la primera visita; cuando hay una versión nueva
@@ -185,7 +186,7 @@ IP en la red local no se activa el uso sin conexión (el navegador lo exige así
 
 **No incluye todavía (y la app no finge tenerlo):** cuentas de usuario, sincronización,
 conexión bancaria, varias monedas, notificaciones del teléfono, límites e intereses de
-tarjetas, inglés (textos preparados), IA. Ver `docs/ROADMAP.md`.
+tarjetas, IA. Ver `docs/ROADMAP.md`.
 
 ## 9. Solución de problemas
 

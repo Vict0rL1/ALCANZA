@@ -120,13 +120,14 @@ describe('datos iniciales y demostración', () => {
         currency: 'CAD',
         timeZone: TZ,
         numberLocale: 'es-MX',
+        language: 'es',
         accountName: 'Mi banco',
         balanceMinor: 120000,
         balanceDate: TODAY,
         income: { name: 'Sueldo', amountMinor: 80000, date: '2026-10-09', frequency: 'biweekly', isEstimate: false },
         fallbackHorizonDays: null,
         bills: [{ name: 'Renta', amountMinor: 60000, date: '2026-10-01', frequency: 'monthly' }],
-        reserve: { amountMinor: 20000, fundedFrom: 'budget' },
+        reserve: { amountMinor: 20000, fundedFrom: 'budget', name: 'Reserva de emergencia' },
       },
       ctx,
     )
@@ -136,6 +137,15 @@ describe('datos iniciales y demostración', () => {
     const b = computeBudget(r.data, TODAY)
     expect(b.availableMinor).toBe(120000 - 60000 - 20000)
     expect(b.horizon?.days).toBe(11)
+  })
+
+  it('los datos de demostración existen en inglés con los mismos importes', () => {
+    const now = new Date('2026-09-28T12:00:00-04:00')
+    const en = createDemoData({ now, timeZone: TZ, language: 'en' })
+    expect(validateAppData(en).ok).toBe(true)
+    expect(en.settings.language).toBe('en')
+    expect(en.accounts[0]!.name).toBe('Chequing account')
+    expect(computeBudget(en, '2026-09-28').availableMinor).toBe(computeBudget(createDemoData({ now, timeZone: TZ }), '2026-09-28').availableMinor)
   })
 
   it('los datos de demostración son válidos y muestran un posible faltante', () => {

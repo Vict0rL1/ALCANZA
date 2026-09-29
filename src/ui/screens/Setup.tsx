@@ -7,7 +7,7 @@ import { computeBudget, type BudgetResult } from '../../domain/budget'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { SUPPORTED_CURRENCIES } from '../../domain/money'
 import { createInitialData, type SetupInput } from '../../domain/operations'
-import type { AppData, Frequency, GoalFunding, NumberLocale, Settings } from '../../domain/types'
+import type { AppData, Frequency, GoalFunding, Language, NumberLocale, Settings } from '../../domain/types'
 import { FREQUENCIES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
@@ -37,7 +37,7 @@ function guessLocale(): NumberLocale {
   return 'es-MX'
 }
 
-export function Setup() {
+export function Setup({ language, onLanguageChange }: { language: Language; onLanguageChange: (l: Language) => void }) {
   const { t, tn } = useT()
   const [timeZone] = useState(detectTimeZone)
   const [today] = useState(() => todayInTimeZone(timeZone))
@@ -62,7 +62,7 @@ export function Setup() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
 
-  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language: 'es', fallbackHorizonDays: null }
+  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language, fallbackHorizonDays: null }
   const fmt = createFormatter(settings)
   const money = (text: string, opts: { allowNegative?: boolean; allowZero?: boolean } = {}) => parseMoney(text, currency, numberLocale, opts)
 
@@ -98,7 +98,7 @@ export function Setup() {
     if (upTo >= 4 && reserve.trim()) {
       const amt = money(reserve, { allowZero: true })
       if (!amt.ok) errs.reserve = moneyErrorMessage(t, amt)!
-      else if (amt.minor > 0) reserveInput = { amountMinor: amt.minor, fundedFrom: reserveWhere }
+      else if (amt.minor > 0) reserveInput = { amountMinor: amt.minor, fundedFrom: reserveWhere, name: t('setup.reserve.defaultName') }
     }
     if (Object.keys(errs).length > 0 || !bal.ok) return { input: null, errs }
     return {
@@ -106,6 +106,7 @@ export function Setup() {
         currency,
         timeZone,
         numberLocale,
+        language,
         accountName: accountName.trim() || t('setup.balance.defaultAccount'),
         balanceMinor: bal.minor,
         balanceDate,
@@ -150,7 +151,7 @@ export function Setup() {
 
   const startDemo = async () => {
     setBusy(true)
-    await getStore().commit(createDemoData({ now: new Date(), timeZone }))
+    await getStore().commit(createDemoData({ now: new Date(), timeZone, language }))
     setBusy(false)
   }
 
@@ -186,6 +187,16 @@ export function Setup() {
 
       {step === 0 && (
         <Card className="setup__card">
+          <Segmented
+            legend={t('setup.welcome.language')}
+            name="lang"
+            value={language}
+            onChange={onLanguageChange}
+            options={[
+              { value: 'es', label: t('settings.language.es') },
+              { value: 'en', label: t('settings.language.en') },
+            ]}
+          />
           <h1 id="setup-step-title" tabIndex={-1}>
             {t('setup.welcome.title')}
           </h1>

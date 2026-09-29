@@ -3,8 +3,8 @@ import { accountBalance } from '../../domain/balances'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
 import { deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
-import type { Account, AccountKind, AppData, DateStyle, NumberLocale } from '../../domain/types'
-import { ACCOUNT_KINDS, DATE_STYLES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import type { Account, AccountKind, AppData, DateStyle, Language, NumberLocale } from '../../domain/types'
+import { ACCOUNT_KINDS, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
@@ -104,7 +104,7 @@ export function Settings() {
   }
 
   const resetDemo = async () => {
-    const demo = createDemoData({ now: new Date(), timeZone: data.settings.timeZone, currency: 'CAD' })
+    const demo = createDemoData({ now: new Date(), timeZone: data.settings.timeZone, currency: 'CAD', language: data.settings.language })
     const ok = await getStore().commit(demo)
     setConfirm(null)
     toast({ message: ok ? t('settings.demo.resetDone') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
@@ -150,13 +150,13 @@ export function Settings() {
           </p>
           <p className="field__hint">{t('settings.currency.hint')}</p>
         </div>
-        <div className="field">
-          <p className="field__label">{t('settings.language.label')}</p>
-          <p>
-            <strong>{t('settings.language.es')}</strong>
-          </p>
-          <p className="field__hint">{t('settings.language.hint')}</p>
-        </div>
+        <SelectField
+          label={t('settings.language.label')}
+          value={data.settings.language}
+          onChange={(e) => void setSetting({ language: e.target.value as Language })}
+          options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
+          hint={t('settings.language.hint')}
+        />
       </Card>
 
       <Card labelledBy="accounts-title">
