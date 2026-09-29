@@ -9,6 +9,7 @@ import { useData } from '../../state/store'
 import { Badge, EmptyState, PageHeader } from '../components/common'
 import { SelectField, TextField } from '../components/fields'
 import { Icon, type IconName } from '../components/Icon'
+import { MonthSummary } from '../components/MonthSummary'
 import { useFormat } from '../format'
 import { accountName, categoryLabel, transactionTitle } from '../labels'
 import { href } from '../router'
@@ -92,6 +93,8 @@ export function Movements() {
         </EmptyState>
       ) : (
         <>
+          <MonthSummary />
+
           <form className="filters" role="search" onSubmit={(e) => e.preventDefault()} aria-label={t('filters.aria')}>
             <TextField
               label={t('filters.search')}

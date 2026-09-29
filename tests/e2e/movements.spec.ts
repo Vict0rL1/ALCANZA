@@ -89,3 +89,18 @@ test('devolución parcial: no puede superar lo que queda por devolver', async ({
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
   await expect(await available(page)).toHaveText('$171.77')
 })
+
+test('resumen del mes: gasto por categoría ordenado y navegación entre meses', async ({ page }) => {
+  await startDemo(page)
+  await go(page, '/movimientos')
+  const summary = page.locator('.month-summary')
+  await expect(summary.getByRole('heading', { name: /Resumen de septiembre de 2026/i })).toBeVisible()
+  // La renta (650.00) es el mayor gasto; el supermercado suma 243.90 en septiembre.
+  await expect(summary.locator('.bars__row').first()).toContainText('Vivienda')
+  await expect(summary.locator('.bars__row').first()).toContainText('$650.00')
+  await expect(summary.locator('.bars__row', { hasText: 'Supermercado' })).toContainText('$243.90')
+  await expect(summary.getByRole('button', { name: 'Mes siguiente' })).toBeDisabled()
+  await summary.getByRole('button', { name: 'Mes anterior' }).click()
+  await expect(summary.getByRole('heading', { name: /agosto de 2026/i })).toBeVisible()
+  await expect(summary.getByText('No hay gastos realizados en este mes.')).toBeVisible()
+})

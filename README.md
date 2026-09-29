@@ -93,11 +93,13 @@ npm run preview
    la cuenta completa.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
    (realizados o previstos). Busca, filtra, edita y elimina (con «Deshacer»).
+   Arriba verás el resumen del mes: ingresos, gasto neto y gasto por categoría.
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
    que pulses «Registrar esta compra» y luego «Guardar».
 5. **Plan:** calendario de pagos (marcar pagado, omitir), metas (apartar/liberar) y
    proyección de 30 días.
-6. **Ajustes:** formato de números y fechas, zona horaria, cuentas, copia de seguridad,
+6. **Ajustes:** idioma, formato de números y fechas, zona horaria, cuentas (y tarjetas con
+   límite, tasa y fechas), categorías personalizadas, copia de seguridad,
    reinicio de la demo y borrado de datos.
 
 La demostración muestra un aviso morado permanente: **todos sus datos son ficticios**.

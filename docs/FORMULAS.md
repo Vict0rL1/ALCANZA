@@ -251,6 +251,17 @@ Próximo corte / pago      = el día indicado de este mes o del siguiente; en me
   válidos y conservan su nombre. Solo se puede **eliminar** si nadie la usa.
 - Las devoluciones usan las categorías de gasto (fijas y personalizadas).
 
+## 10 c. Resumen mensual (Movimientos)
+
+```
+Ingresos del mes          = Σ ingresos realizados del mes
+Gasto neto de categoría   = Σ gastos realizados − Σ devoluciones realizadas del mes
+Gasto neto del mes        = Σ gasto neto de todas las categorías
+```
+
+Las transferencias (incluidos los pagos de tarjeta) y los previstos no cuentan.
+Incluye todas las cuentas, también las que están fuera del presupuesto.
+
 ## 11. Integridad de datos
 
 - Identificadores únicos (UUID v4) generados al abrir cada formulario: guardar dos

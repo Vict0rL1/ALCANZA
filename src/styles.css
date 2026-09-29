@@ -480,7 +480,8 @@ code {
 }
 
 .stat__value {
-  font-size: 1.5rem;
+  /* Se reduce en pantallas estrechas para no partir la cifra. */
+  font-size: clamp(1.1rem, 5.2vw, 1.5rem);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -1984,5 +1985,64 @@ fieldset.bill-row {
 
   .segmented__option.is-selected {
     border: 3px solid Highlight;
+  }
+}
+
+/* Resumen mensual: barras horizontales de una sola serie */
+.bars {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bars__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'label value'
+    'track track';
+  gap: 4px 12px;
+  align-items: center;
+}
+
+.bars__label {
+  grid-area: label;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bars__count {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.bars__value {
+  grid-area: value;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bars__track {
+  grid-area: track;
+  height: 12px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--series-1) 12%, var(--surface));
+}
+
+.bars__fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: var(--series-1);
+}
+
+@media (forced-colors: active) {
+  .bars__fill {
+    background: Highlight;
+    forced-color-adjust: none;
   }
 }

@@ -48,10 +48,10 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('25')
-  await page.getByLabel('Categoría').selectOption({ label: 'Mascotas' })
+  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Mascotas' })
   await page.getByRole('button', { name: 'Guardar' }).click()
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
-  await page.getByLabel('Categoría').selectOption({ label: 'Mascotas' })
+  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Mascotas' })
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
 
   // Archivar: desaparece de formularios pero el movimiento la conserva.
@@ -59,7 +59,7 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
   await page.getByRole('button', { name: /Archivar.*Mascotas/ }).click()
   await expect(page.getByText('Categoría archivada')).toBeVisible()
   await go(page, '/movimientos/nuevo')
-  await expect(page.getByLabel('Categoría').locator('option', { hasText: 'Mascotas' })).toHaveCount(0)
+  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Mascotas' })).toHaveCount(0)
   await go(page, '/movimientos')
   await expect(page.locator('.item__meta', { hasText: 'Mascotas' }).first()).toBeVisible()
 })
