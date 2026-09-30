@@ -128,3 +128,26 @@ describe('gastos planificados: vínculo con un pago previsto sin doble descuento
     expect(goalProgress(d.goals[0]!).savedMinor).toBe(10000)
   })
 })
+
+describe('gastos planificados: apartar sin doble conteo cuando el pago ya está reservado', () => {
+  it('confirmar aportes a un gasto vinculado no exige dinero libre extra (ya estaba reservado)', async () => {
+    const { maxBudgetAllocation } = await import('./operations')
+    // Saldo 1000; la matrícula (900) cae antes del ingreso: ya está reservada → disponible 100.
+    const tight = baseData({ schedules: [income('2026-10-10', 50000), bill('2026-10-05', 90000, { id: 'tuition', name: 'Matrícula' })] })
+    let d = ok(savePlannedExpense(tight, draft({ targetMinor: 90000, link: { scheduleId: 'tuition', occurrenceDate: '2026-10-05' } }), ctx)).data
+    const goal = d.goals.find((g) => g.id === 'g')!
+    expect(computeBudget(d, TODAY).availableMinor).toBe(10000)
+    expect(maxBudgetAllocation(d, goal, TODAY)).toBe(90000)
+    d = ok(allocateToGoal(d, { goalId: 'g', amountMinor: 90000 }, ctx)).data
+    // Mover el dinero de «reservado para el pago» a «apartado en la meta» no cambia el disponible.
+    expect(computeBudget(d, TODAY).availableMinor).toBe(10000)
+  })
+
+  it('sin vínculo (o por encima de lo reservado) sigue mandando el dinero libre', async () => {
+    const { maxBudgetAllocation } = await import('./operations')
+    const d = ok(savePlannedExpense(base, draft({ targetMinor: 200000, dueDate: '2027-01-15' }), ctx)).data
+    const free = computeBudget(d, TODAY).availableMinor
+    expect(maxBudgetAllocation(d, d.goals.find((g) => g.id === 'g')!, TODAY)).toBe(free)
+    expect(allocateToGoal(d, { goalId: 'g', amountMinor: free + 1 }, ctx).ok).toBe(false)
+  })
+})

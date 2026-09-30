@@ -572,6 +572,7 @@ export function validateScenario(sc: SavedScenario, prefix = ''): Issue[] {
         checkPositiveAmount(c.amountMinor, `${cp}amountMinor`, issues)
         checkDate(c.date, `${cp}date`, issues)
         checkOptionalText(c.note, `${cp}note`, issues)
+        if (c.accountId !== undefined && !isValidId(c.accountId)) issues.push({ path: `${cp}accountId`, code: 'invalidId' })
       } else if (c.type === 'scheduleAmount') {
         if (!isValidId(c.scheduleId)) issues.push({ path: `${cp}scheduleId`, code: 'invalidId' })
         checkPositiveAmount(c.newAmountMinor, `${cp}newAmountMinor`, issues)

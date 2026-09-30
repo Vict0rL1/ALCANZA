@@ -289,7 +289,7 @@ export function validateAppData(raw: unknown): ImportResult {
     const scenario = pick<SavedScenario>(sc, ['id', 'name', 'changes', 'baseFingerprint', 'createdAt', 'updatedAt'])
     if (Array.isArray(sc.changes)) {
       scenario.changes = sc.changes.map((c) =>
-        isObj(c) ? pick<ScenarioChange>(c, ['type', 'amountMinor', 'date', 'note', 'scheduleId', 'newAmountMinor']) : (c as ScenarioChange),
+        isObj(c) ? pick<ScenarioChange>(c, ['type', 'amountMinor', 'date', 'note', 'accountId', 'scheduleId', 'newAmountMinor']) : (c as ScenarioChange),
       )
     }
     return scenario

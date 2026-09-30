@@ -551,6 +551,23 @@ export function restoreGoal(data: AppData, goal: Goal, ctx: OpContext): OpResult
  *  - No se aparta más de lo que le falta a la meta.
  *  - No se libera más de lo apartado.
  */
+/**
+ * Cuánto se puede apartar hoy en una meta del presupuesto sin usar dos veces el mismo dinero.
+ * Normalmente = dinero libre. Si la meta cubre un pago del calendario que YA está reservado
+ * (gasto planificado vinculado), esa parte no cuesta nada: solo cambia de «reservado para el
+ * pago» a «apartado en la meta». Se calcula probando el apartado completo:
+ *   costo(x) = max(0, x − parteNeutral)  →  máximo = min(falta, parteNeutral + libre).
+ */
+export function maxBudgetAllocation(data: AppData, goal: Goal, today: LocalDate): number {
+  const { remainingMinor } = goalProgress(goal)
+  if (remainingMinor <= 0) return 0
+  const before = computeBudget(data, today).availableMinor
+  const probe: Goal = { ...goal, allocations: [...goal.allocations, { id: '__probe__', amountMinor: remainingMinor, date: today, createdAt: goal.updatedAt }] }
+  const after = computeBudget({ ...data, goals: data.goals.map((g) => (g.id === goal.id ? probe : g)) }, today).availableMinor
+  const neutral = Math.max(0, remainingMinor - (before - after))
+  return Math.min(remainingMinor, neutral + Math.max(0, before))
+}
+
 export function allocateToGoal(
   data: AppData,
   input: { goalId: string; amountMinor: number; allocationId?: string; reason?: AllocationReason },
@@ -567,7 +584,7 @@ export function allocateToGoal(
   if (amount > 0) {
     if (amount > remainingMinor) return fail([{ path: 'amountMinor', code: 'exceedsRemaining', params: { remainingMinor } }])
     if (goal.fundedFrom === 'budget') {
-      const free = Math.max(0, computeBudget(data, ctx.today).availableMinor)
+      const free = maxBudgetAllocation(data, goal, ctx.today)
       if (amount > free) return fail([{ path: 'amountMinor', code: 'exceedsFreeMoney', params: { freeMinor: free } }])
     }
   } else if (-amount > savedMinor) {

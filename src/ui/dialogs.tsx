@@ -4,11 +4,12 @@
  */
 import { useMemo, useState } from 'react'
 import { accountBalance } from '../domain/balances'
-import { computeBudget, HORIZON_OPTIONS } from '../domain/budget'
+import { HORIZON_OPTIONS } from '../domain/budget'
 import { goalProgress } from '../domain/goals'
 import { newId } from '../domain/ids'
 import {
   allocateToGoal,
+  maxBudgetAllocation,
   defaultPaymentDate,
   markOccurrence,
   realizePlanned,
@@ -333,8 +334,7 @@ export function AllocateDialog({ goal, mode, onClose }: { goal: Goal; mode: 'add
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const progress = goalProgress(goal)
-  const free = Math.max(0, computeBudget(data, today).availableMinor)
-  const max = mode === 'release' ? progress.savedMinor : goal.fundedFrom === 'budget' ? Math.min(free, progress.remainingMinor) : progress.remainingMinor
+  const max = mode === 'release' ? progress.savedMinor : goal.fundedFrom === 'budget' ? maxBudgetAllocation(data, goal, today) : progress.remainingMinor
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)

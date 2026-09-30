@@ -471,6 +471,9 @@ los apartados, así que nunca hay una segunda reserva:
   el disponible se reduce en lo que la meta ya cubre (`reserves.ts`, `scheduleCoverage`):
   `reserva de la ocurrencia = importe − min(importe, apartado de la meta)`.
   Una ocurrencia solo puede estar vinculada a una meta.
+- **Aportar a un gasto vinculado** (`maxBudgetAllocation`): la parte que cubre un pago ya
+  reservado no cuesta dinero libre (solo pasa de «reservado para el pago» a «apartado en la
+  meta»): `máximo = min(falta, parte neutral + dinero libre)`.
 - **Pagar** (una operación, idempotente por el id del gasto generado al abrir el diálogo):
   1. registra el gasto real (o liquida la ocurrencia vinculada con `markOccurrence`);
   2. usa de la reserva `min(apartado, pagado)` (`reason: 'payment'`);
@@ -535,7 +538,8 @@ ocultar en Inicio o en Ajustes; no hay correos ni notificaciones).
 `projectBalance`.
 
 - Cada escenario se evalúa sobre una **copia** de los datos: una compra = gasto
-  **previsto simulado** en la primera cuenta del presupuesto y la fecha elegida; cambiar
+  **previsto simulado** en la cuenta elegida (por defecto, la primera del presupuesto) y la
+  fecha elegida; cambiar
   un pago programado = otro importe para todas sus ocurrencias. Guardar, editar o
   eliminar escenarios solo toca `scenarios`.
 - Situación actual y hasta **3** escenarios con las **mismas hipótesis**: horizonte (30,
@@ -564,6 +568,9 @@ ocultar en Inicio o en Ajustes; no hay correos ni notificaciones).
   (fijas por su nombre **en el idioma activo**; personalizadas tal como se escribieron),
   metas y gastos planificados, pagos programados (nombre y nota), presupuestos por
   periodo y favoritos. La **papelera** solo si se marca «Incluir la papelera».
+- **Importes:** una palabra con forma de importe («4.25», «4,25», «$4.25», «650») se compara
+  con el importe exacto (texto decimal sin flotantes), no como subcadena: «25» no encuentra
+  todos los importes que contienen 25.
 - Resultados agrupados por tipo (máximo 50 visibles por grupo con el total); movimientos
   del más reciente al más antiguo.
 - **Rendimiento:** el índice (cadenas ya normalizadas) se construye una vez por versión

@@ -372,7 +372,8 @@ export interface PeriodBudget {
 
 /** Un cambio simulado. Nunca se aplica a los datos reales. */
 export type ScenarioChange =
-  | { type: 'purchase'; amountMinor: number; date: LocalDate; note?: string }
+  /** Compra simulada. Sin `accountId`, en la primera cuenta que cuenta para el presupuesto. */
+  | { type: 'purchase'; amountMinor: number; date: LocalDate; note?: string; accountId?: string }
   | { type: 'scheduleAmount'; scheduleId: string; newAmountMinor: number }
 
 export interface SavedScenario {

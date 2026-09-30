@@ -5,7 +5,7 @@ import { projectBalance } from './projection'
 import { compare, deleteScenario, evaluate, financialFingerprint, isStale, markScenarioReviewed, saveScenario, similarPlanned } from './scenarios'
 import type { AppData, ScenarioChange } from './types'
 import { validateAppData } from '../storage/backup'
-import { baseData, bill, ctx, income, TODAY, tx } from '../test/fixtures'
+import { account, baseData, bill, ctx, income, TODAY, tx } from '../test/fixtures'
 
 function ok<T>(r: { ok: true; data: AppData; value: T } | { ok: false; issues: unknown[] }) {
   if (!r.ok) throw new Error(JSON.stringify(r.issues))
@@ -105,5 +105,21 @@ describe('escenarios: cambios de la base', () => {
     const bad = JSON.parse(JSON.stringify(d))
     bad.scenarios[0].changes[0].amountMinor = 10.5
     expect(validateAppData(bad).ok).toBe(false)
+  })
+})
+
+describe('escenarios: cuenta de la compra', () => {
+  it('una compra en una cuenta fuera del presupuesto no reduce el disponible; una cuenta inexistente no se aplica', () => {
+    const withSavings = { ...data, accounts: [...data.accounts, account({ id: 'sav', name: 'Ahorro', includeInBudget: false })] }
+    const base = evaluate(withSavings, TODAY, [])
+    const fromSavings = evaluate(withSavings, TODAY, [{ ...buyToday, accountId: 'sav' }])
+    expect(fromSavings.availableMinor).toBe(base.availableMinor)
+    expect(evaluate(withSavings, TODAY, [{ ...buyToday, accountId: 'main' }]).availableMinor).toBe(base.availableMinor - 30000)
+    expect(evaluate(withSavings, TODAY, [{ ...buyToday, accountId: 'nope' }]).invalidChanges).toEqual([0])
+    const bad = saveScenario(withSavings, { id: 'x', name: 'X', changes: [{ ...buyToday, accountId: 'nope' }] }, ctx)
+    expect(bad.ok ? [] : bad.issues.map((i) => i.code)).toEqual(['unknownAccount'])
+    const saved = ok(saveScenario(withSavings, { id: 'x', name: 'X', changes: [{ ...buyToday, accountId: 'sav' }] }, ctx)).data
+    const r = validateAppData(JSON.parse(JSON.stringify(saved)))
+    expect(r.ok && r.data.scenarios[0]!.changes[0]).toMatchObject({ accountId: 'sav' })
   })
 })

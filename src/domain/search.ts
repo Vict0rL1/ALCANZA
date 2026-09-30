@@ -11,6 +11,7 @@
  *   solo recorre cadenas ya normalizadas.
  */
 import { EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS } from './categories'
+import { minorToDecimalString } from './money'
 import { normalizeText } from './rules'
 import type { AppData, LocalDate } from './types'
 
@@ -30,6 +31,8 @@ export interface SearchEntry {
   /** Para ordenar: los más recientes primero en movimientos y papelera. */
   sortKey: string
   haystack: string
+  /** Importe como texto exacto («4.25»; «650» si no tiene centavos) para buscar por importe. */
+  amountKeys?: string[]
 }
 
 export interface SearchIndex {
@@ -56,6 +59,7 @@ function hay(...parts: (string | undefined)[]): string {
 
 export function buildSearchIndex(data: AppData, categoryName: (id: string) => string): SearchIndex {
   const cat = (id: string | undefined) => (id ? categoryName(id) : undefined)
+  const currency = data.settings.currency
   const accountName = new Map(data.accounts.map((a) => [a.id, a.name]))
   const entries: SearchEntry[] = []
 
@@ -107,7 +111,28 @@ export function buildSearchIndex(data: AppData, categoryName: (id: string) => st
     const category = cat(f.categoryId)
     entries.push({ kind: 'favorite', id: f.id, title: f.name, category, amountMinor: f.amountMinor, sortKey: String(f.order).padStart(4, '0'), haystack: hay(f.name, f.note, category) })
   }
+  for (const e of entries) {
+    if (e.amountMinor === undefined) continue
+    const exact = minorToDecimalString(e.amountMinor, currency)
+    e.amountKeys = /\.0+$/.test(exact) ? [exact, exact.replace(/\.0+$/, '')] : [exact]
+  }
   return { entries }
+}
+
+/**
+ * Una palabra que parece un importe («4.25», «4,25», «$4.25», «650») se compara con el
+ * importe exacto; así «25» no encuentra todos los importes que contienen 25.
+ */
+function amountToken(token: string): string | null {
+  const cleaned = token.replace(/^[$€£¥]|[$€£¥]$/g, '').replace(',', '.')
+  return /^\d+(\.\d{1,3})?$/.test(cleaned) ? cleaned : null
+}
+
+function matches(e: SearchEntry, token: string, amount: string | null): boolean {
+  if (e.haystack.includes(token)) return true
+  if (amount === null || !e.amountKeys) return false
+  // «4.2» también encuentra 4.20.
+  return e.amountKeys.some((k) => k === amount || (amount.includes('.') && k === amount.padEnd(k.length, '0')))
 }
 
 const DESCENDING: ReadonlySet<SearchKind> = new Set(['transaction', 'trash', 'periodBudget'])
@@ -116,10 +141,11 @@ export function search(index: SearchIndex, query: string, options: SearchOptions
   const tokens = normalizeText(query).split(' ').filter(Boolean)
   if (tokens.join('').length < MIN_QUERY_LENGTH) return []
   const limit = options.limitPerGroup ?? 50
+  const amounts = tokens.map(amountToken)
   const byKind = new Map<SearchKind, SearchEntry[]>()
   for (const e of index.entries) {
     if (e.kind === 'trash' && !options.includeTrash) continue
-    if (!tokens.every((tok) => e.haystack.includes(tok))) continue
+    if (!tokens.every((tok, i) => matches(e, tok, amounts[i]!))) continue
     const list = byKind.get(e.kind)
     if (list) list.push(e)
     else byKind.set(e.kind, [e])

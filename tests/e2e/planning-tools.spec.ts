@@ -269,3 +269,19 @@ test('pantallas nuevas con datos: sin desplazamiento horizontal ni problemas de 
     }
   }
 })
+
+test('búsqueda por importe y compra simulada en otra cuenta', async ({ page }) => {
+  await startDemo(page)
+  await go(page, '/buscar?q=4,25')
+  await expect(page.getByRole('heading', { name: /^Movimientos \(/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^Favoritos \(1\)/ })).toBeVisible()
+
+  await go(page, '/alcanza/escenarios/nuevo')
+  await page.getByLabel('Nombre').fill('Pagar con ahorro')
+  await page.getByLabel('Precio').fill('100')
+  await page.getByLabel('Cuenta').selectOption({ label: 'Ahorros' })
+  await page.getByRole('button', { name: 'Guardar escenario' }).click()
+  await expect(page.getByText(/Compra de \$100\.00.*Ahorros/)).toBeVisible()
+  // El ahorro no cuenta para el presupuesto: el disponible del escenario no cambia.
+  await expect(page.getByTestId('scenario-table').getByRole('row', { name: /Diferencia con la situación actual/ })).toContainText('$0.00')
+})

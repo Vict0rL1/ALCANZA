@@ -67,7 +67,7 @@ Pendiente:
 | Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto); requeriría la fase de varias monedas. |
 | Reglas para asociar gastos a periodos | Hoy la asociación es manual (o al registrar); se podrían proponer por fecha o categoría. |
 | Escenarios con ingresos hipotéticos | Hoy solo compras y cambios de gastos programados; nunca se suman ingresos futuros al disponible. |
-| Búsqueda por importe o rango de fechas | Hoy busca texto; los filtros de Movimientos siguen disponibles para fechas e importes. |
+| Búsqueda por rango de fechas | La búsqueda ya encuentra texto e importes exactos; para rangos de fechas siguen los filtros de Movimientos. |
 
 ## Fase 2 — Cuentas de usuario y sincronización
 

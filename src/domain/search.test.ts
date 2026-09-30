@@ -91,3 +91,28 @@ describe('búsqueda global', () => {
     expect(t2 - t1).toBeLessThan(200)
   })
 })
+
+describe('búsqueda global por importe', () => {
+  const withAmounts = baseData({
+    transactions: [
+      tx({ id: 'cafe', note: 'Café', amountMinor: 425, categoryId: 'dining' }),
+      tx({ id: 'renta', note: 'Renta', amountMinor: 65000, categoryId: 'housing' }),
+      tx({ id: 'otro', note: 'Libro', amountMinor: 1425, categoryId: 'education' }),
+    ],
+  })
+  const index = buildSearchIndex(withAmounts, namer('es', withAmounts))
+
+  it('encuentra el importe exacto con punto, coma o símbolo, sin coincidencias parciales', () => {
+    expect(ids(search(index, '4.25'))).toEqual(['transaction:cafe'])
+    expect(ids(search(index, '4,25'))).toEqual(['transaction:cafe'])
+    expect(ids(search(index, '$4.25'))).toEqual(['transaction:cafe'])
+    expect(ids(search(index, '650'))).toEqual(['transaction:renta'])
+    expect(search(index, '4.2')).toEqual([]) // 4.20, no 4.25
+    expect(ids(search(index, '14.25'))).toEqual(['transaction:otro'])
+  })
+
+  it('se combina con palabras', () => {
+    expect(ids(search(index, 'cafe 4.25'))).toEqual(['transaction:cafe'])
+    expect(search(index, 'renta 4.25')).toEqual([])
+  })
+})

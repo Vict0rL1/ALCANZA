@@ -7,7 +7,8 @@
  * mismo gasto diario estimado y el mismo escenario de ingresos para todas las
  * alternativas, así las comparaciones son coherentes.
  *
- *  - Compra (hoy o en otra fecha): un gasto PREVISTO simulado en esa fecha.
+ *  - Compra (hoy o en otra fecha): un gasto PREVISTO simulado en esa fecha y cuenta
+ *    (por defecto, la primera cuenta que cuenta para el presupuesto).
  *  - Cambiar el importe de un gasto programado (subir un pago mensual o reducir un gasto).
  */
 import { computeBudget } from './budget'
@@ -44,11 +45,12 @@ export interface CompareOptions {
 /** Copia de los datos con los cambios del escenario. Los datos reales no se modifican. */
 export function applyChanges(data: AppData, changes: ScenarioChange[], today: LocalDate): { data: AppData; invalid: number[] } {
   const invalid: number[] = []
-  const account = data.accounts.find((a) => a.includeInBudget) ?? data.accounts[0]
+  const fallback = data.accounts.find((a) => a.includeInBudget) ?? data.accounts[0]
   const simulated: Transaction[] = []
   let schedules = data.schedules
   changes.forEach((c, i) => {
     if (c.type === 'purchase') {
+      const account = c.accountId ? data.accounts.find((a) => a.id === c.accountId) : fallback
       if (!account || c.date < today) return void invalid.push(i)
       simulated.push({
         id: `${SIM_PREFIX}${i}`,
@@ -154,6 +156,7 @@ export function saveScenario(data: AppData, draft: ScenarioDraft, ctx: OpContext
   const issues = validateScenario(scenario)
   draft.changes.forEach((c, i) => {
     if (c.type === 'purchase' && c.date < ctx.today) issues.push({ path: `changes[${i}].date`, code: 'dateInPast' })
+    if (c.type === 'purchase' && c.accountId && !data.accounts.some((a) => a.id === c.accountId)) issues.push({ path: `changes[${i}].accountId`, code: 'unknownAccount' })
     if (c.type === 'scheduleAmount' && !data.schedules.some((s) => s.id === c.scheduleId && s.kind === 'expense')) issues.push({ path: `changes[${i}].scheduleId`, code: 'notFound' })
   })
   if (issues.length) return fail(issues)

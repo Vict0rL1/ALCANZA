@@ -40,7 +40,11 @@ function useChangeText() {
   const data = useData()
   const today = useToday()
   return (c: ScenarioChange) => {
-    if (c.type === 'purchase') return t('scenario.change.purchase', { amount: fmt.money(c.amountMinor), date: fmt.date(c.date, { compact: true, today }), note: c.note ? ` (${c.note})` : '' })
+    if (c.type === 'purchase') {
+      const text = t('scenario.change.purchase', { amount: fmt.money(c.amountMinor), date: fmt.date(c.date, { compact: true, today }), note: c.note ? ` (${c.note})` : '' })
+      const account = c.accountId ? data.accounts.find((a) => a.id === c.accountId) : undefined
+      return c.accountId ? `${text} · ${account?.name ?? t('common.unknownAccount')}` : text
+    }
     const s = data.schedules.find((x) => x.id === c.scheduleId)
     return s
       ? t('scenario.change.schedule', { name: s.name, from: fmt.money(s.amountMinor), to: fmt.money(c.newAmountMinor) })
@@ -262,7 +266,7 @@ function PlannedLink({ change }: { change: Extract<ScenarioChange, { type: 'purc
   const today = useToday()
   const similar = similarPlanned(data, change)
   if (change.date < today) return null
-  const to = withQuery('/movimientos/nuevo', { kind: 'expense', status: 'planned', amount: change.amountMinor, date: change.date, note: change.note, returnTo: LIST })
+  const to = withQuery('/movimientos/nuevo', { kind: 'expense', status: 'planned', amount: change.amountMinor, date: change.date, note: change.note, account: change.accountId, returnTo: LIST })
   return (
     <>
       {' · '}
@@ -285,12 +289,14 @@ interface ChangeDraft {
   date: string
   note: string
   scheduleId: string
+  /** '' = cuenta por defecto (la primera del presupuesto). */
+  accountId: string
 }
 
 function toDraft(c: ScenarioChange, fmt: Formatter): ChangeDraft {
   return c.type === 'purchase'
-    ? { key: newId(), type: 'purchase', amountText: fmt.moneyInput(c.amountMinor), date: c.date, note: c.note ?? '', scheduleId: '' }
-    : { key: newId(), type: 'scheduleAmount', amountText: fmt.moneyInput(c.newAmountMinor), date: '', note: '', scheduleId: c.scheduleId }
+    ? { key: newId(), type: 'purchase', amountText: fmt.moneyInput(c.amountMinor), date: c.date, note: c.note ?? '', scheduleId: '', accountId: c.accountId ?? '' }
+    : { key: newId(), type: 'scheduleAmount', amountText: fmt.moneyInput(c.newAmountMinor), date: '', note: '', scheduleId: c.scheduleId, accountId: '' }
 }
 
 export function ScenarioForm({ route }: { route: Route }) {
@@ -303,10 +309,11 @@ export function ScenarioForm({ route }: { route: Route }) {
   const editId = route.segments[2] === 'editar' ? route.segments[3] : undefined
   const existing = editId ? data.scenarios.find((s) => s.id === editId) : undefined
   const expenseSchedules = data.schedules.filter((s) => s.kind === 'expense')
+  const defaultAccountName = (data.accounts.find((a) => a.includeInBudget) ?? data.accounts[0])?.name ?? ''
   const [id] = useState(() => existing?.id ?? newId())
   const [name, setName] = useState(existing?.name ?? '')
   const [changes, setChanges] = useState<ChangeDraft[]>(() =>
-    existing ? existing.changes.map((c) => toDraft(c, fmt)) : [{ key: newId(), type: 'purchase', amountText: route.query.get('amount') && /^\d+$/.test(route.query.get('amount')!) ? fmt.moneyInput(Number(route.query.get('amount'))) : '', date: today, note: route.query.get('note') ?? '', scheduleId: '' }],
+    existing ? existing.changes.map((c) => toDraft(c, fmt)) : [{ key: newId(), type: 'purchase', amountText: route.query.get('amount') && /^\d+$/.test(route.query.get('amount')!) ? fmt.moneyInput(Number(route.query.get('amount'))) : '', date: today, note: route.query.get('note') ?? '', scheduleId: '', accountId: '' }],
   )
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountErrors, setAmountErrors] = useState<Record<string, string | null>>({})
@@ -316,7 +323,7 @@ export function ScenarioForm({ route }: { route: Route }) {
 
   const update = (key: string, patch: Partial<ChangeDraft>) => setChanges((cs) => cs.map((c) => (c.key === key ? { ...c, ...patch } : c)))
   const add = (type: ChangeDraft['type']) =>
-    setChanges((cs) => [...cs, { key: newId(), type, amountText: '', date: today, note: '', scheduleId: type === 'scheduleAmount' ? (expenseSchedules[0]?.id ?? '') : '' }])
+    setChanges((cs) => [...cs, { key: newId(), type, amountText: '', date: today, note: '', scheduleId: type === 'scheduleAmount' ? (expenseSchedules[0]?.id ?? '') : '', accountId: '' }])
 
   const submit = async () => {
     const errors: Record<string, string | null> = {}
@@ -325,7 +332,7 @@ export function ScenarioForm({ route }: { route: Route }) {
       const parsed = parseMoneyText(c.amountText, fmt)
       errors[c.key] = moneyErrorMessage(t, parsed)
       if (!parsed.ok) continue
-      built.push(c.type === 'purchase' ? { type: 'purchase', amountMinor: parsed.minor, date: c.date, ...(c.note.trim() ? { note: c.note.trim() } : {}) } : { type: 'scheduleAmount', scheduleId: c.scheduleId, newAmountMinor: parsed.minor })
+      built.push(c.type === 'purchase' ? { type: 'purchase', amountMinor: parsed.minor, date: c.date, ...(c.note.trim() ? { note: c.note.trim() } : {}), ...(c.accountId ? { accountId: c.accountId } : {}) } : { type: 'scheduleAmount', scheduleId: c.scheduleId, newAmountMinor: parsed.minor })
     }
     setAmountErrors(errors)
     if (built.length !== changes.length || busy) return
@@ -342,7 +349,7 @@ export function ScenarioForm({ route }: { route: Route }) {
 
   const unknown = otherIssues(
     issues,
-    ['name', ...changes.flatMap((_, i) => [`changes[${i}].date`, `changes[${i}].scheduleId`, `changes[${i}].amountMinor`, `changes[${i}].newAmountMinor`])],
+    ['name', ...changes.flatMap((_, i) => [`changes[${i}].date`, `changes[${i}].accountId`, `changes[${i}].scheduleId`, `changes[${i}].amountMinor`, `changes[${i}].newAmountMinor`])],
   )
   return (
     <div className="stack">
@@ -376,6 +383,16 @@ export function ScenarioForm({ route }: { route: Route }) {
               <>
                 <MoneyField label={t('scenario.purchaseAmount')} value={c.amountText} onChange={(v) => update(c.key, { amountText: v })} fmt={fmt} error={amountErrors[c.key] ?? fieldError(t, fmt, issues, `changes[${i}].amountMinor`)} />
                 <TextField label={t('scenario.purchaseDate')} type="date" min={today} value={c.date} onChange={(e) => update(c.key, { date: e.target.value })} hint={t('scenario.purchaseDateHint')} error={fieldError(t, fmt, issues, `changes[${i}].date`)} required />
+                {data.accounts.length > 1 && (
+                  <SelectField
+                    label={t('fields.account')}
+                    value={c.accountId}
+                    onChange={(e) => update(c.key, { accountId: e.target.value })}
+                    options={[{ value: '', label: t('scenario.defaultAccount', { name: defaultAccountName }) }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]}
+                    hint={t('scenario.accountHint')}
+                    error={fieldError(t, fmt, issues, `changes[${i}].accountId`)}
+                  />
+                )}
                 <TextField label={t('fields.noteOptional')} value={c.note} maxLength={LIMITS.noteMax} onChange={(e) => update(c.key, { note: e.target.value })} />
               </>
             ) : expenseSchedules.length === 0 ? (
