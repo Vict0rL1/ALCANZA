@@ -108,9 +108,22 @@ npm run preview
    Ajustes) ponen la categoría sola según la descripción: «si contiene *walmart* →
    Supermercado».
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
-   que pulses «Registrar esta compra» y luego «Guardar».
+   que pulses «Registrar esta compra» y luego «Guardar». **Comparar escenarios** guarda
+   simulaciones con nombre (comprar hoy o en otra fecha, subir un pago mensual, reducir un
+   gasto previsto) y compara hasta 3 con tu situación actual con las mismas hipótesis.
+   Nunca cambian tus datos; si tus datos reales cambian, el escenario se marca para revisar.
+   **Revisión semanal** (tarjeta en Inicio, se puede ocultar): ingresos, gastos, balance,
+   categorías principales, comparación con la semana anterior, próximos pagos y metas.
+   **Buscar** (lupa arriba a la derecha): encuentra movimientos, cuentas, categorías,
+   metas, pagos, periodos y favoritos sin importar acentos ni mayúsculas.
 5. **Plan:** calendario de pagos (marcar pagado, omitir), metas (apartar/liberar) y
-   proyección de 30 días. Un ingreso puede ser **variable** (mínimo, esperado y extra):
+   proyección de 30 días. **Gastos planificados** (en Metas): matrícula, seguro o
+   renovaciones con fecha, repetición opcional y vínculo con un pago del calendario;
+   «Confirmar aporte» aparta dinero y «Pagar» registra el gasto real y libera lo apartado
+   en un paso (decides qué hacer con el sobrante). **Periodos**: presupuestos para un
+   semestre, un viaje o un periodo propio; asocias gastos (también al registrarlos) y ves
+   gastado, restante y cuánto por día o semana. Asignar no mueve dinero; «Reservar
+   dinero» es opcional y explica su efecto. Un ingreso puede ser **variable** (mínimo, esperado y extra):
    la proyección permite elegir el escenario (por defecto el mínimo) y compararlos, sin
    cambiar tu disponible ni tus movimientos. Si recibes solo una parte, eliges si esperas
    el resto o das la previsión por terminada.
@@ -153,7 +166,11 @@ y fechas límite (29/30/31, años bisiestos, zona horaria). También la papelera
 transferencias, reimportación), favoritos con referencias rotas, recordatorio de copias
 (fechas, posponer, exportación fallida), conciliación (exacta, diferencias, ajustes,
 tarjetas, cambios retroactivos), ingresos variables (retrasados, parciales, distintos,
-escenarios) y migración de copias antiguas.
+escenarios), gastos planificados (sin doble reserva, pago distinto de lo apartado,
+repeticiones y vencidos), presupuestos por periodo (solapados, devoluciones, archivo,
+reserva), revisión semanal (base cero, datos faltantes, zona horaria), escenarios
+(aislados y recalculados si cambian los datos), búsqueda (acentos, traducciones,
+papelera y 10 000 movimientos) y migraciones v4/v5 → v6.
 
 ### Pruebas en el navegador (celular 390 px, celular 320 px y escritorio)
 
@@ -169,7 +186,8 @@ npm run test:e2e
 
 Recorren los flujos principales (configuración, demo, movimientos, «¿Me alcanza?»,
 calendario, metas, proyección, copias de seguridad, papelera, favoritos, recordatorio
-de copias, verificación de saldos e ingresos variables, en español e inglés), comprueban que no haya
+de copias, verificación de saldos, ingresos variables, gastos planificados, periodos,
+revisión semanal, escenarios y búsqueda, en español e inglés), comprueban que no haya
 desplazamiento horizontal (también con texto al 200 %), la navegación con teclado y
 una auditoría automática de accesibilidad (axe) en modo claro y oscuro.
 

@@ -51,6 +51,10 @@ Hecho:
   explícitos, historial y revisión si cambian movimientos del periodo.
 - ✅ **Ingresos variables:** mínimo/esperado/extra, escenarios en la proyección, cobros
   parciales. Formato de datos v5 con migración probada y copia previa.
+- ✅ **Herramientas de planificación (formato v6):** gastos planificados anuales con
+  pago y liberación en un paso; presupuestos por semestre/viaje/periodo con asociación
+  de movimientos sin duplicarlos; revisión semanal con reglas fijas; comparador de hasta
+  3 escenarios guardados; búsqueda global local.
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
@@ -60,6 +64,10 @@ Pendiente:
 |---|---|
 | Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
+| Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto); requeriría la fase de varias monedas. |
+| Reglas para asociar gastos a periodos | Hoy la asociación es manual (o al registrar); se podrían proponer por fecha o categoría. |
+| Escenarios con ingresos hipotéticos | Hoy solo compras y cambios de gastos programados; nunca se suman ingresos futuros al disponible. |
+| Búsqueda por importe o rango de fechas | Hoy busca texto; los filtros de Movimientos siguen disponibles para fechas e importes. |
 
 ## Fase 2 — Cuentas de usuario y sincronización
 
@@ -115,7 +123,6 @@ Pendiente:
 | Importar OFX/QFX | Ninguno | CSV ya está hecho (Fase 1.5); OFX/QFX reutilizaría la misma vista previa y huella. |
 | Conexión bancaria automática | Agregador (Plaid, Flinks, MX…) con contrato y costos | Requiere seguridad y cumplimiento adicionales; opcional. |
 | Planificación de deudas | Ninguno | Métodos bola de nieve / avalancha, intereses con enteros y redondeo documentado. |
-| Modo viaje / presupuesto por semestre | Ninguno | Horizontes personalizados y metas por periodo. |
 
 ## Fase 4 — Captura asistida
 

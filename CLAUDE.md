@@ -62,6 +62,17 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   escenario mínimo por defecto. Cobros parciales con `partialSettlement`; como mucho una
   liquidación final por ocurrencia.
 - Favoritos solo rellenan el formulario; nunca registran movimientos.
+- Gastos planificados = metas `kind: 'expense'` (`domain/plannedExpenses.ts`): el plan es
+  solo sugerencia; solo lo apartado descuenta. Vinculados a una ocurrencia, esa ocurrencia
+  no se reserva dos veces (`reserves.ts`). Pagar = gasto real + liberar reserva en una
+  operación; si se repite, el siguiente periodo no queda financiado.
+- Presupuestos por periodo: asignado ≠ disponible; solo guardan ids (`txIds`); solapados
+  cuentan una vez en el total; la reserva opcional es una meta que lo gastado consume.
+- Revisión semanal: lunes–domingo en la zona horaria; comparación equivalente; sin
+  porcentaje si la base es 0 o faltan datos; reglas fijas, sin IA ni notificaciones.
+- Escenarios: se simulan sobre una copia; nunca modifican datos reales ni se aplican solos.
+- Búsqueda: local, sin acentos ni mayúsculas; categorías fijas en el idioma activo;
+  papelera solo si se pide.
 - Registro de copias (`backup`): no modifica `updatedAt`. Una exportación fallida no se
   registra; «exportada» ≠ «verificada».
 
@@ -80,7 +91,7 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Ningún secreto, clave o credencial en el código, el navegador o los registros.
   No hace falta `.env` en esta fase.
 - La importación valida TODO el archivo y no aplica nada si hay un error.
-- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 5) y añadir migración con prueba.
+- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 6) y añadir migración con prueba.
   Las migraciones solo rellenan campos ausentes; nunca borran datos mal formados.
 - Datos de demostración siempre marcados con `isDemo: true`.
 - El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea

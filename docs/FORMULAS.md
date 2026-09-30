@@ -439,12 +439,135 @@ Diferencia = saldo observado − saldo calculado
 
 ## 17. Formato de datos y migraciones
 
-- Versión actual: **5**. Migraciones encadenadas v1 → v2 → v3 → v4 → v5 en
+- Versión actual: **6**. Migraciones encadenadas v1 → v2 → v3 → v4 → v5 → v6 en
   `src/storage/migrations.ts`, con pruebas.
 - v4 → v5 añade `trash`, `purgedImportRefs`, `favorites`, `reconciliations` y `backup`
   solo si **faltan**; si existen con un formato incorrecto se conservan para que la
   validación rechace el archivo. Nunca se borran datos para resolver un error de esquema.
+- v5 → v6 añade `periodBudgets: []`, `scenarios: []` y `settings.weeklyReview: true`
+  solo si faltan (una preferencia ya guardada se respeta). Las metas antiguas no cambian:
+  `allocations[].reason` y `goal.plan` son opcionales.
 - Antes de guardar por primera vez datos migrados, se conserva el texto original en
-  `localStorage` (`margen.data.before-v5`).
+  `localStorage` (`margen.data.before-v6`).
 - Datos o copias de una versión futura se rechazan (`schemaTooNew`) sin tocar los datos
   actuales; si una migración falla, se informa (`migrationFailed`) y no se modifica nada.
+- Copias, importación y «Borrar todos los datos» incluyen las entidades nuevas
+  (presupuestos por periodo, escenarios y el plan de los gastos planificados); la
+  importación valida todo el archivo y no aplica nada si hay un error.
+
+## 18. Gastos planificados (anuales o poco frecuentes)
+
+Son metas con `kind: 'expense'` y `plan` (`src/domain/plannedExpenses.ts`). Reutilizan
+los apartados, así que nunca hay una segunda reserva:
+
+- **Plan sugerido** (solo cálculo, no aparta nada): por semana = `ceil(falta / semanas)`,
+  por mes = `ceil(falta / meses)` (mismo cálculo que las metas, §7).
+- **Confirmado** = suma de `allocations` (aportes confirmados − liberaciones − usos).
+  Solo esto se descuenta de «Puedes gastar» (si la meta es del presupuesto).
+- Estado: *Pagado* (ciclo único ya pagado) › *Cubierto* (apartado ≥ objetivo) ›
+  *Vencido* (hoy ≥ vencimiento) › *Vence en menos de una semana* (< 7 días) › *En camino*.
+- **Vínculo opcional** con una ocurrencia abierta de un gasto programado: la fecha pasa
+  a ser la de la ocurrencia y esa ocurrencia **no se reserva dos veces**: su reserva en
+  el disponible se reduce en lo que la meta ya cubre (`reserves.ts`, `scheduleCoverage`):
+  `reserva de la ocurrencia = importe − min(importe, apartado de la meta)`.
+  Una ocurrencia solo puede estar vinculada a una meta.
+- **Pagar** (una operación, idempotente por el id del gasto generado al abrir el diálogo):
+  1. registra el gasto real (o liquida la ocurrencia vinculada con `markOccurrence`);
+  2. usa de la reserva `min(apartado, pagado)` (`reason: 'payment'`);
+  3. sobrante `apartado − pagado`: se **libera** (`reason: 'release'`) o, si se repite,
+     se puede **guardar para el siguiente periodo**; faltante `pagado − apartado`: sale
+     del dinero disponible como cualquier gasto y se avisa antes de confirmar;
+  4. guarda el ciclo en `plan.history` (vencimiento, objetivo, apartado, pagado, gasto,
+     decisión). Si se repite cada *N* meses, el vencimiento avanza *N* meses (o a la
+     siguiente ocurrencia vinculada) **sin marcarse como financiado**; si no se repite,
+     queda como pagado.
+
+## 19. Presupuestos por periodo (semestre, viaje, personalizado)
+
+`src/domain/periodBudgets.ts`. Una moneda (la del presupuesto).
+
+- **Gastado** = Σ gastos realizados asociados − Σ devoluciones realizadas asociadas.
+  Las devoluciones de un gasto asociado cuentan aunque no se asocien.
+- **Restante** = asignado − gastado (negativo = excedido, con aviso).
+- **Por día** = `floor(restante / días que quedan)`, contando hoy y el último día;
+  **por semana** = `mulDivFloor(restante, min(7, días), días)`. Periodo futuro: días
+  totales. Terminado: sin cuota.
+- **Asignado ≠ disponible:** crear o editar un presupuesto no crea ingresos,
+  transferencias ni reservas. Solo «Reservar dinero» (opcional) crea o reutiliza una meta
+  del presupuesto vinculada (`goalId`) y aparta dinero con el control habitual de dinero
+  libre. Lo gastado en el periodo desde cuentas del presupuesto va **consumiendo** esa
+  reserva: `reserva efectiva = max(0, apartado − gastado del periodo)`, para que el
+  mismo dinero no se descuente dos veces (una por el gasto y otra por la reserva).
+- **Asociación:** solo se guarda el id (`txIds`); el movimiento no se copia ni cambia.
+  Solo gastos y devoluciones (transferencias, ingresos y ajustes no).
+- **Fuera de fechas:** un movimiento asociado fuera del rango cuenta (se asoció a
+  propósito) y se señala. **Previstos** asociados se muestran aparte y no cuentan como
+  gastado. **Papelera:** no cuenta; al restaurarlo vuelve a contar; al purgarlo se quita
+  la asociación.
+- **Solapados:** un movimiento en dos presupuestos cuenta en cada uno, pero en el total
+  combinado (`consolidatedSpent`) **una sola vez**.
+- **Archivar** conserva todo el historial y deja de ofrecerlo en el formulario de
+  movimientos; eliminar no toca movimientos ni la meta de reserva y se puede deshacer.
+
+## 20. Revisión semanal
+
+`src/domain/weeklyReview.ts`. Reglas fijas, sin IA; solo dentro de la app (se puede
+ocultar en Inicio o en Ajustes; no hay correos ni notificaciones).
+
+- Semana = **lunes a domingo** en fechas de calendario de la zona horaria elegida.
+- Ingresos = ingresos realizados; gasto = gastos − devoluciones realizados; balance =
+  ingresos − gasto. Transferencias hacia cuentas fuera del presupuesto se muestran como
+  «a ahorro» y los apartados para metas aparte: **no son gasto**. Los ajustes de
+  conciliación y los previstos no cuentan.
+- **Comparación equivalente:** semana en curso = lunes…hoy contra lunes…el mismo día de
+  la semana anterior; semanas cerradas = 7 contra 7 días.
+- **Datos faltantes:** «desde cuándo hay registros» = el menor entre la fecha de alta,
+  los saldos de referencia y el primer movimiento. Si una semana empieza antes, se marca
+  «faltan datos» y no se compara. Sin movimientos no significa «sin gastos».
+- **Porcentaje** = `floor(diferencia × 100 / anterior)` solo si ambas semanas tienen datos
+  completos y la anterior tiene movimientos y es > 0. Nunca se divide entre cero.
+- Próximos pagos: 7 días desde hoy (solo en la semana en curso). Metas: progreso real
+  (apartado) y lo apartado esa semana (sin contar los usos al pagar).
+
+## 21. Comparador de escenarios
+
+`src/domain/scenarios.ts`. Amplía «¿Me alcanza?» reutilizando `computeBudget` y
+`projectBalance`.
+
+- Cada escenario se evalúa sobre una **copia** de los datos: una compra = gasto
+  **previsto simulado** en la primera cuenta del presupuesto y la fecha elegida; cambiar
+  un pago programado = otro importe para todas sus ocurrencias. Guardar, editar o
+  eliminar escenarios solo toca `scenarios`.
+- Situación actual y hasta **3** escenarios con las **mismas hipótesis**: horizonte (30,
+  60 o 90 días), escenario de ingresos variables (mínimo por defecto) y gasto diario
+  estimado.
+- Resultados: saldo al final, saldo más bajo y su fecha, faltante posible
+  (`max(0, −más bajo)`) desde el primer día negativo, «Puedes gastar» y su diferencia con
+  la situación actual, y primer día en que se tocaría lo apartado para metas.
+- **Datos cambiados:** al guardar se registra una huella (FNV-1a) de cuentas,
+  movimientos, programados, metas, presupuestos por periodo y horizonte. Si la huella
+  actual es distinta, el escenario se recalcula igualmente y se marca «Datos cambiados»
+  hasta que la persona lo revisa.
+- Cambios que ya no se pueden aplicar (compra en el pasado, pago eliminado) se ignoran y
+  se avisan. Nada se aplica solo; «Crear gasto previsto» abre el formulario normal
+  (acción explícita) y antes avisa si ya hay un previsto del mismo importe a ±3 días.
+- Nunca se dice que una compra es «segura» o «garantizada».
+
+## 22. Búsqueda global
+
+`src/domain/search.ts`. Todo en el dispositivo.
+
+- Normalización: NFD sin marcas diacríticas, minúsculas, espacios colapsados
+  (`normalizeText`). Cada palabra de la consulta debe aparecer (Y lógico, cualquier
+  orden). Mínimo 2 caracteres.
+- Dónde busca: movimientos (nota/comercio, categoría, cuentas), cuentas, categorías
+  (fijas por su nombre **en el idioma activo**; personalizadas tal como se escribieron),
+  metas y gastos planificados, pagos programados (nombre y nota), presupuestos por
+  periodo y favoritos. La **papelera** solo si se marca «Incluir la papelera».
+- Resultados agrupados por tipo (máximo 50 visibles por grupo con el total); movimientos
+  del más reciente al más antiguo.
+- **Rendimiento:** el índice (cadenas ya normalizadas) se construye una vez por versión
+  de datos e idioma y la escritura usa `useDeferredValue`. Verificado en
+  `search.test.ts` con 10 000 movimientos (la prueba falla si el índice supera 1 s o una
+  búsqueda 200 ms). Medido en el contenedor de desarrollo (Node, 3 repeticiones):
+  índice 18–27 ms; búsqueda concreta («autobus») 3–10 ms; búsqueda amplia («ca») 6–10 ms.

@@ -86,7 +86,7 @@ describe('búsqueda global', () => {
     const t2 = performance.now()
     expect(groups[0]!.total).toBe(1250)
     expect(groups[0]!.items).toHaveLength(50)
-    // Márgenes amplios para máquinas lentas de integración continua (medido: ~40 ms y ~3 ms).
+    // Márgenes amplios para máquinas lentas (medido: índice ~20 ms, búsqueda ~4–10 ms; ver FORMULAS §22).
     expect(t1 - t0).toBeLessThan(1000)
     expect(t2 - t1).toBeLessThan(200)
   })
