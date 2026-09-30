@@ -27,9 +27,11 @@ export function Movements({ route }: { route?: Route }) {
   const [status, setStatus] = useState<'all' | TxStatus>('all')
   const [accountId, setAccountId] = useState('all')
   const [categoryId, setCategoryId] = useState(() => route?.query.get('categoria') || 'all')
+  const [from, setFrom] = useState(() => route?.query.get('desde') || '')
+  const [to, setTo] = useState(() => route?.query.get('hasta') || '')
   const [limit, setLimit] = useState(PAGE)
 
-  const filtersActive = query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all'
+  const filtersActive = from !== '' || to !== '' || query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all'
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
@@ -38,6 +40,8 @@ export function Movements({ route }: { route?: Route }) {
       if (status !== 'all' && tx.status !== status) return false
       if (accountId !== 'all' && tx.accountId !== accountId && tx.toAccountId !== accountId) return false
       if (categoryId !== 'all' && tx.categoryId !== categoryId) return false
+      if (from && tx.date < from) return false
+      if (to && tx.date > to) return false
       if (q) {
         const haystack = [tx.note, categoryLabel(t, tx.categoryId), accountName(data.accounts, tx.accountId, t), tx.toAccountId ? accountName(data.accounts, tx.toAccountId, t) : '', fmt.money(tx.amountMinor)]
           .join(' ')
@@ -46,7 +50,7 @@ export function Movements({ route }: { route?: Route }) {
       }
       return true
     })
-  }, [data, query, kind, status, accountId, categoryId, t, fmt])
+  }, [data, query, kind, status, accountId, categoryId, from, to, t, fmt])
 
   const planned = filtered.filter((tx) => tx.status === 'planned').sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const realized = filtered
@@ -63,6 +67,8 @@ export function Movements({ route }: { route?: Route }) {
     setStatus('all')
     setAccountId('all')
     setCategoryId('all')
+    setFrom('')
+    setTo('')
   }
 
   const categoryOptions = [
@@ -148,6 +154,8 @@ export function Movements({ route }: { route?: Route }) {
               />
             )}
             <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoryOptions} />
+            <TextField label={t('filters.from')} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+            <TextField label={t('filters.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
             {filtersActive && (
               <button type="button" className="btn btn--ghost filters__clear" onClick={clear}>
                 <Icon name="x" size={16} />

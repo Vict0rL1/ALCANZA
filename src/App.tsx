@@ -294,7 +294,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
   if (a === 'movimientos' && b === 'favoritos') return <Favorites key={key} />
   if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />
-  if (a === 'movimientos') return <Movements key={`${key}?${route.query.get('categoria') ?? ''}`} route={route} />
+  if (a === 'movimientos') return <Movements key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'periodos' && (c === 'nuevo' || c === 'editar')) return <PeriodBudgetForm key={key} route={route} />

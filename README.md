@@ -92,7 +92,7 @@ npm run preview
    en qué se va tu saldo, avisos y próximos pagos. Pulsa «¿Cómo se calculó?» para ver
    la cuenta completa.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
-   (realizados o previstos). Busca, filtra y edita. **Eliminar envía a la Papelera**
+   (realizados o previstos). Busca, filtra (también por rango de fechas) y edita. **Eliminar envía a la Papelera**
    (enlace arriba en Movimientos): ahí ves la fecha de eliminación y los detalles, puedes
    restaurar incluso después de cerrar la app, o eliminar definitivamente (uno o todos,
    con confirmación). «Deshacer» sigue funcionando como acceso rápido.

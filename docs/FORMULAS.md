@@ -507,6 +507,9 @@ los apartados, así que nunca hay una segunda reserva:
   propósito) y se señala. **Previstos** asociados se muestran aparte y no cuentan como
   gastado. **Papelera:** no cuenta; al restaurarlo vuelve a contar; al purgarlo se quita
   la asociación.
+- **Sugerencias:** gastos y devoluciones sin asociar **dentro de las fechas** (opcionalmente de
+  una categoría). Solo se proponen; «Asociar N gastos sugeridos» los asocia en una operación
+  (todo o nada) y se puede deshacer.
 - **Solapados:** un movimiento en dos presupuestos cuenta en cada uno, pero en el total
   combinado (`consolidatedSpent`) **una sola vez**.
 - **Archivar** conserva todo el historial y deja de ofrecerlo en el formulario de

@@ -65,9 +65,8 @@ Pendiente:
 | Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
 | Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto); requeriría la fase de varias monedas. |
-| Reglas para asociar gastos a periodos | Hoy la asociación es manual (o al registrar); se podrían proponer por fecha o categoría. |
+| Reglas automáticas para periodos | Ya se sugieren por fecha y categoría (con confirmación); faltaría recordar reglas permanentes. |
 | Escenarios con ingresos hipotéticos | Hoy solo compras y cambios de gastos programados; nunca se suman ingresos futuros al disponible. |
-| Búsqueda por rango de fechas | La búsqueda ya encuentra texto e importes exactos; para rangos de fechas siguen los filtros de Movimientos. |
 
 ## Fase 2 — Cuentas de usuario y sincronización
 

@@ -149,7 +149,7 @@ export function WeeklyReview({ route }: { route: Route }) {
               </li>
             ))}
           </ol>
-          <a className="link-more" href={href('/movimientos')}>
+          <a className="link-more" href={href(withQuery('/movimientos', { desde: r.weekStart, hasta: r.throughDate }))}>
             {t('weekly.seeMovements')}
             <Icon name="chevronRight" size={16} />
           </a>

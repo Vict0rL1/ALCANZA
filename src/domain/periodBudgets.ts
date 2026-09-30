@@ -165,6 +165,30 @@ export function setPeriodTransaction(data: AppData, budgetId: string, txId: stri
 }
 
 /**
+ * Sugerencias: gastos y devoluciones DENTRO de las fechas que aún no están asociados.
+ * Solo se proponen; nada se asocia sin la acción de la persona.
+ */
+export function periodSuggestions(data: AppData, budget: PeriodBudget, categoryId?: string): Transaction[] {
+  const linked = new Set(budget.txIds)
+  return periodCandidates(data, budget).filter(
+    (t) => !linked.has(t.id) && t.date >= budget.startDate && t.date <= budget.endDate && (!categoryId || t.categoryId === categoryId),
+  )
+}
+
+/** Asocia (o quita) varios movimientos en una sola operación, todo o nada. */
+export function setPeriodTransactionsBulk(data: AppData, budgetId: string, txIds: string[], linked: boolean, ctx: OpContext): OpResult<string[]> {
+  let next = data
+  const changed: string[] = []
+  for (const txId of txIds) {
+    const r = setPeriodTransaction(next, budgetId, txId, linked, ctx)
+    if (!r.ok) return r
+    if (!r.unchanged) changed.push(txId)
+    next = r.data
+  }
+  return changed.length ? { ok: true, data: next, value: changed } : { ok: true, data, value: [], unchanged: true }
+}
+
+/**
  * Deja un movimiento exactamente en los presupuestos indicados (formulario de movimiento).
  * Los presupuestos archivados no se tocan: conservan su historial.
  */

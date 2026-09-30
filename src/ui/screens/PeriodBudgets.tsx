@@ -9,11 +9,13 @@ import {
   consolidatedSpent,
   deletePeriodBudget,
   periodCandidates,
+  periodSuggestions,
   reserveForPeriod,
   restorePeriodBudget,
   savePeriodBudget,
   setPeriodBudgetArchived,
   setPeriodTransaction,
+  setPeriodTransactionsBulk,
   summarizePeriod,
   templateDates,
   type PeriodStatus,
@@ -26,11 +28,11 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
-import { MoneyField, Segmented, TextField } from '../components/fields'
+import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
-import { fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
+import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 import { href, navigate, type Route } from '../router'
 
@@ -239,6 +241,7 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
   const run = useRun()
   const toast = useToast()
   const [reserving, setReserving] = useState(false)
+  const [suggestCategory, setSuggestCategory] = useState('')
   const [showAll, setShowAll] = useState(false)
   const budget = data.periodBudgets.find((b) => b.id === route.segments[2])
   const summary = useMemo(() => (budget ? summarizePeriod(data, budget, today) : null), [data, budget, today])
@@ -258,6 +261,21 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
   const outside = new Set(summary.outsideRange.map((x) => x.id))
   const shared = new Set(summary.shared.map((x) => x.id))
   const shown = showAll ? candidates : candidates.slice(0, 40)
+
+  const suggestions = periodSuggestions(data, budget, suggestCategory || undefined)
+  const suggestionCategories = [...new Set(periodSuggestions(data, budget).map((x) => x.categoryId).filter((c): c is string => !!c))]
+
+  const linkSuggestions = async () => {
+    const ids = suggestions.map((x) => x.id)
+    const { result, saved } = await run((d, c) => setPeriodTransactionsBulk(d, budget.id, ids, true, c))
+    if (!result.ok) return
+    const changed = result.value
+    toast({
+      message: saved ? tn('period.suggestLinked', changed.length) : t('save.error.generic'),
+      tone: saved ? 'good' : 'critical',
+      action: { label: t('common.undo'), onClick: () => void run((d, c) => setPeriodTransactionsBulk(d, budget.id, changed, false, c)) },
+    })
+  }
 
   const toggle = async (txId: string, value: boolean) => {
     const { result, saved } = await run((d, c) => setPeriodTransaction(d, budget.id, txId, value, c))
@@ -386,6 +404,26 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
           {t('period.movements')}
         </h2>
         <p className="note">{t('period.movementsHint')}</p>
+        {!budget.archived && (suggestions.length > 0 || suggestCategory) && (
+          <div className="card stack-sm" data-testid="period-suggestions">
+            <p>{tn('period.suggestText', suggestions.length)}</p>
+            {suggestionCategories.length > 1 && (
+              <SelectField
+                label={t('period.suggestCategory')}
+                value={suggestCategory}
+                onChange={(e) => setSuggestCategory(e.target.value)}
+                options={[{ value: '', label: t('filters.allCategories') }, ...suggestionCategories.map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
+              />
+            )}
+            {suggestions.length > 0 && (
+              <button type="button" className="btn btn--secondary" onClick={() => void linkSuggestions()}>
+                <Icon name="check" />
+                {tn('period.suggestAction', suggestions.length)}
+              </button>
+            )}
+            <p className="field__hint">{t('period.suggestHint')}</p>
+          </div>
+        )}
         <a className="btn btn--secondary" href={href(`/movimientos/nuevo?kind=expense&periodo=${budget.id}&returnTo=/plan/periodos/${budget.id}`)}>
           <Icon name="plus" />
           {t('period.addExpense')}

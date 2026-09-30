@@ -141,3 +141,22 @@ describe('presupuestos por periodo: desde el formulario de movimiento', () => {
     expect(d.periodBudgets.map((b) => b.txIds)).toEqual([[], ['hotel']])
   })
 })
+
+describe('presupuestos por periodo: sugerencias y asociación en bloque', () => {
+  it('sugiere solo gastos y devoluciones sin asociar dentro de las fechas; filtra por categoría', async () => {
+    const { periodSuggestions, setPeriodTransactionsBulk } = await import('./periodBudgets')
+    let d = ok(savePeriodBudget(data, trip, ctx)).data
+    const b = () => d.periodBudgets[0]!
+    expect(periodSuggestions(d, b()).map((t) => t.id).sort()).toEqual(['bus', 'food', 'hotel', 'refund'])
+    expect(periodSuggestions(d, b(), 'dining').map((t) => t.id)).toEqual(['food'])
+    const r = ok(setPeriodTransactionsBulk(d, 'trip', ['hotel', 'food'], true, ctx))
+    expect(r.value).toEqual(['hotel', 'food'])
+    d = r.data
+    expect(periodSuggestions(d, b()).map((t) => t.id).sort()).toEqual(['bus', 'refund'])
+    // Deshacer: quitar exactamente los que se asociaron.
+    d = ok(setPeriodTransactionsBulk(d, 'trip', r.value, false, ctx)).data
+    expect(b().txIds).toEqual([])
+    // Todo o nada: un ingreso en la lista impide asociar el resto.
+    expect(setPeriodTransactionsBulk(d, 'trip', ['hotel', 'salary'], true, ctx).ok).toBe(false)
+  })
+})
