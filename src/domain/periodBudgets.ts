@@ -123,7 +123,7 @@ export function templateDates(template: PeriodTemplate, today: LocalDate): { sta
   return { startDate: today, endDate: addDays(today, 29) }
 }
 
-export type PeriodBudgetDraft = Pick<PeriodBudget, 'id' | 'name' | 'template' | 'startDate' | 'endDate' | 'allocatedMinor' | 'note'>
+export type PeriodBudgetDraft = Pick<PeriodBudget, 'id' | 'name' | 'template' | 'startDate' | 'endDate' | 'allocatedMinor' | 'note' | 'ruleCategoryIds'>
 
 export function savePeriodBudget(data: AppData, draft: PeriodBudgetDraft, ctx: OpContext): OpResult<PeriodBudget> {
   const existing = data.periodBudgets.find((b) => b.id === draft.id)
@@ -137,6 +137,7 @@ export function savePeriodBudget(data: AppData, draft: PeriodBudgetDraft, ctx: O
     currency: data.settings.currency,
     txIds: existing?.txIds ?? [],
     ...(existing?.goalId ? { goalId: existing.goalId } : {}),
+    ...(draft.ruleCategoryIds?.length ? { ruleCategoryIds: [...new Set(draft.ruleCategoryIds)] } : {}),
     archived: existing?.archived ?? false,
     ...(draft.note?.trim() ? { note: draft.note.trim() } : {}),
     createdAt: existing?.createdAt ?? ctx.now,
@@ -162,6 +163,22 @@ export function setPeriodTransaction(data: AppData, budgetId: string, txId: stri
   if (has === linked) return { ok: true, data, value: budget, unchanged: true }
   const updated: PeriodBudget = { ...budget, txIds: linked ? [...budget.txIds, txId] : budget.txIds.filter((id) => id !== txId), updatedAt: ctx.now }
   return { ok: true, data: touch({ ...data, periodBudgets: data.periodBudgets.map((b) => (b.id === budgetId ? updated : b)) }, ctx.now), value: updated }
+}
+
+/**
+ * Regla del periodo: ¿se propone asociar este gasto? Solo gastos y devoluciones dentro de
+ * las fechas, de una categoría de la regla, en un periodo no archivado. Solo PROPONE.
+ */
+export function periodRuleMatches(budget: PeriodBudget, tx: Pick<Transaction, 'kind' | 'date' | 'categoryId'>): boolean {
+  if (budget.archived || !budget.ruleCategoryIds?.length) return false
+  if (tx.kind !== 'expense' && tx.kind !== 'refund') return false
+  if (tx.date < budget.startDate || tx.date > budget.endDate) return false
+  return !!tx.categoryId && budget.ruleCategoryIds.includes(tx.categoryId)
+}
+
+/** Presupuestos cuya regla propone asociar este gasto. */
+export function periodsProposedFor(data: AppData, tx: Pick<Transaction, 'kind' | 'date' | 'categoryId'>): string[] {
+  return data.periodBudgets.filter((b) => periodRuleMatches(b, tx)).map((b) => b.id)
 }
 
 /**

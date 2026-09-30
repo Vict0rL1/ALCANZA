@@ -510,6 +510,10 @@ los apartados, así que nunca hay una segunda reserva:
 - **Sugerencias:** gastos y devoluciones sin asociar **dentro de las fechas** (opcionalmente de
   una categoría). Solo se proponen; «Asociar N gastos sugeridos» los asocia en una operación
   (todo o nada) y se puede deshacer.
+- **Regla opcional** (`ruleCategoryIds`): al registrar un gasto o devolución de esas
+  categorías dentro de las fechas de un periodo activo, el formulario **marca** el periodo
+  como propuesta (`periodsProposedFor`); la persona puede desmarcarlo. Nunca se asocia
+  nada sin guardar el formulario.
 - **Solapados:** un movimiento en dos presupuestos cuenta en cada uno, pero en el total
   combinado (`consolidatedSpent`) **una sola vez**.
 - **Archivar** conserva todo el historial y deja de ofrecerlo en el formulario de
@@ -543,7 +547,9 @@ ocultar en Inicio o en Ajustes; no hay correos ni notificaciones).
 - Cada escenario se evalúa sobre una **copia** de los datos: una compra = gasto
   **previsto simulado** en la cuenta elegida (por defecto, la primera del presupuesto) y la
   fecha elegida; cambiar
-  un pago programado = otro importe para todas sus ocurrencias. Guardar, editar o
+  un pago programado = otro importe para todas sus ocurrencias; un **ingreso hipotético**
+  = ingreso **previsto simulado**: cambia el saldo proyectado y el posible faltante, pero
+  «Puedes gastar» nunca lo suma (los ingresos futuros no se cuentan, §6). Guardar, editar o
   eliminar escenarios solo toca `scenarios`.
 - Situación actual y hasta **3** escenarios con las **mismas hipótesis**: horizonte (30,
   60 o 90 días), escenario de ingresos variables (mínimo por defecto) y gasto diario

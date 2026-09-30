@@ -5,7 +5,7 @@ import { favoritePrefill, type FavoritePrefill } from '../../domain/favorites'
 import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
-import { setTransactionPeriods } from '../../domain/periodBudgets'
+import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
 import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
 import type { AppData, CategoryRule, Transaction, TxKind, TxStatus } from '../../domain/types'
@@ -110,8 +110,11 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const [status, setStatus] = useState<TxStatus>(existing?.status ?? (q.get('status') === 'planned' ? 'planned' : 'realized'))
   // Presupuestos por periodo (solo los no archivados se pueden cambiar aquí).
   const openPeriods = data.periodBudgets.filter((b) => !b.archived)
-  const [periodIds, setPeriodIds] = useState<string[]>(() =>
-    existing ? openPeriods.filter((b) => b.txIds.includes(existing.id)).map((b) => b.id) : openPeriods.filter((b) => b.id === q.get('periodo')).map((b) => b.id),
+  // Elecciones explícitas (o ya guardadas). Lo que no está aquí lo propone la regla del periodo.
+  const [periodChoice, setPeriodChoice] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      existing ? openPeriods.map((b) => [b.id, b.txIds.includes(existing.id)]) : openPeriods.filter((b) => b.id === q.get('periodo')).map((b) => [b.id, true]),
+    ),
   )
   const [amountText, setAmountText] = useState(() => {
     if (existing) return fmt.moneyInput(existing.amountMinor)
@@ -183,6 +186,10 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
       .slice(0, 50)
   }, [data.transactions, id, refundOfId])
 
+  const proposedPeriods = existing ? [] : periodsProposedFor(data, { kind, date, categoryId })
+  const periodChecked = (budgetId: string) => (budgetId in periodChoice ? periodChoice[budgetId]! : proposedPeriods.includes(budgetId))
+  const periodIds = openPeriods.filter((b) => periodChecked(b.id)).map((b) => b.id)
+
   const parsedAmount = parseMoneyText(amountText, fmt)
 
   const submit = async () => {
@@ -194,6 +201,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     setBusy(true)
     const useLink = !!linked && status === 'realized'
     const periods = kind === 'expense' || kind === 'refund' ? periodIds : []
+
     const { result, saved } = await run((d, c) => {
       const r = save(d, c, parsed.minor)
       if (!r.ok || (useLink && r.unchanged && r.value.id !== id) || openPeriods.length === 0) return r
@@ -428,9 +436,10 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             {openPeriods.map((b) => (
               <CheckboxField
                 key={b.id}
-                checked={periodIds.includes(b.id)}
-                onChange={(v) => setPeriodIds((ids) => (v ? [...ids, b.id] : ids.filter((x) => x !== b.id)))}
+                checked={periodChecked(b.id)}
+                onChange={(v) => setPeriodChoice((choice) => ({ ...choice, [b.id]: v }))}
                 label={`${b.name} (${fmt.date(b.startDate, { compact: true, today })} – ${fmt.date(b.endDate, { compact: true, today })})`}
+                hint={!(b.id in periodChoice) && proposedPeriods.includes(b.id) ? t('period.proposedByRule') : undefined}
               />
             ))}
             <p className="field__hint">{t('period.formHint')}</p>

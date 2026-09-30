@@ -4,6 +4,7 @@
  */
 import { useMemo, useState } from 'react'
 import { computeBudget } from '../../domain/budget'
+import { categoriesForKind } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import {
   consolidatedSpent,
@@ -28,7 +29,7 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
-import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
@@ -150,6 +151,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
   const [endDate, setEndDate] = useState(initialDates.endDate)
   const [allocatedText, setAllocatedText] = useState(existing ? fmt.moneyInput(existing.allocatedMinor) : '')
   const [note, setNote] = useState(existing?.note ?? '')
+  const [ruleCategoryIds, setRuleCategoryIds] = useState<string[]>(existing?.ruleCategoryIds ?? [])
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -172,7 +174,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
     setAmountError(moneyErrorMessage(t, parsed))
     if (!parsed.ok || busy) return
     setBusy(true)
-    const { result, saved } = await run((d, c) => savePeriodBudget(d, { id, name, template, startDate, endDate, allocatedMinor: parsed.minor, note }, c))
+    const { result, saved } = await run((d, c) => savePeriodBudget(d, { id, name, template, startDate, endDate, allocatedMinor: parsed.minor, note, ruleCategoryIds }, c))
     setBusy(false)
     if (!result.ok) {
       setIssues(result.issues)
@@ -210,6 +212,24 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
         </div>
         <MoneyField label={t('period.allocated')} value={allocatedText} onChange={setAllocatedText} error={amountError ?? fieldError(t, fmt, issues, 'allocatedMinor')} fmt={fmt} hint={t('period.allocatedHint')} />
         <TextField label={t('fields.noteOptional')} value={note} maxLength={LIMITS.noteMax} onChange={(e) => setNote(e.target.value)} error={fieldError(t, fmt, issues, 'note')} />
+        <details className="explain" open={ruleCategoryIds.length > 0}>
+          <summary>
+            <Icon name="sliders" size={16} />
+            {t('period.ruleTitle')}
+          </summary>
+          <fieldset className="explain__body stack-sm">
+            <legend className="sr-only">{t('period.ruleTitle')}</legend>
+            <p className="field__hint">{t('period.ruleHint')}</p>
+            {categoriesForKind('expense', data.categories).map((c) => (
+              <CheckboxField
+                key={c}
+                checked={ruleCategoryIds.includes(c)}
+                onChange={(v) => setRuleCategoryIds((ids) => (v ? [...ids, c] : ids.filter((x) => x !== c)))}
+                label={categoryLabel(t, c)}
+              />
+            ))}
+          </fieldset>
+        </details>
         {unknown.length > 0 && (
           <Alert tone="critical" title={t('common.fixErrors')} role="alert">
             <ul>
@@ -310,6 +330,7 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
       <p className="item__badges">
         <StatusBadge budget={budget} status={summary.status} />
         <Badge>{t(`period.template.${budget.template}`)}</Badge>
+        {budget.ruleCategoryIds?.length ? <Badge icon="sliders">{t('period.ruleBadge', { categories: budget.ruleCategoryIds.map((c) => categoryLabel(t, c)).join(', ') })}</Badge> : null}
       </p>
       <p>
         {fmt.date(budget.startDate)} – {fmt.date(budget.endDate)} · {tn('period.totalDays', summary.totalDays)}

@@ -364,6 +364,11 @@ export interface PeriodBudget {
   txIds: string[]
   /** Meta de presupuesto usada para reservar dinero para el periodo (opcional). */
   goalId?: string
+  /**
+   * Regla opcional: al registrar un gasto de estas categorías dentro de las fechas, el
+   * formulario PROPONE asociarlo a este periodo (la persona puede desmarcarlo).
+   */
+  ruleCategoryIds?: string[]
   archived: boolean
   note?: string
   createdAt: Timestamp
@@ -375,6 +380,8 @@ export type ScenarioChange =
   /** Compra simulada. Sin `accountId`, en la primera cuenta que cuenta para el presupuesto. */
   | { type: 'purchase'; amountMinor: number; date: LocalDate; note?: string; accountId?: string }
   | { type: 'scheduleAmount'; scheduleId: string; newAmountMinor: number }
+  /** Ingreso hipotético: solo entra en la proyección, NUNCA en «Puedes gastar». */
+  | { type: 'income'; amountMinor: number; date: LocalDate; note?: string; accountId?: string }
 
 export interface SavedScenario {
   id: string

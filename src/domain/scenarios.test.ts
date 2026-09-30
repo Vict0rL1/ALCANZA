@@ -123,3 +123,18 @@ describe('escenarios: cuenta de la compra', () => {
     expect(r.ok && r.data.scenarios[0]!.changes[0]).toMatchObject({ accountId: 'sav' })
   })
 })
+
+describe('escenarios: ingreso hipotético', () => {
+  it('mejora la proyección pero nunca suma al disponible; fecha pasada no se permite', () => {
+    const base = evaluate(data, TODAY, [])
+    const extra = evaluate(data, TODAY, [{ type: 'income', amountMinor: 20000, date: '2026-09-30' }])
+    expect(extra.availableMinor).toBe(base.availableMinor)
+    expect(extra.endMinor).toBe(base.endMinor + 20000)
+    expect(extra.lowest.minor).toBeGreaterThanOrEqual(base.lowest.minor)
+    const past = saveScenario(data, { id: 'x', name: 'Beca', changes: [{ type: 'income', amountMinor: 1, date: '2026-09-01' }] }, ctx)
+    expect(past.ok ? [] : past.issues.map((i) => i.code)).toEqual(['dateInPast'])
+    const saved = ok(saveScenario(data, { id: 'x', name: 'Beca', changes: [{ type: 'income', amountMinor: 20000, date: '2026-10-02' }] }, ctx)).data
+    const r = validateAppData(JSON.parse(JSON.stringify(saved)))
+    expect(r.ok && r.data.scenarios[0]!.changes[0]).toMatchObject({ type: 'income', amountMinor: 20000 })
+  })
+})

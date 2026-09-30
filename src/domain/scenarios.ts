@@ -9,6 +9,7 @@
  *
  *  - Compra (hoy o en otra fecha): un gasto PREVISTO simulado en esa fecha y cuenta
  *    (por defecto, la primera cuenta que cuenta para el presupuesto).
+ *  - Ingreso hipotético: ingreso PREVISTO simulado; cambia la proyección, nunca el disponible.
  *  - Cambiar el importe de un gasto programado (subir un pago mensual o reducir un gasto).
  */
 import { computeBudget } from './budget'
@@ -61,6 +62,24 @@ export function applyChanges(data: AppData, changes: ScenarioChange[], today: Lo
         date: c.date,
         accountId: account.id,
         categoryId: 'other_expense',
+        note: c.note,
+        createdAt: data.updatedAt,
+        updatedAt: data.updatedAt,
+      })
+    } else if (c.type === 'income') {
+      // Ingreso hipotético: previsto simulado. Los ingresos previstos nunca suman al
+      // disponible (§6); solo cambian la proyección.
+      const account = c.accountId ? data.accounts.find((a) => a.id === c.accountId) : fallback
+      if (!account || c.date < today) return void invalid.push(i)
+      simulated.push({
+        id: `${SIM_PREFIX}${i}`,
+        kind: 'income',
+        status: 'planned',
+        amountMinor: c.amountMinor,
+        currency: data.settings.currency,
+        date: c.date,
+        accountId: account.id,
+        categoryId: 'other_income',
         note: c.note,
         createdAt: data.updatedAt,
         updatedAt: data.updatedAt,
@@ -155,8 +174,8 @@ export function saveScenario(data: AppData, draft: ScenarioDraft, ctx: OpContext
   }
   const issues = validateScenario(scenario)
   draft.changes.forEach((c, i) => {
-    if (c.type === 'purchase' && c.date < ctx.today) issues.push({ path: `changes[${i}].date`, code: 'dateInPast' })
-    if (c.type === 'purchase' && c.accountId && !data.accounts.some((a) => a.id === c.accountId)) issues.push({ path: `changes[${i}].accountId`, code: 'unknownAccount' })
+    if ((c.type === 'purchase' || c.type === 'income') && c.date < ctx.today) issues.push({ path: `changes[${i}].date`, code: 'dateInPast' })
+    if ((c.type === 'purchase' || c.type === 'income') && c.accountId && !data.accounts.some((a) => a.id === c.accountId)) issues.push({ path: `changes[${i}].accountId`, code: 'unknownAccount' })
     if (c.type === 'scheduleAmount' && !data.schedules.some((s) => s.id === c.scheduleId && s.kind === 'expense')) issues.push({ path: `changes[${i}].scheduleId`, code: 'notFound' })
   })
   if (issues.length) return fail(issues)

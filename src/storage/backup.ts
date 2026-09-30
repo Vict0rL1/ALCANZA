@@ -281,7 +281,7 @@ export function validateAppData(raw: unknown): ImportResult {
 
   // v6: presupuestos por periodo y escenarios guardados.
   const periodBudgets = listOf(migrated.periodBudgets, 'periodBudgets', issues).map((b) =>
-    pick<PeriodBudget>(b, ['id', 'name', 'template', 'startDate', 'endDate', 'allocatedMinor', 'currency', 'txIds', 'goalId', 'archived', 'note', 'createdAt', 'updatedAt']),
+    pick<PeriodBudget>(b, ['id', 'name', 'template', 'startDate', 'endDate', 'allocatedMinor', 'currency', 'txIds', 'goalId', 'ruleCategoryIds', 'archived', 'note', 'createdAt', 'updatedAt']),
   )
   periodBudgets.forEach((b, i) => issues.push(...validatePeriodBudget(b, { data: { settings, goals }, prefix: `periodBudgets[${i}].` })))
   checkDuplicates(periodBudgets, 'periodBudgets', issues)

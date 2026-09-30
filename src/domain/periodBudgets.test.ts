@@ -160,3 +160,24 @@ describe('presupuestos por periodo: sugerencias y asociación en bloque', () => 
     expect(setPeriodTransactionsBulk(d, 'trip', ['hotel', 'salary'], true, ctx).ok).toBe(false)
   })
 })
+
+describe('presupuestos por periodo: regla que propone gastos', () => {
+  it('propone solo gastos/devoluciones de las categorías, dentro de las fechas y en periodos activos', async () => {
+    const { periodsProposedFor } = await import('./periodBudgets')
+    let d = ok(savePeriodBudget(data, { ...trip, ruleCategoryIds: ['dining', 'transport', 'dining'] }, ctx)).data
+    expect(d.periodBudgets[0]!.ruleCategoryIds).toEqual(['dining', 'transport'])
+    expect(periodsProposedFor(d, { kind: 'expense', date: '2026-09-30', categoryId: 'dining' })).toEqual(['trip'])
+    expect(periodsProposedFor(d, { kind: 'expense', date: '2026-09-30', categoryId: 'groceries' })).toEqual([])
+    expect(periodsProposedFor(d, { kind: 'expense', date: '2026-11-30', categoryId: 'dining' })).toEqual([])
+    expect(periodsProposedFor(d, { kind: 'income', date: '2026-09-30', categoryId: 'dining' })).toEqual([])
+    d = ok(setPeriodBudgetArchived(d, 'trip', true, ctx)).data
+    expect(periodsProposedFor(d, { kind: 'expense', date: '2026-09-30', categoryId: 'dining' })).toEqual([])
+    // Proponer no asocia nada por sí solo; se guarda en las copias y se valida.
+    expect(d.periodBudgets[0]!.txIds).toEqual([])
+    const restored = validateAppData(JSON.parse(JSON.stringify(d)))
+    expect(restored.ok && restored.data.periodBudgets[0]!.ruleCategoryIds).toEqual(['dining', 'transport'])
+    const bad = JSON.parse(JSON.stringify(d))
+    bad.periodBudgets[0].ruleCategoryIds = ['salary']
+    expect(validateAppData(bad).ok).toBe(false)
+  })
+})

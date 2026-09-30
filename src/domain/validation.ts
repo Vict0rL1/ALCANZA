@@ -3,7 +3,7 @@
  * copias de seguridad (datos no confiables). Los mensajes visibles se buscan
  * en i18n con la clave `issue.<code>`.
  */
-import { categoriesForKind } from './categories'
+import { categoriesForKind, isCustomCategoryId, isExpenseCategory } from './categories'
 import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
@@ -550,6 +550,15 @@ export function validatePeriodBudget(b: PeriodBudget, ctx: { data: Pick<AppData,
     issues.push({ path: `${p}txIds`, code: 'invalidValue' })
   }
   if (b.goalId !== undefined && !ctx.data.goals.some((g) => g.id === b.goalId)) issues.push({ path: `${p}goalId`, code: 'notFound' })
+  if (
+    b.ruleCategoryIds !== undefined &&
+    (!Array.isArray(b.ruleCategoryIds) ||
+      b.ruleCategoryIds.length > 30 ||
+      !b.ruleCategoryIds.every((c) => typeof c === 'string' && (isExpenseCategory(c) || (isCustomCategoryId(c) && isValidId(c)))) ||
+      new Set(b.ruleCategoryIds).size !== b.ruleCategoryIds.length)
+  ) {
+    issues.push({ path: `${p}ruleCategoryIds`, code: 'invalidValue' })
+  }
   if (typeof b.archived !== 'boolean') issues.push({ path: `${p}archived`, code: 'invalidValue' })
   checkOptionalText(b.note, `${p}note`, issues)
   checkTimestamps(b, p, issues)
@@ -568,7 +577,7 @@ export function validateScenario(sc: SavedScenario, prefix = ''): Issue[] {
     sc.changes.forEach((c, i) => {
       const cp = `${prefix}changes[${i}].`
       if (!c || typeof c !== 'object') return void issues.push({ path: `${prefix}changes[${i}]`, code: 'invalidValue' })
-      if (c.type === 'purchase') {
+      if (c.type === 'purchase' || c.type === 'income') {
         checkPositiveAmount(c.amountMinor, `${cp}amountMinor`, issues)
         checkDate(c.date, `${cp}date`, issues)
         checkOptionalText(c.note, `${cp}note`, issues)

@@ -110,7 +110,7 @@ npm run preview
 4. **¿Me alcanza?:** escribe un precio y compara antes y después. No guarda nada hasta
    que pulses «Registrar esta compra» y luego «Guardar». **Comparar escenarios** guarda
    simulaciones con nombre (comprar hoy o en otra fecha, subir un pago mensual, reducir un
-   gasto previsto) y compara hasta 3 con tu situación actual con las mismas hipótesis.
+   gasto previsto, o un ingreso hipotético que solo cambia la proyección) y compara hasta 3 con tu situación actual con las mismas hipótesis.
    Nunca cambian tus datos; si tus datos reales cambian, el escenario se marca para revisar.
    **Revisión semanal** (tarjeta en Inicio, se puede ocultar): ingresos, gastos, balance,
    categorías principales, comparación con la semana anterior, próximos pagos y metas.
@@ -122,7 +122,8 @@ npm run preview
    «Confirmar aporte» aparta dinero y «Pagar» registra el gasto real y libera lo apartado
    en un paso (decides qué hacer con el sobrante). **Periodos**: presupuestos para un
    semestre, un viaje o un periodo propio; asocias gastos (también al registrarlos) y ves
-   gastado, restante y cuánto por día o semana. Asignar no mueve dinero; «Reservar
+   gastado, restante y cuánto por día o semana. Una regla opcional por categorías propone
+   el periodo al registrar un gasto (puedes desmarcarlo). Asignar no mueve dinero; «Reservar
    dinero» es opcional y explica su efecto. Un ingreso puede ser **variable** (mínimo, esperado y extra):
    la proyección permite elegir el escenario (por defecto el mínimo) y compararlos, sin
    cambiar tu disponible ni tus movimientos. Si recibes solo una parte, eliges si esperas

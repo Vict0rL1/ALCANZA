@@ -40,8 +40,8 @@ function useChangeText() {
   const data = useData()
   const today = useToday()
   return (c: ScenarioChange) => {
-    if (c.type === 'purchase') {
-      const text = t('scenario.change.purchase', { amount: fmt.money(c.amountMinor), date: fmt.date(c.date, { compact: true, today }), note: c.note ? ` (${c.note})` : '' })
+    if (c.type === 'purchase' || c.type === 'income') {
+      const text = t(c.type === 'income' ? 'scenario.change.income' : 'scenario.change.purchase', { amount: fmt.money(c.amountMinor), date: fmt.date(c.date, { compact: true, today }), note: c.note ? ` (${c.note})` : '' })
       const account = c.accountId ? data.accounts.find((a) => a.id === c.accountId) : undefined
       return c.accountId ? `${text} · ${account?.name ?? t('common.unknownAccount')}` : text
     }
@@ -235,6 +235,7 @@ export function Scenarios() {
                 <li>{t('scenario.limit.simulation')}</li>
                 <li>{t('scenario.limit.purchase')}</li>
                 <li>{t('scenario.limit.schedule')}</li>
+                <li>{t('scenario.limit.hypotheticalIncome')}</li>
                 <li>{t('scenario.limit.income')}</li>
                 <li>{t('scenario.limit.spend')}</li>
                 <li>{t('scenario.limit.noGuarantee')}</li>
@@ -294,8 +295,8 @@ interface ChangeDraft {
 }
 
 function toDraft(c: ScenarioChange, fmt: Formatter): ChangeDraft {
-  return c.type === 'purchase'
-    ? { key: newId(), type: 'purchase', amountText: fmt.moneyInput(c.amountMinor), date: c.date, note: c.note ?? '', scheduleId: '', accountId: c.accountId ?? '' }
+  return c.type === 'purchase' || c.type === 'income'
+    ? { key: newId(), type: c.type, amountText: fmt.moneyInput(c.amountMinor), date: c.date, note: c.note ?? '', scheduleId: '', accountId: c.accountId ?? '' }
     : { key: newId(), type: 'scheduleAmount', amountText: fmt.moneyInput(c.newAmountMinor), date: '', note: '', scheduleId: c.scheduleId, accountId: '' }
 }
 
@@ -332,7 +333,7 @@ export function ScenarioForm({ route }: { route: Route }) {
       const parsed = parseMoneyText(c.amountText, fmt)
       errors[c.key] = moneyErrorMessage(t, parsed)
       if (!parsed.ok) continue
-      built.push(c.type === 'purchase' ? { type: 'purchase', amountMinor: parsed.minor, date: c.date, ...(c.note.trim() ? { note: c.note.trim() } : {}), ...(c.accountId ? { accountId: c.accountId } : {}) } : { type: 'scheduleAmount', scheduleId: c.scheduleId, newAmountMinor: parsed.minor })
+      built.push(c.type !== 'scheduleAmount' ? { type: c.type, amountMinor: parsed.minor, date: c.date, ...(c.note.trim() ? { note: c.note.trim() } : {}), ...(c.accountId ? { accountId: c.accountId } : {}) } : { type: 'scheduleAmount', scheduleId: c.scheduleId, newAmountMinor: parsed.minor })
     }
     setAmountErrors(errors)
     if (built.length !== changes.length || busy) return
@@ -377,12 +378,18 @@ export function ScenarioForm({ route }: { route: Route }) {
               options={[
                 { value: 'purchase', label: t('scenario.type.purchase') },
                 { value: 'scheduleAmount', label: t('scenario.type.schedule') },
+                { value: 'income', label: t('scenario.type.income') },
               ]}
             />
-            {c.type === 'purchase' ? (
+            {c.type !== 'scheduleAmount' ? (
               <>
-                <MoneyField label={t('scenario.purchaseAmount')} value={c.amountText} onChange={(v) => update(c.key, { amountText: v })} fmt={fmt} error={amountErrors[c.key] ?? fieldError(t, fmt, issues, `changes[${i}].amountMinor`)} />
-                <TextField label={t('scenario.purchaseDate')} type="date" min={today} value={c.date} onChange={(e) => update(c.key, { date: e.target.value })} hint={t('scenario.purchaseDateHint')} error={fieldError(t, fmt, issues, `changes[${i}].date`)} required />
+                {c.type === 'income' && (
+                  <Alert tone="info" icon="info" title={t('scenario.incomeWarningTitle')}>
+                    {t('scenario.incomeWarningText')}
+                  </Alert>
+                )}
+                <MoneyField label={t(c.type === 'income' ? 'scenario.incomeAmount' : 'scenario.purchaseAmount')} value={c.amountText} onChange={(v) => update(c.key, { amountText: v })} fmt={fmt} error={amountErrors[c.key] ?? fieldError(t, fmt, issues, `changes[${i}].amountMinor`)} />
+                <TextField label={t(c.type === 'income' ? 'scenario.incomeDate' : 'scenario.purchaseDate')} type="date" min={today} value={c.date} onChange={(e) => update(c.key, { date: e.target.value })} hint={t('scenario.purchaseDateHint')} error={fieldError(t, fmt, issues, `changes[${i}].date`)} required />
                 {data.accounts.length > 1 && (
                   <SelectField
                     label={t('fields.account')}
@@ -429,6 +436,10 @@ export function ScenarioForm({ route }: { route: Route }) {
                 {t('scenario.addSchedule')}
               </button>
             )}
+            <button type="button" className="btn btn--secondary btn--small" onClick={() => add('income')}>
+              <Icon name="plus" size={16} />
+              {t('scenario.addIncome')}
+            </button>
           </div>
         )}
         {unknown.length > 0 && (
