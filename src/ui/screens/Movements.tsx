@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { txAppliesToAccount } from '../../domain/balances'
 import { categoriesForKind } from '../../domain/categories'
 import { sumMinor } from '../../domain/money'
+import { txCategoryIds } from '../../domain/splits'
 import type { Transaction, TxKind, TxStatus } from '../../domain/types'
 import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
@@ -39,7 +40,8 @@ export function Movements({ route }: { route?: Route }) {
       if (kind !== 'all' && tx.kind !== kind) return false
       if (status !== 'all' && tx.status !== status) return false
       if (accountId !== 'all' && tx.accountId !== accountId && tx.toAccountId !== accountId) return false
-      if (categoryId !== 'all' && tx.categoryId !== categoryId) return false
+      // Una compra dividida aparece en cada categoría de sus líneas.
+      if (categoryId !== 'all' && !txCategoryIds(tx).includes(categoryId)) return false
       if (from && tx.date < from) return false
       if (to && tx.date > to) return false
       if (q) {
@@ -202,7 +204,7 @@ export function Movements({ route }: { route?: Route }) {
 }
 
 function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string; groupByDate?: boolean }) {
-  const { t } = useT()
+  const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
   const groups: { date: string; items: Transaction[] }[] = []
@@ -237,7 +239,13 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
                       <span className="item__title">{transactionTitle(tx, data.accounts, t)}</span>
                       <span className="item__meta">
                         {!groupByDate && <>{fmt.date(tx.date, { compact: true, today })} · </>}
-                        {tx.kind === 'transfer' ? t('txKind.transfer') : tx.kind === 'adjustment' ? t('adjustment.title') : categoryLabel(t, tx.categoryId)}
+                        {tx.kind === 'transfer'
+                          ? t('txKind.transfer')
+                          : tx.kind === 'adjustment'
+                            ? t('adjustment.title')
+                            : tx.splits?.length
+                              ? txCategoryIds(tx).map((c) => categoryLabel(t, c)).join(', ')
+                              : categoryLabel(t, tx.categoryId)}
                         {tx.kind !== 'transfer' && data.accounts.length > 1 && <> · {accountName(data.accounts, tx.accountId, t)}</>}
                       </span>
                       <span className="item__badges">
@@ -245,6 +253,7 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
                         {tx.scheduleId ? <Badge icon="calendar">{t('movements.fromCalendar')}</Badge> : null}
                         {tx.kind === 'adjustment' ? <Badge icon="scale">{t('adjustment.title')}</Badge> : null}
                         {tx.refundOfId ? <Badge icon="refund">{t('movements.linkedRefund')}</Badge> : null}
+                        {tx.splits?.length && tx.kind === 'expense' ? <Badge icon="list">{tn('split.badge', txCategoryIds(tx).length)}</Badge> : null}
                         {includedInAnchor ? <Badge icon="lock">{t('movements.includedInBalance')}</Badge> : null}
                       </span>
                     </span>

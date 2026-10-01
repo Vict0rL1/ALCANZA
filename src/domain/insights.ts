@@ -5,9 +5,11 @@
  *   Ingresos                    = Σ ingresos realizados
  *
  * Las transferencias no son ingresos ni gastos (incluidos los pagos de tarjeta).
+ * Una compra dividida reparte su importe entre las categorías de sus líneas.
  * Los movimientos previstos no cuentan. Se incluyen todas las cuentas.
  */
 import { sumMinor } from './money'
+import { categoryAllocations } from './splits'
 import type { AppData, CategoryLimit, LocalDate } from './types'
 
 export interface CategorySpending {
@@ -32,13 +34,16 @@ export function periodSummary(data: Pick<AppData, 'transactions'>, from: LocalDa
   const byCategory = new Map<string, CategorySpending>()
   for (const tx of inRange) {
     if (tx.kind !== 'expense' && tx.kind !== 'refund') continue
-    const id = tx.categoryId ?? 'other_expense'
-    const entry = byCategory.get(id) ?? { categoryId: id, spentMinor: 0, refundedMinor: 0, netMinor: 0, count: 0 }
-    if (tx.kind === 'expense') entry.spentMinor += tx.amountMinor
-    else entry.refundedMinor += tx.amountMinor
-    entry.netMinor = entry.spentMinor - entry.refundedMinor
-    entry.count += 1
-    byCategory.set(id, entry)
+    // Compras divididas: cada línea en su categoría (el movimiento cuenta una vez en el total).
+    for (const line of categoryAllocations(tx)) {
+      const id = line.categoryId
+      const entry = byCategory.get(id) ?? { categoryId: id, spentMinor: 0, refundedMinor: 0, netMinor: 0, count: 0 }
+      if (tx.kind === 'expense') entry.spentMinor += line.amountMinor
+      else entry.refundedMinor += line.amountMinor
+      entry.netMinor = entry.spentMinor - entry.refundedMinor
+      entry.count += 1
+      byCategory.set(id, entry)
+    }
   }
   const categories = [...byCategory.values()].sort((a, b) => b.netMinor - a.netMinor || a.categoryId.localeCompare(b.categoryId))
   return {

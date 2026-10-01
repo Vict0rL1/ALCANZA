@@ -206,3 +206,55 @@ export function payPlannedExpense(data: AppData, input: PayPlannedExpenseInput, 
   next = { ...next, goals: next.goals.map((g) => (g.id === goal.id ? updated : g)), updatedAt: ctx.now }
   return { ok: true, data: next, value: { tx: txResult.value, cycle, shortfallMinor, surplusMinor } }
 }
+
+/**
+ * El pago vinculado ya se registró desde el calendario (u otro formulario): se cierra el
+ * gasto planificado con ESE movimiento, sin crear otro. Lo apartado se usa (hasta el importe
+ * pagado) y el sobrante se libera; así el dinero no queda descontado dos veces.
+ */
+export function settlePlannedExpenseFromCalendar(data: AppData, goalId: string, ctx: OpContext): OpResult<PlannedExpenseCycle> {
+  const goal = data.goals.find((g) => g.id === goalId)
+  const link = goal?.plan?.link
+  if (!goal || goal.kind !== 'expense' || !goal.plan || !link || goal.plan.paidAt) return fail([{ path: 'goalId', code: 'notFound' }])
+  const settled = findSettlement(data, link.scheduleId, link.occurrenceDate)
+  if (!settled) return fail([{ path: 'goalId', code: 'notFound' }])
+  if (goal.plan.history.some((c) => c.txId === settled.id)) return { ok: true, data, value: goal.plan.history.find((c) => c.txId === settled.id)!, unchanged: true }
+  const savedMinor = Math.max(0, goalProgress(goal).savedMinor)
+  const usedMinor = Math.min(savedMinor, settled.amountMinor)
+  const surplusMinor = savedMinor - usedMinor
+  const moves: GoalAllocation[] = []
+  if (usedMinor > 0) moves.push({ id: newId(), amountMinor: -usedMinor, date: ctx.today, createdAt: ctx.now, reason: 'payment' })
+  if (surplusMinor > 0) moves.push({ id: newId(), amountMinor: -surplusMinor, date: ctx.today, createdAt: ctx.now, reason: 'release' })
+  const cycle: PlannedExpenseCycle = {
+    dueDate: link.occurrenceDate,
+    targetMinor: goal.targetMinor,
+    reservedMinor: savedMinor,
+    paidMinor: settled.amountMinor,
+    txId: settled.id,
+    surplus: surplusMinor > 0 ? 'release' : 'none',
+    paidAt: ctx.now,
+  }
+  const plan: PlannedExpense = { ...goal.plan, history: [...goal.plan.history, cycle] }
+  let targetDate = goal.targetDate
+  if (goal.plan.repeatEveryMonths) {
+    const schedule = data.schedules.find((x) => x.id === link.scheduleId)
+    const nextOccurrence = schedule ? occurrencesBetween(schedule, addDays(link.occurrenceDate, 1), addDays(link.occurrenceDate, 800))[0] : undefined
+    if (nextOccurrence) {
+      plan.link = { scheduleId: link.scheduleId, occurrenceDate: nextOccurrence }
+      targetDate = nextOccurrence
+    } else {
+      delete plan.link
+      targetDate = addMonthsClamped(link.occurrenceDate, goal.plan.repeatEveryMonths, parseLocalDate(link.occurrenceDate).day)
+    }
+  } else {
+    plan.paidAt = ctx.now
+  }
+  const updated: Goal = { ...goal, targetDate, plan, allocations: [...goal.allocations, ...moves], updatedAt: ctx.now }
+  return { ok: true, data: { ...data, goals: data.goals.map((g) => (g.id === goal.id ? updated : g)), updatedAt: ctx.now }, value: cycle }
+}
+
+/** Movimiento que ya liquidó el pago vinculado (si existe y el gasto planificado sigue abierto). */
+export function linkedSettlement(data: AppData, goal: Goal): Transaction | undefined {
+  const link = goal.kind === 'expense' && !goal.plan?.paidAt ? goal.plan?.link : undefined
+  return link ? findSettlement(data, link.scheduleId, link.occurrenceDate) : undefined
+}

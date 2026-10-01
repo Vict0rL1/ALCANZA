@@ -13,6 +13,7 @@
 import { EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS } from './categories'
 import { minorToDecimalString } from './money'
 import { normalizeText } from './rules'
+import { txCategoryIds } from './splits'
 import type { AppData, LocalDate } from './types'
 
 export type SearchKind = 'transaction' | 'account' | 'category' | 'goal' | 'schedule' | 'periodBudget' | 'favorite' | 'trash'
@@ -63,8 +64,10 @@ export function buildSearchIndex(data: AppData, categoryName: (id: string) => st
   const accountName = new Map(data.accounts.map((a) => [a.id, a.name]))
   const entries: SearchEntry[] = []
 
+  // Compras divididas: se encuentran por cualquiera de sus categorías y notas de línea.
+  const splitText = (t: AppData['transactions'][number]) => [...txCategoryIds(t).map((c) => categoryName(c)), ...(t.splits ?? []).map((l) => l.note)]
   for (const t of data.transactions) {
-    const category = cat(t.categoryId)
+    const category = t.splits?.length ? txCategoryIds(t).map((c) => categoryName(c)).join(', ') : cat(t.categoryId)
     entries.push({
       kind: 'transaction',
       id: t.id,
@@ -73,7 +76,7 @@ export function buildSearchIndex(data: AppData, categoryName: (id: string) => st
       date: t.date,
       amountMinor: t.amountMinor,
       sortKey: `${t.date}${t.createdAt}`,
-      haystack: hay(t.note, category, accountName.get(t.accountId), t.toAccountId ? accountName.get(t.toAccountId) : undefined),
+      haystack: hay(t.note, category, ...splitText(t), accountName.get(t.accountId), t.toAccountId ? accountName.get(t.toAccountId) : undefined),
     })
   }
   for (const e of data.trash) {
@@ -87,7 +90,7 @@ export function buildSearchIndex(data: AppData, categoryName: (id: string) => st
       date: t.date,
       amountMinor: t.amountMinor,
       sortKey: e.deletedAt,
-      haystack: hay(t.note, category, accountName.get(t.accountId)),
+      haystack: hay(t.note, category, ...splitText(t), accountName.get(t.accountId)),
     })
   }
   for (const a of data.accounts) entries.push({ kind: 'account', id: a.id, title: a.name, sortKey: a.name, haystack: hay(a.name) })

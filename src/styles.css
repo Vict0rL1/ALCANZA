@@ -2217,3 +2217,22 @@ fieldset.bill-row {
 .topbar__search.is-active {
   color: var(--primary);
 }
+
+/* Compras divididas */
+.split-line {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.split-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+  color: var(--warning-text);
+}
+
+.split-status.is-ok {
+  color: var(--good-text);
+}

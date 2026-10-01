@@ -335,6 +335,8 @@ export function createDemoData({ now, timeZone, currency = 'CAD', language = 'es
     backup: { reminder: 'weekly' },
     periodBudgets: [],
     scenarios: [],
+    inbox: { snoozed: [], dismissed: [] },
+    incomeDistributions: [],
     createdAt: nowTs,
     updatedAt: nowTs,
     revision: 0,

@@ -49,6 +49,16 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
         ? { ...(raw.settings as Raw), weeklyReview: true }
         : raw.settings,
   }),
+  /**
+   * v6 → v7: bandeja de pendientes y distribuciones de ingresos. Las compras divididas
+   * (`splits`) y `distributionId` son opcionales: los datos anteriores no cambian.
+   */
+  6: (raw) => ({
+    ...raw,
+    schemaVersion: 7,
+    inbox: raw.inbox ?? { snoozed: [], dismissed: [] },
+    incomeDistributions: raw.incomeDistributions ?? [],
+  }),
 }
 
 export function migrate(raw: Raw): Raw {

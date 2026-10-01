@@ -16,6 +16,7 @@ import type {
   Account,
   AllocationReason,
   AppData,
+  SplitLine,
   CardDetails,
   CategoryLimit,
   CategoryRule,
@@ -94,6 +95,8 @@ function cleanText(value: string | undefined): string | undefined {
  * `realizedAt` (salvo que cambie la marca "ya incluido en el saldo").
  */
 export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpContext): OpResult<Transaction> {
+  // Solo gastos (y devoluciones de compras divididas) se reparten entre categorías.
+  if (draft.splits?.length && draft.kind !== 'expense' && draft.kind !== 'refund') return fail([{ path: 'splits', code: 'invalidValue' }])
   const existing = data.transactions.find((t) => t.id === draft.id)
   const account = data.accounts.find((a) => a.id === draft.accountId)
   let realizedAt: Timestamp | undefined
@@ -126,7 +129,9 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
             adjustmentDirection: draft.adjustmentDirection,
             ...((draft.reconciliationId ?? existing?.reconciliationId) ? { reconciliationId: draft.reconciliationId ?? existing?.reconciliationId } : {}),
           }
-        : { categoryId: draft.categoryId }),
+        : draft.splits?.length && (draft.kind === 'expense' || draft.kind === 'refund')
+          ? { categoryId: draft.splits[0]!.categoryId, splits: draft.splits.map(({ note, ...l }) => (cleanText(note) ? { ...l, note: cleanText(note) } : l)) }
+          : { categoryId: draft.categoryId }),
     ...(draft.kind === 'refund' && draft.refundOfId ? { refundOfId: draft.refundOfId } : {}),
     ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
@@ -139,7 +144,14 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
   }
   const issues = validateTransaction(tx, { data, today: ctx.today })
   if (issues.length) return fail(issues)
-  return { ok: true, data: touch({ ...data, transactions: upsert(data.transactions, tx) }, ctx.now), value: tx }
+  const transactions = upsert(data.transactions, tx)
+  // Las devoluciones ya vinculadas deben seguir siendo válidas (importe y reparto por categorías).
+  if (existing) {
+    const after = { ...data, transactions }
+    const broken = transactions.some((r) => r.kind === 'refund' && r.refundOfId === tx.id && validateTransaction(r, { data: after }).length > 0)
+    if (broken) return fail([{ path: tx.splits ? 'splits' : 'amountMinor', code: 'refundExceeds', params: { remainingMinor: 0 } }])
+  }
+  return { ok: true, data: touch({ ...data, transactions }, ctx.now), value: tx }
 }
 
 /* ------------------------------------------------------------------ */
@@ -162,15 +174,24 @@ export function deleteTransaction(data: AppData, id: string, ctx: OpContext): Op
     return fail([{ path: 'id', code: 'notFound' }])
   }
   const unlinkedRefundIds: string[] = []
+  const unlinkedRefundSplits: Record<string, SplitLine[]> = {}
   const transactions = data.transactions
     .filter((t) => t.id !== id)
     .map((t) => {
       if (t.refundOfId !== id) return t
       unlinkedRefundIds.push(t.id)
-      const { refundOfId: _removed, ...rest } = t
+      // Sin la compra original, el reparto por categorías no se puede comprobar: se guarda aparte.
+      if (t.splits?.length) unlinkedRefundSplits[t.id] = t.splits
+      const { refundOfId: _removed, splits: _splits, ...rest } = t
       return { ...rest, updatedAt: ctx.now }
     })
-  const entry: TrashEntry = { id, deletedAt: ctx.now, transaction: tx, unlinkedRefundIds }
+  const entry: TrashEntry = {
+    id,
+    deletedAt: ctx.now,
+    transaction: tx,
+    unlinkedRefundIds,
+    ...(Object.keys(unlinkedRefundSplits).length ? { unlinkedRefundSplits } : {}),
+  }
   return {
     ok: true,
     data: touch({ ...data, transactions, trash: [...data.trash.filter((e) => e.id !== id), entry] }, ctx.now),
@@ -219,9 +240,9 @@ export function restoreFromTrash(data: AppData, id: string, ctx: OpContext): OpR
 
   let refundLinkDropped = false
   if (tx.refundOfId) {
-    const probe = validateTransaction(tx, { data }).some((i) => i.path === 'refundOfId' || i.code === 'refundExceeds')
+    const probe = validateTransaction(tx, { data }).some((i) => i.path === 'refundOfId' || i.path.startsWith('splits') || i.code === 'refundExceeds')
     if (probe) {
-      const { refundOfId: _dropped, ...rest } = tx
+      const { refundOfId: _dropped, splits: _splits, ...rest } = tx
       tx = { ...rest, updatedAt: ctx.now }
       refundLinkDropped = true
     }
@@ -238,7 +259,14 @@ export function restoreFromTrash(data: AppData, id: string, ctx: OpContext): OpR
     if (t.kind !== 'refund' || t.refundOfId !== undefined || refundedSoFar + t.amountMinor > tx.amountMinor) return t
     refundedSoFar += t.amountMinor
     relinkedRefundIds.push(t.id)
-    return { ...t, refundOfId: tx.id, updatedAt: ctx.now }
+    // Recupera su reparto por categorías si sigue siendo coherente con la compra.
+    const splits = entry.unlinkedRefundSplits?.[t.id]
+    const relinked: Transaction = { ...t, refundOfId: tx.id, updatedAt: ctx.now }
+    if (splits && tx.splits?.length && t.categoryId === splits[0]!.categoryId) {
+      const withSplits = { ...relinked, splits }
+      if (validateTransaction(withSplits, { data: { ...data, transactions: [...data.transactions, tx] } }).length === 0) return withSplits
+    }
+    return relinked
   })
 
   return {
@@ -570,7 +598,7 @@ export function maxBudgetAllocation(data: AppData, goal: Goal, today: LocalDate)
 
 export function allocateToGoal(
   data: AppData,
-  input: { goalId: string; amountMinor: number; allocationId?: string; reason?: AllocationReason },
+  input: { goalId: string; amountMinor: number; allocationId?: string; reason?: AllocationReason; distributionId?: string },
   ctx: OpContext,
 ): OpResult<GoalAllocation> {
   const goal = data.goals.find((g) => g.id === input.goalId)
@@ -596,6 +624,7 @@ export function allocateToGoal(
     date: ctx.today,
     createdAt: ctx.now,
     reason: input.reason ?? (amount > 0 ? 'contribution' : 'release'),
+    ...(input.distributionId ? { distributionId: input.distributionId } : {}),
   }
   const updated: Goal = { ...goal, allocations: [...goal.allocations, allocation], updatedAt: ctx.now }
   return { ok: true, data: touch({ ...data, goals: upsert(data.goals, updated) }, ctx.now), value: allocation }
@@ -1010,6 +1039,8 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
     backup: { reminder: 'weekly' },
     periodBudgets: [],
     scenarios: [],
+    inbox: { snoozed: [], dismissed: [] },
+    incomeDistributions: [],
     createdAt: ctx.now,
     updatedAt: ctx.now,
     revision: 0,

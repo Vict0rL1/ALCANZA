@@ -11,7 +11,7 @@ async function storeAsOldV4(page: Page) {
     data.schemaVersion = 4
     data.isDemo = false
     data.createdAt = '2026-09-18T12:00:00.000Z'
-    for (const field of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup', 'periodBudgets', 'scenarios']) delete data[field]
+    for (const field of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup', 'periodBudgets', 'scenarios', 'inbox', 'incomeDistributions']) delete data[field]
     delete data.settings.weeklyReview
     localStorage.setItem(key, JSON.stringify(data))
   }, KEY)
@@ -71,7 +71,7 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
 
   // Migración: mismos importes, copia previa guardada y nada eliminado.
   await expect(page.getByTestId('available')).toHaveText('$136.78')
-  const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v6'))
+  const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v7'))
   expect(JSON.parse(preserved!).fromVersion).toBe(4)
   await expect(page.getByText('Haz una copia de seguridad')).toBeVisible()
   await expect(page.getByText('Nunca has exportado tus datos.')).toBeVisible()

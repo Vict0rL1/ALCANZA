@@ -8,6 +8,7 @@ import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
 import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from './money'
 import { normalizeText, RULE_PATTERN_MAX, RULE_PATTERN_MIN } from './rules'
+import { MAX_SPLIT_LINES, refundableByCategory, splitDifference } from './splits'
 import type {
   Account,
   AppData,
@@ -17,7 +18,9 @@ import type {
   CustomCategory,
   Favorite,
   Goal,
+  IncomeDistribution,
   IncomeRange,
+  InboxState,
   PeriodBudget,
   PlannedExpense,
   Reconciliation,
@@ -58,6 +61,11 @@ export type IssueCode =
   | 'duplicateName'
   | 'categoryInUse'
   | 'duplicateRule'
+  | 'splitMismatch'
+  | 'splitTooFew'
+  | 'distributionExceeds'
+  | 'distributionConflict'
+  | 'incomeNotRealized'
   | 'patternTooShort'
   | 'notFound'
   | 'rangeOrder'
@@ -297,6 +305,7 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
   if (tx.scheduleId !== undefined && !isValidId(tx.scheduleId)) issues.push({ path: `${p}scheduleId`, code: 'invalidId' })
   if (tx.occurrenceDate !== undefined) checkDate(tx.occurrenceDate, `${p}occurrenceDate`, issues)
   if (tx.realizedAt !== undefined && !isValidTimestamp(tx.realizedAt)) issues.push({ path: `${p}realizedAt`, code: 'invalidTimestamp' })
+  if (tx.splits !== undefined) issues.push(...validateSplits(tx, ctx))
   checkOptionalText(tx.note, `${p}note`, issues)
   checkOptionalText(tx.importRef, `${p}importRef`, issues, 200)
   checkTimestamps(tx, p, issues)
@@ -391,6 +400,7 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
       checkDate(a.date, `${ap}date`, issues)
       if (!isValidTimestamp(a.createdAt)) issues.push({ path: `${ap}createdAt`, code: 'invalidTimestamp' })
       if (a.reason !== undefined && !isOneOf(ALLOCATION_REASONS, a.reason)) issues.push({ path: `${ap}reason`, code: 'invalidValue' })
+      if (a.distributionId !== undefined && !isValidId(a.distributionId)) issues.push({ path: `${ap}distributionId`, code: 'invalidId' })
     })
     if (issues.length === 0) {
       const saved = sumMinor(g.allocations.map((a) => a.amountMinor))
@@ -406,6 +416,96 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
  * cuentas existentes). Los vínculos con otros movimientos (devolución → gasto) se
  * vuelven a comprobar al restaurar, porque pueden haber cambiado mientras tanto.
  */
+/**
+ * Líneas de una compra dividida (o reparto de una devolución): solo gastos y devoluciones,
+ * suma EXACTA en centavos, categorías de gasto válidas y `categoryId` = la de la 1.ª línea.
+ * Una devolución repartida no puede superar lo pendiente de devolver en cada categoría.
+ */
+function validateSplits(tx: Transaction, ctx: ValidationContext): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  const lines = tx.splits
+  if (!Array.isArray(lines) || lines.length > MAX_SPLIT_LINES || (tx.kind !== 'expense' && tx.kind !== 'refund')) {
+    return [{ path: `${p}splits`, code: 'invalidValue' }]
+  }
+  if (tx.kind === 'expense' ? lines.length < 2 : lines.length < 1) return [{ path: `${p}splits`, code: 'splitTooFew' }]
+  const valid = categoriesForKind('expense', ctx.data.categories, { includeArchived: true })
+  const ids = new Set<string>()
+  lines.forEach((l, i) => {
+    const lp = `${p}splits[${i}].`
+    if (!l || typeof l !== 'object') return void issues.push({ path: `${p}splits[${i}]`, code: 'invalidValue' })
+    if (!isValidId(l.id) || ids.has(l.id)) issues.push({ path: `${lp}id`, code: 'invalidId' })
+    ids.add(l.id)
+    if (!valid.includes(l.categoryId)) issues.push({ path: `${lp}categoryId`, code: 'invalidCategory' })
+    checkPositiveAmount(l.amountMinor, `${lp}amountMinor`, issues)
+    checkOptionalText(l.note, `${lp}note`, issues)
+  })
+  if (issues.length) return issues
+  const diff = splitDifference(tx.amountMinor, lines)
+  if (diff !== 0) issues.push({ path: `${p}splits`, code: 'splitMismatch', params: { differenceMinor: diff } })
+  if (tx.categoryId !== lines[0]!.categoryId) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
+  if (tx.kind === 'refund') {
+    const original = tx.refundOfId ? ctx.data.transactions.find((t) => t.id === tx.refundOfId) : undefined
+    if (!original || !original.splits?.length) return [...issues, { path: `${p}splits`, code: 'invalidValue' }]
+    const pending = refundableByCategory(ctx.data, original, tx.id)
+    const byCategory = new Map<string, number>()
+    for (const l of lines) byCategory.set(l.categoryId, (byCategory.get(l.categoryId) ?? 0) + l.amountMinor)
+    lines.forEach((l, i) => {
+      const room = pending.get(l.categoryId)
+      if (room === undefined) issues.push({ path: `${p}splits[${i}].categoryId`, code: 'invalidCategory' })
+      else if (byCategory.get(l.categoryId)! > room) issues.push({ path: `${p}splits[${i}].amountMinor`, code: 'refundExceeds', params: { remainingMinor: Math.max(0, room) } })
+    })
+  }
+  return issues
+}
+
+const INBOX_MAX = 5000
+
+export function validateInbox(inbox: InboxState, prefix = 'inbox.'): Issue[] {
+  const issues: Issue[] = []
+  if (!inbox || typeof inbox !== 'object' || !Array.isArray(inbox.snoozed) || !Array.isArray(inbox.dismissed)) return [{ path: prefix.slice(0, -1), code: 'invalidValue' }]
+  if (inbox.snoozed.length > INBOX_MAX || inbox.dismissed.length > INBOX_MAX) issues.push({ path: prefix.slice(0, -1), code: 'tooMany', params: { max: INBOX_MAX } })
+  inbox.snoozed.forEach((s, i) => {
+    if (!s || typeof s.id !== 'string' || s.id.length === 0 || s.id.length > 300) issues.push({ path: `${prefix}snoozed[${i}].id`, code: 'invalidId' })
+    checkDate(s?.until, `${prefix}snoozed[${i}].until`, issues)
+    if (!isValidTimestamp(s?.at)) issues.push({ path: `${prefix}snoozed[${i}].at`, code: 'invalidTimestamp' })
+  })
+  inbox.dismissed.forEach((d, i) => {
+    if (!d || typeof d.id !== 'string' || d.id.length === 0 || d.id.length > 300) issues.push({ path: `${prefix}dismissed[${i}].id`, code: 'invalidId' })
+    if (typeof d?.fingerprint !== 'string' || d.fingerprint.length > 500) issues.push({ path: `${prefix}dismissed[${i}].fingerprint`, code: 'invalidValue' })
+    if (!isValidTimestamp(d?.at)) issues.push({ path: `${prefix}dismissed[${i}].at`, code: 'invalidTimestamp' })
+  })
+  return issues
+}
+
+export function validateIncomeDistribution(d: IncomeDistribution, prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(d.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  if (!isValidId(d.incomeTxId)) issues.push({ path: `${prefix}incomeTxId`, code: 'invalidId' })
+  if (typeof d.incomeFingerprint !== 'string' || d.incomeFingerprint.length === 0 || d.incomeFingerprint.length > 200) issues.push({ path: `${prefix}incomeFingerprint`, code: 'invalidValue' })
+  checkPositiveAmount(d.incomeAmountMinor, `${prefix}incomeAmountMinor`, issues)
+  if (!Array.isArray(d.lines) || d.lines.length > 100) {
+    issues.push({ path: `${prefix}lines`, code: 'invalidValue' })
+  } else {
+    d.lines.forEach((l, i) => {
+      const lp = `${prefix}lines[${i}].`
+      if (!l || typeof l !== 'object' || (l.kind !== 'payment' && l.kind !== 'goal')) return void issues.push({ path: `${prefix}lines[${i}]`, code: 'invalidValue' })
+      if (!isValidId(l.goalId)) issues.push({ path: `${lp}goalId`, code: 'invalidId' })
+      if (!isValidId(l.allocationId)) issues.push({ path: `${lp}allocationId`, code: 'invalidId' })
+      checkPositiveAmount(l.amountMinor, `${lp}amountMinor`, issues)
+      if (typeof l.createdGoal !== 'boolean') issues.push({ path: `${lp}createdGoal`, code: 'invalidValue' })
+      if (l.scheduleId !== undefined && !isValidId(l.scheduleId)) issues.push({ path: `${lp}scheduleId`, code: 'invalidId' })
+      if (l.occurrenceDate !== undefined) checkDate(l.occurrenceDate, `${lp}occurrenceDate`, issues)
+    })
+    if (isMinorAmount(d.incomeAmountMinor) && d.lines.every((l) => isMinorAmount(l?.amountMinor)) && sumMinor(d.lines.map((l) => l.amountMinor)) > d.incomeAmountMinor) {
+      issues.push({ path: `${prefix}lines`, code: 'distributionExceeds' })
+    }
+  }
+  if (!isValidTimestamp(d.createdAt)) issues.push({ path: `${prefix}createdAt`, code: 'invalidTimestamp' })
+  if (d.undoneAt !== undefined && !isValidTimestamp(d.undoneAt)) issues.push({ path: `${prefix}undoneAt`, code: 'invalidTimestamp' })
+  return issues
+}
+
 export function validateTrashEntry(e: TrashEntry, ctx: ValidationContext): Issue[] {
   const p = ctx.prefix ?? ''
   const issues: Issue[] = []
@@ -419,7 +519,25 @@ export function validateTrashEntry(e: TrashEntry, ctx: ValidationContext): Issue
   }
   const { refundOfId, ...structural } = e.transaction
   if (refundOfId !== undefined && !isValidId(refundOfId)) issues.push({ path: `${p}transaction.refundOfId`, code: 'invalidId' })
-  issues.push(...validateTransaction(structural as Transaction, { data: { ...ctx.data, transactions: [] }, prefix: `${p}transaction.` }))
+  // El reparto de una devolución depende de su compra (que puede no existir): solo su estructura.
+  if (structural.kind === 'refund' && structural.splits) {
+    const { splits, ...rest } = structural
+    issues.push(...validateTransaction(rest as Transaction, { data: { ...ctx.data, transactions: [] }, prefix: `${p}transaction.` }))
+    if (!Array.isArray(splits) || splits.length === 0 || splits.length > MAX_SPLIT_LINES || !splits.every((l) => l && isMinorAmount(l.amountMinor) && l.amountMinor > 0) || splitDifference(structural.amountMinor, splits) !== 0) {
+      issues.push({ path: `${p}transaction.splits`, code: 'invalidValue' })
+    }
+  } else {
+    issues.push(...validateTransaction(structural as Transaction, { data: { ...ctx.data, transactions: [] }, prefix: `${p}transaction.` }))
+  }
+  if (e.unlinkedRefundSplits !== undefined) {
+    const ok =
+      typeof e.unlinkedRefundSplits === 'object' &&
+      e.unlinkedRefundSplits !== null &&
+      Object.entries(e.unlinkedRefundSplits).every(
+        ([id, lines]) => isValidId(id) && Array.isArray(lines) && lines.length > 0 && lines.length <= MAX_SPLIT_LINES && lines.every((l) => l && isValidId(l.id) && typeof l.categoryId === 'string' && isMinorAmount(l.amountMinor) && l.amountMinor > 0),
+      )
+    if (!ok) issues.push({ path: `${p}unlinkedRefundSplits`, code: 'invalidValue' })
+  }
   return issues
 }
 

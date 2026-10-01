@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 6 as const
+export const SCHEMA_VERSION = 7 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -115,8 +115,21 @@ export interface Transaction {
    * el resto. Una ocurrencia queda cerrada cuando tiene una liquidación NO parcial.
    */
   partialSettlement?: boolean
+  /**
+   * Compra dividida entre categorías (solo gastos) o reparto de una devolución entre las
+   * categorías de la compra original. Son ASIGNACIONES del mismo movimiento: no afectan
+   * al saldo por separado. Σ líneas = `amountMinor` exacto; `categoryId` = la de la 1.ª línea.
+   */
+  splits?: SplitLine[]
   createdAt: Timestamp
   updatedAt: Timestamp
+}
+
+export interface SplitLine {
+  id: string
+  categoryId: string
+  amountMinor: number
+  note?: string
 }
 
 /** Rango de un ingreso variable. El importe esperado es `Schedule.amountMinor`. */
@@ -169,6 +182,8 @@ export interface GoalAllocation {
    * payment = usado al pagar un gasto planificado; carry = sobrante que pasa al siguiente periodo.
    */
   reason?: AllocationReason
+  /** Distribución de un ingreso que creó este apartado (v7, opcional). */
+  distributionId?: string
 }
 
 export type AllocationReason = 'contribution' | 'release' | 'payment' | 'carry'
@@ -266,6 +281,8 @@ export interface TrashEntry {
   transaction: Transaction
   /** Devoluciones que perdieron el vínculo con este gasto al eliminarlo (se recuperan al restaurar). */
   unlinkedRefundIds: string[]
+  /** Reparto por categorías de esas devoluciones (se quita mientras el gasto está en la papelera). */
+  unlinkedRefundSplits?: Record<string, SplitLine[]>
 }
 
 /** Plantilla de un gasto o ingreso frecuente. Nunca registra nada por sí sola. */
@@ -393,6 +410,43 @@ export interface SavedScenario {
   updatedAt: Timestamp
 }
 
+/**
+ * Bandeja de pendientes: los avisos se CALCULAN a partir de los datos; aquí solo se guarda
+ * lo que decidió la persona. `fingerprint` = datos relevantes al descartar: si cambian, el
+ * aviso vuelve a aparecer. Posponer nunca cambia cifras.
+ */
+export interface InboxState {
+  snoozed: { id: string; until: LocalDate; at: Timestamp }[]
+  dismissed: { id: string; fingerprint: string; at: Timestamp }[]
+}
+
+export type DistributionLineKind = 'payment' | 'goal'
+
+export interface IncomeDistributionLine {
+  kind: DistributionLineKind
+  goalId: string
+  /** Apartado creado en la meta (mismo id en `goal.allocations`). */
+  allocationId: string
+  amountMinor: number
+  /** La meta la creó esta distribución (pago vinculado). */
+  createdGoal: boolean
+  /** Solo pagos: ocurrencia del calendario cubierta. */
+  scheduleId?: string
+  occurrenceDate?: LocalDate
+}
+
+/** Reparto de un ingreso YA recibido entre pagos, metas y dinero libre. No mueve dinero. */
+export interface IncomeDistribution {
+  id: string
+  incomeTxId: string
+  /** Importe, fecha, cuenta y estado del ingreso al distribuirlo (para detectar cambios). */
+  incomeFingerprint: string
+  incomeAmountMinor: number
+  lines: IncomeDistributionLine[]
+  createdAt: Timestamp
+  undoneAt?: Timestamp
+}
+
 export interface AppData {
   schemaVersion: typeof SCHEMA_VERSION
   /** Identificador único de este presupuesto (útil para sincronizar en el futuro). */
@@ -418,6 +472,8 @@ export interface AppData {
   backup: BackupState
   periodBudgets: PeriodBudget[]
   scenarios: SavedScenario[]
+  inbox: InboxState
+  incomeDistributions: IncomeDistribution[]
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */

@@ -15,12 +15,16 @@ import type {
   Favorite,
   Goal,
   GoalAllocation,
+  IncomeDistribution,
+  IncomeDistributionLine,
+  InboxState,
   PeriodBudget,
   PlannedExpense,
   PlannedExpenseCycle,
   Reconciliation,
   SavedScenario,
   ScenarioChange,
+  SplitLine,
   Schedule,
   Settings,
   Transaction,
@@ -35,6 +39,8 @@ import {
   validateCategoryRule,
   validateFavorite,
   validateGoal,
+  validateIncomeDistribution,
+  validateInbox,
   validatePeriodBudget,
   validateReconciliation,
   validateScenario,
@@ -119,14 +125,22 @@ const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'createdAt', 'updatedAt
 const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
   'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef',
-  'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'createdAt', 'updatedAt',
+  'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'splits', 'createdAt', 'updatedAt',
 ] as const
+const SPLIT_KEYS = ['id', 'categoryId', 'amountMinor', 'note'] as const
+
+/** Movimiento con solo las claves conocidas (también en sus líneas). */
+function pickTx(t: Obj): Transaction {
+  const tx = pick<Transaction>(t, TX_KEYS)
+  if (Array.isArray(t.splits)) tx.splits = t.splits.map((l) => (isObj(l) ? pick<SplitLine>(l, SPLIT_KEYS) : (l as SplitLine)))
+  return tx
+}
 const SCHEDULE_KEYS = [
   'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'range', 'currency', 'accountId', 'categoryId', 'frequency',
   'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'createdAt', 'updatedAt',
 ] as const
 const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'createdAt', 'updatedAt'] as const
-const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt', 'reason'] as const
+const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt', 'reason', 'distributionId'] as const
 const PLAN_KEYS = ['repeatEveryMonths', 'link', 'categoryId', 'history', 'paidAt'] as const
 const CYCLE_KEYS = ['dueDate', 'targetMinor', 'reservedMinor', 'paidMinor', 'txId', 'surplus', 'paidAt'] as const
 
@@ -191,7 +205,7 @@ export function validateAppData(raw: unknown): ImportResult {
   checkDuplicates(accounts, 'accounts', issues)
   if (issues.length) return { ok: false, issues: issues.slice(0, 50) }
 
-  const transactions = (migrated.transactions as Obj[]).map((t) => pick<Transaction>(t, TX_KEYS))
+  const transactions = (migrated.transactions as Obj[]).map(pickTx)
   const schedules = (migrated.schedules as Obj[]).map((s) => pick<Schedule>(s, SCHEDULE_KEYS))
   const goals = (migrated.goals as Obj[]).map((g) => {
     const goal = pick<Goal>(g, GOAL_KEYS)
@@ -241,8 +255,8 @@ export function validateAppData(raw: unknown): ImportResult {
   // v5: papelera, huellas purgadas, favoritos, conciliaciones y registro de copias (opcionales en copias antiguas).
   const rawTrash = listOf(migrated.trash, 'trash', issues)
   const trash = rawTrash.map((e) => {
-    const entry = pick<TrashEntry>(e, ['id', 'deletedAt', 'unlinkedRefundIds'])
-    if (isObj(e.transaction)) entry.transaction = pick<Transaction>(e.transaction, TX_KEYS)
+    const entry = pick<TrashEntry>(e, ['id', 'deletedAt', 'unlinkedRefundIds', 'unlinkedRefundSplits'])
+    if (isObj(e.transaction)) entry.transaction = pickTx(e.transaction)
     return entry
   })
   trash.forEach((e, i) => issues.push(...validateTrashEntry(e, { data: ctxData, prefix: `trash[${i}].` })))
@@ -296,6 +310,28 @@ export function validateAppData(raw: unknown): ImportResult {
   })
   scenarios.forEach((sc, i) => issues.push(...validateScenario(sc, `scenarios[${i}].`)))
   checkDuplicates(scenarios, 'scenarios', issues)
+  // v7: bandeja de pendientes y distribuciones de ingresos.
+  let inbox: InboxState = { snoozed: [], dismissed: [] }
+  if (migrated.inbox !== undefined) {
+    if (!isObj(migrated.inbox)) issues.push({ path: 'inbox', code: 'invalidValue' })
+    else {
+      const snoozed = listOf(migrated.inbox.snoozed, 'inbox.snoozed', issues).map((s) => pick<InboxState['snoozed'][number]>(s, ['id', 'until', 'at']))
+      const dismissed = listOf(migrated.inbox.dismissed, 'inbox.dismissed', issues).map((d) => pick<InboxState['dismissed'][number]>(d, ['id', 'fingerprint', 'at']))
+      inbox = { snoozed, dismissed }
+      issues.push(...validateInbox(inbox))
+    }
+  }
+  const incomeDistributions = listOf(migrated.incomeDistributions, 'incomeDistributions', issues).map((d) => {
+    const dist = pick<IncomeDistribution>(d, ['id', 'incomeTxId', 'incomeFingerprint', 'incomeAmountMinor', 'lines', 'createdAt', 'undoneAt'])
+    if (Array.isArray(d.lines)) {
+      dist.lines = d.lines.map((l) =>
+        isObj(l) ? pick<IncomeDistributionLine>(l, ['kind', 'goalId', 'allocationId', 'amountMinor', 'createdGoal', 'scheduleId', 'occurrenceDate']) : (l as IncomeDistributionLine),
+      )
+    }
+    return dist
+  })
+  incomeDistributions.forEach((d, i) => issues.push(...validateIncomeDistribution(d, `incomeDistributions[${i}].`)))
+  checkDuplicates(incomeDistributions, 'incomeDistributions', issues)
   issues.push(...validateBackupState(backup, 'backup.'))
   if (issues.length) return { ok: false, issues: issues.slice(0, 50) }
 
@@ -318,6 +354,8 @@ export function validateAppData(raw: unknown): ImportResult {
     backup,
     periodBudgets,
     scenarios,
+    inbox,
+    incomeDistributions,
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

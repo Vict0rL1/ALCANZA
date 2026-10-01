@@ -6,9 +6,10 @@ import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
 import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
+import { inferRefundSplit, refundableByCategory } from '../../domain/splits'
 import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
-import type { AppData, CategoryRule, Transaction, TxKind, TxStatus } from '../../domain/types'
+import type { AppData, CategoryRule, SplitLine, Transaction, TxKind, TxStatus } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { LIMITS } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -22,13 +23,15 @@ import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
 import { FavoriteChips, FavoriteDialog } from '../favoritesUi'
 import { useDeleteTransaction } from '../useDeleteTransaction'
+import { SplitEditor } from '../splitEditor'
+import { draftsFromLines, newSplitDraft, parseDrafts, type SplitDraft } from '../splitDrafts'
 import { useFormat } from '../format'
 import { accountName, categoryLabel, fieldError, issueMessage, otherIssues, planItemName, transactionTitle, withCurrent } from '../labels'
 import { href, navigate, withQuery, type Route } from '../router'
 
 type FormKind = Exclude<TxKind, 'adjustment'>
 
-const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note', 'link', 'expectRemainder']
+const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note', 'link', 'expectRemainder', 'splits']
 
 export function MovementForm({ route }: { route: Route }) {
   const { t } = useT()
@@ -145,6 +148,9 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   // Vínculo con un pago o ingreso previsto (solo movimientos nuevos): evita contarlo dos veces.
   const [linkKey, setLinkKey] = useState('')
   const [expectRemainder, setExpectRemainder] = useState(false)
+  // Compra dividida (gastos) o reparto de la devolución de una compra dividida.
+  const [splitDrafts, setSplitDrafts] = useState<SplitDraft[] | null>(() => (existing?.splits?.length ? draftsFromLines(existing.splits, fmt) : null))
+  const [splitError, setSplitError] = useState<string | null>(null)
 
   const linkCandidates = useMemo(() => {
     if (existing || (kind !== 'income' && kind !== 'expense')) return []
@@ -154,7 +160,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
 
   const changeNote = (value: string) => {
     setNote(value)
-    if (categoryTouched || kind === 'transfer') return
+    // Una regla de categoría nunca sobrescribe una división manual.
+    if (categoryTouched || kind === 'transfer' || splitDrafts) return
     const rule = matchCategoryRule(value, kind, data.categoryRules, data.categories)
     if (rule) {
       setCategoryId(rule.categoryId)
@@ -167,6 +174,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
 
   const changeKind = (k: FormKind) => {
     setKind(k)
+    if (k !== kind) setSplitDrafts(null)
     setRuleApplied(undefined)
     setLinkKey('')
     const valid = categoriesForKind(k, data.categories)
@@ -191,19 +199,37 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const periodIds = openPeriods.filter((b) => periodChecked(b.id)).map((b) => b.id)
 
   const parsedAmount = parseMoneyText(amountText, fmt)
+  const refundOriginal = kind === 'refund' && refundOfId ? data.transactions.find((x) => x.id === refundOfId) : undefined
+  const refundSplitMode = !!refundOriginal?.splits?.length
+  const refundPending = useMemo(() => (refundOriginal && refundSplitMode ? refundableByCategory(data, refundOriginal, id) : undefined), [data, refundOriginal, refundSplitMode, id])
+  const inferredRefund = refundOriginal && refundSplitMode && parsedAmount.ok ? inferRefundSplit(data, refundOriginal, parsedAmount.minor, id) : null
+  const expenseCategories = categoriesForKind('expense', data.categories)
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
     setAmountError(moneyErrorMessage(t, parsed))
     // Evita un segundo envío por doble clic antes de que React vuelva a pintar.
     if (!parsed.ok || submitting.current) return
+    // División: las líneas deben ser válidas y sumar exactamente el total (también lo valida el dominio).
+    let splits: SplitLine[] | undefined
+    const splitActive = (kind === 'expense' || refundSplitMode) && splitDrafts
+    if (splitActive) {
+      const lines = parseDrafts(splitDrafts, fmt)
+      if (!lines) return void setSplitError(t('split.invalidLine'))
+      const diff = parsed.minor - lines.reduce((sum, l) => sum + l.amountMinor, 0)
+      if (diff !== 0) return void setSplitError(t('issue.splitMismatch', { differenceMinor: fmt.money(diff) }))
+      splits = lines
+    } else if (refundSplitMode) {
+      return void setSplitError(t('split.refundNeedsSplit'))
+    }
+    setSplitError(null)
     submitting.current = true
     setBusy(true)
     const useLink = !!linked && status === 'realized'
     const periods = kind === 'expense' || kind === 'refund' ? periodIds : []
 
     const { result, saved } = await run((d, c) => {
-      const r = save(d, c, parsed.minor)
+      const r = save(d, c, parsed.minor, splits)
       if (!r.ok || (useLink && r.unchanged && r.value.id !== id) || openPeriods.length === 0) return r
       // Asociación con presupuestos por periodo en la misma operación (todo o nada).
       const p = setTransactionPeriods(r.data, r.value.id, periods, c)
@@ -227,7 +253,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   }
 
   /** Guarda el movimiento (o liquida la ocurrencia vinculada). */
-  function save(d: AppData, c: OpContext, amountMinor: number) {
+  function save(d: AppData, c: OpContext, amountMinor: number, splits?: SplitLine[]) {
     if (linked && status === 'realized') {
       return markOccurrence(
         d,
@@ -255,7 +281,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
         amountMinor,
         date,
         accountId,
-        ...(kind === 'transfer' ? { toAccountId } : { categoryId }),
+        ...(kind === 'transfer' ? { toAccountId } : { categoryId: splits?.[0]?.categoryId ?? categoryId }),
+        ...(splits ? { splits } : {}),
         ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
         note,
         ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
@@ -357,7 +384,49 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             />
           ))}
 
-        {kind !== 'transfer' && (
+        {kind === 'expense' && !splitDrafts && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--small"
+            onClick={() => {
+              setSplitDrafts([newSplitDraft(categoryId || 'other_expense', amountText), newSplitDraft(expenseCategories.find((c) => c !== categoryId) ?? 'other_expense')])
+              setRuleApplied(undefined)
+            }}
+          >
+            <Icon name="list" size={16} />
+            {t('split.start')}
+          </button>
+        )}
+        {kind === 'expense' && splitDrafts && (
+          <>
+            <SplitEditor
+              legend={t('split.legend')}
+              drafts={splitDrafts}
+              onChange={(d) => {
+                setSplitDrafts(d)
+                setSplitError(null)
+              }}
+              totalMinor={parsedAmount.ok ? parsedAmount.minor : null}
+              categories={withCurrent(expenseCategories, undefined).concat(existing?.splits?.map((l) => l.categoryId).filter((c) => !expenseCategories.includes(c)) ?? [])}
+              error={splitError ?? fieldError(t, fmt, issues, 'splits')}
+            />
+            <p className="note">{t('split.hint')}</p>
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => {
+                setCategoryId(splitDrafts[0]?.categoryId ?? categoryId)
+                setSplitDrafts(null)
+                setSplitError(null)
+              }}
+            >
+              <Icon name="x" size={16} />
+              {t('split.remove')}
+            </button>
+          </>
+        )}
+
+        {kind !== 'transfer' && !(kind === 'expense' && splitDrafts) && (
           <SelectField
             label={t('fields.category')}
             value={categoryId}
@@ -383,6 +452,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
               setRefundOfId(e.target.value)
               const original = data.transactions.find((tx) => tx.id === e.target.value)
               if (original?.categoryId) setCategoryId(original.categoryId)
+              setSplitDrafts(original?.splits?.length ? original.splits.map((l) => newSplitDraft(l.categoryId)) : null)
+              setSplitError(null)
             }}
             options={[
               { value: '', label: t('movementForm.refundOfNone') },
@@ -398,6 +469,36 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             error={fieldError(t, fmt, issues, 'refundOfId')}
             hint={t('movementForm.refundOfHint')}
           />
+        )}
+
+        {refundSplitMode && refundOriginal && (
+          <>
+            <Alert tone="info" icon="info" title={t('split.refundTitle')}>
+              {inferredRefund ? t('split.refundInferable') : t('split.refundAsk')}
+            </Alert>
+            {inferredRefund && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--small"
+                onClick={() => setSplitDrafts(inferredRefund.map((l) => newSplitDraft(l.categoryId, fmt.moneyInput(l.amountMinor))))}
+              >
+                {t('split.refundAuto')}
+              </button>
+            )}
+            <SplitEditor
+              legend={t('split.refundLegend')}
+              drafts={splitDrafts ?? []}
+              onChange={(d) => {
+                setSplitDrafts(d)
+                setSplitError(null)
+              }}
+              totalMinor={parsedAmount.ok ? parsedAmount.minor : null}
+              categories={[...new Set(refundOriginal.splits!.map((l) => l.categoryId))]}
+              maxByCategory={refundPending}
+              withNotes={false}
+              error={splitError ?? fieldError(t, fmt, issues, 'splits')}
+            />
+          </>
         )}
 
         {linkCandidates.length > 0 && status === 'realized' && (
