@@ -439,7 +439,7 @@ Diferencia = saldo observado − saldo calculado
 
 ## 17. Formato de datos y migraciones
 
-- Versión actual: **6**. Migraciones encadenadas v1 → v2 → v3 → v4 → v5 → v6 en
+- Versión actual: **7**. Migraciones encadenadas v1 → v2 → v3 → v4 → v5 → v6 → v7 en
   `src/storage/migrations.ts`, con pruebas.
 - v4 → v5 añade `trash`, `purgedImportRefs`, `favorites`, `reconciliations` y `backup`
   solo si **faltan**; si existen con un formato incorrecto se conservan para que la
@@ -447,8 +447,11 @@ Diferencia = saldo observado − saldo calculado
 - v5 → v6 añade `periodBudgets: []`, `scenarios: []` y `settings.weeklyReview: true`
   solo si faltan (una preferencia ya guardada se respeta). Las metas antiguas no cambian:
   `allocations[].reason` y `goal.plan` son opcionales.
+- v6 → v7 añade `inbox: { snoozed: [], dismissed: [] }` e `incomeDistributions: []` solo
+  si faltan. Las compras divididas (`transactions[].splits`), `allocations[].distributionId`
+  y `trash[].unlinkedRefundSplits` son opcionales: los datos anteriores no cambian.
 - Antes de guardar por primera vez datos migrados, se conserva el texto original en
-  `localStorage` (`margen.data.before-v6`).
+  `localStorage` (`margen.data.before-v7`).
 - Datos o copias de una versión futura se rechazan (`schemaTooNew`) sin tocar los datos
   actuales; si una migración falla, se informa (`migrationFailed`) y no se modifica nada.
 - Copias, importación y «Borrar todos los datos» incluyen las entidades nuevas
@@ -587,3 +590,88 @@ ocultar en Inicio o en Ajustes; no hay correos ni notificaciones).
   `search.test.ts` con 10 000 movimientos (la prueba falla si el índice supera 1 s o una
   búsqueda 200 ms). Medido en el contenedor de desarrollo (Node, 3 repeticiones):
   índice 18–27 ms; búsqueda concreta («autobus») 3–10 ms; búsqueda amplia («ca») 6–10 ms.
+
+## 23. Compras divididas entre categorías
+
+`src/domain/splits.ts`. Una compra dividida sigue siendo **un solo movimiento** (cuenta,
+fecha, nota/comercio, importe total y huella de importación). `splits` solo reparte ese
+importe:
+
+- **Σ líneas = total exacto en centavos** (`splitMismatch` si difiere aunque sea 1 centavo).
+  Al menos 2 líneas en un gasto; categorías de gasto válidas; `categoryId` = la de la 1.ª
+  línea (compatibilidad). Solo gastos (y devoluciones de compras divididas): una
+  transferencia o un ingreso con líneas se rechaza.
+- **Saldos, disponible y proyección** usan el movimiento: cuenta **una vez**.
+- **Reportes, límites, revisión semanal, búsqueda y filtro por categoría** usan las líneas
+  (`categoryAllocations`, `txCategoryIds`).
+- Cambiar el total sin ajustar las líneas se bloquea (la interfaz muestra «Falta asignar» o
+  «Sobran» y ofrece «Asignar el resto aquí» como acción explícita). Quitar la división deja
+  el movimiento con la categoría de la 1.ª línea.
+- Una **regla de categoría** nunca sobrescribe una división (solo propone mientras no hay
+  división ni elección manual). **Reimportar** el CSV reconoce la compra por su `importRef`.
+- **Papelera:** las líneas viajan dentro del movimiento (atómico). Si se elimina una compra
+  con devoluciones repartidas, estas pierden vínculo y reparto (el dinero devuelto sigue
+  contando) y el reparto se guarda en `unlinkedRefundSplits`; al restaurar la compra se
+  recupera si sigue siendo coherente.
+- **Devoluciones:** una devolución de una compra dividida se reparte entre sus categorías:
+  `pendiente(c) = línea(c) − Σ devoluciones repartidas en c`; ninguna línea puede superarlo
+  (`refundExceeds`). El reparto se deduce solo si no hay ambigüedad (devolución total → cada
+  categoría su pendiente; una sola categoría con pendiente → esa); si no, se pide a la
+  persona. Editar la compra de forma que una devolución quede inválida se bloquea.
+- **Fechas en reportes:** el gasto cuenta en el periodo de la fecha de la compra; la
+  devolución, en el de la fecha de la devolución (resta en sus categorías ese periodo). Una
+  devolución nunca es ingreso ni se descuenta dos veces.
+
+## 24. Bandeja de pendientes
+
+`src/domain/inbox.ts`. Los avisos **se calculan** a partir de los datos (no hay una
+segunda copia de la información) con un **id estable** (`cat:<tx>`, `due:<clave del
+pago>`, `dup:<a>:<b>`, `bal:<cuenta>:<motivo>`, `int:…`), así nunca aparecen dos veces.
+
+- **Sin categoría:** gasto o ingreso realizado, sin dividir, en «Otros gastos/ingresos».
+- **Sin confirmar:** pago o ingreso del calendario (o previsto) cuya fecha pasó sin
+  registrarse ni omitirse. Texto neutral: «puede que ya lo hayas pagado».
+- **Posibles duplicados:** mismo tipo, cuenta e importe, a ±3 días y misma nota (o sin
+  nota). Nunca: transferencias, ajustes, líneas de una compra dividida ni pagos parciales
+  de la misma ocurrencia. Solo es una sugerencia: nada se elimina ni combina.
+- **Saldos por verificar:** cuentas del presupuesto y tarjetas nunca verificadas, verificadas
+  hace más de 30 días o con la verificación «por revisar». Muestra por separado el
+  **último movimiento registrado** y la **última verificación con el banco**.
+- **Coherencia:** gasto planificado cuyo pago vinculado ya se registró pero sigue con dinero
+  apartado (se descontaría dos veces; «Cerrar con el pago registrado» lo resuelve sin crear
+  otro gasto) y distribuciones cuyo ingreso cambió o se eliminó.
+- **Posponer** guarda `{id, hasta}`: no cambia cifras y el aviso vuelve en esa fecha si el
+  problema sigue. **Descartar** («Está bien así», «Son distintos», «Ya lo revisé») guarda
+  `{id, huella}`; si cambian los datos relevantes (importe, fecha, cuenta, nota…), el aviso
+  vuelve. Los pagos vencidos y los saldos no se pueden descartar, solo posponer.
+- **Resolver** (categorizar, registrar el pago, verificar…) retira el aviso porque deja de
+  calcularse. En Inicio solo aparece un acceso compacto con el número de pendientes.
+
+## 25. Distribuir un ingreso recibido
+
+`src/domain/incomeDistribution.ts`. Solo ingresos **realizados**.
+
+- **No crea dinero:** el ingreso ya está en el saldo. Distribuir solo crea apartados
+  virtuales con las metas existentes (sin transferencias ni movimientos nuevos).
+- **Pagos:** se apartan con un gasto planificado vinculado a esa ocurrencia (se reutiliza
+  si ya existe). Si el pago ya se descontaba del disponible (antes del próximo ingreso), la
+  cobertura de §18 hace que **no se reste dos veces**: el disponible no cambia.
+- **Necesidades:** pago = importe − ya apartado para él; meta = objetivo − apartado.
+- **Límites:** Σ asignado ≤ ingreso − lo ya distribuido de ese ingreso; cada apartado que
+  sí cuesta dinero libre pasa por el control de siempre (`maxBudgetAllocation`), así que
+  nunca supera «Puedes gastar». Si el ingreso ya se gastó en parte, se explica cuánto queda
+  libre de verdad.
+- **Propuesta** (editable; el orden lo elige la persona): pagos por fecha con lo que les
+  falta; metas por fecha objetivo con su propia cuota por ingreso (§7) o lo que les falta.
+  Sin porcentajes fijos. Lo no asignado queda libre.
+- **Vista previa** antes/después de «Puedes gastar», reservado y saldo; se aplica solo al
+  confirmar, en **una operación** (todo o nada) e idempotente (id generado al abrir).
+- **Vínculos e historial:** `incomeDistributions[]` guarda el ingreso, su huella (importe,
+  fecha, cuenta, estado) y cada línea (meta, apartado, importe); cada apartado lleva
+  `distributionId`. Reabrir el asistente muestra lo ya repartido y no lo ofrece de nuevo.
+- **Cambios posteriores:** si el ingreso se edita o se elimina, la distribución se marca
+  para revisar (bandeja y asistente).
+- **Deshacer:** libera cada apartado (movimiento de liberación, sin borrar historial) y
+  quita la meta que la distribución creó si no tuvo otros movimientos. Si algún apartado
+  ya se usó para pagar o la meta ya no tiene ese dinero, **no se revierte nada** y se
+  explica el conflicto (`distributionConflict`).

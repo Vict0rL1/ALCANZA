@@ -11,6 +11,7 @@ import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
 import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
+import { inboxView } from '../../domain/inbox'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
@@ -77,10 +78,18 @@ export function Home() {
     })
   }
   const otherReminders = reminderItems.filter((i) => i.state !== 'overdue')
+  const pendingCount = useMemo(() => inboxView(data, today).active.length, [data, today])
 
   return (
     <div className="stack">
       <PageHeader title={t('home.title')} />
+
+      {/* Acceso compacto a la bandeja de pendientes (sin llenar la pantalla de avisos) */}
+      <a className="inbox-link" href={href('/pendientes')} data-testid="inbox-link">
+        <Icon name={pendingCount > 0 ? 'alert' : 'checkCircle'} size={18} />
+        <span>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</span>
+        <Icon name="chevronRight" size={16} />
+      </a>
 
       {/* Avisos que requieren acción */}
       {budget.overdueIncomes.map((item) => (

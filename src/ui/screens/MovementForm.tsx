@@ -248,7 +248,14 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
       setIssues([{ path: 'link', code: 'occurrenceAlreadySettled', params: { date: fmt.date(linked.date) } }])
       return
     }
-    toast({ message: saved ? t(existing ? 'movementForm.updated' : 'movementForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    const savedTx = result.value
+    const canDistribute = saved && !existing && savedTx.kind === 'income' && savedTx.status === 'realized'
+    toast({
+      message: saved ? t(existing ? 'movementForm.updated' : 'movementForm.saved') : t('save.error.generic'),
+      tone: saved ? 'good' : 'critical',
+      // Tras registrar un ingreso recibido se ofrece repartirlo (nunca se hace solo).
+      ...(canDistribute ? { action: { label: t('distribution.offer'), onClick: () => navigate(`/movimientos/distribuir/${savedTx.id}`) } } : {}),
+    })
     navigate(returnTo)
   }
 
@@ -620,6 +627,12 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
           )}
         </div>
         {existing && <p className="note">{t('trash.deleteNote')}</p>}
+        {existing?.kind === 'income' && existing.status === 'realized' && (
+          <a className="btn btn--secondary" href={href(`/movimientos/distribuir/${existing.id}`)}>
+            <Icon name="target" />
+            {t('distribution.offer')}
+          </a>
+        )}
       </form>
 
       {favoriteOpen && (kind === 'expense' || kind === 'income') && (

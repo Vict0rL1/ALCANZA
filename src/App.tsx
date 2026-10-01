@@ -27,6 +27,8 @@ const WeeklyReview = lazy(() => import('./ui/screens/WeeklyReview').then((m) => 
 const Scenarios = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ default: m.Scenarios })))
 const ScenarioForm = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ default: m.ScenarioForm })))
 const Search = lazy(() => import('./ui/screens/Search').then((m) => ({ default: m.Search })))
+const Inbox = lazy(() => import('./ui/screens/Inbox').then((m) => ({ default: m.Inbox })))
+const IncomeDistributionScreen = lazy(() => import('./ui/screens/IncomeDistribution').then((m) => ({ default: m.IncomeDistributionScreen })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
@@ -261,7 +263,7 @@ function Shell() {
       <div className="shell__body">
         <nav className="nav" aria-label={t('nav.aria')}>
           {NAV.map((item) => {
-            const active = item.match === top || (item.match === '' && (top === 'alcanza' || top === 'revision'))
+            const active = item.match === top || (item.match === '' && (top === 'alcanza' || top === 'revision' || top === 'pendientes'))
             return (
               <a key={item.path} className={`nav__item${active ? ' is-active' : ''}`} href={href(item.path)} aria-current={active ? 'page' : undefined}>
                 <Icon name={item.icon} size={22} />
@@ -288,9 +290,11 @@ function Screen({ route }: { route: Route }) {
   if (a === 'alcanza' && b === 'escenarios' && (c === 'nuevo' || c === 'editar')) return <ScenarioForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'alcanza' && b === 'escenarios') return <Scenarios key={key} />
   if (a === 'alcanza') return <Afford key={key} />
+  if (a === 'pendientes') return <Inbox key={key} />
   if (a === 'revision') return <WeeklyReview key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && b === 'importar') return <BankImport key={key} />
+  if (a === 'movimientos' && b === 'distribuir' && c) return <IncomeDistributionScreen key={key} route={route} />
   if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
   if (a === 'movimientos' && b === 'favoritos') return <Favorites key={key} />
   if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />

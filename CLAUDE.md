@@ -73,6 +73,14 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Escenarios: se simulan sobre una copia; nunca modifican datos reales ni se aplican solos.
 - Búsqueda: local, sin acentos ni mayúsculas; categorías fijas en el idioma activo;
   papelera solo si se pide.
+- Compras divididas (`splits`, `domain/splits.ts`): un solo movimiento; Σ líneas = total
+  exacto; saldos usan el movimiento, reportes/límites/búsqueda las líneas. Las reglas de
+  categoría nunca pisan una división. Devoluciones repartidas sin superar lo pendiente.
+- Bandeja de pendientes (`domain/inbox.ts`): avisos CALCULADOS con ids estables; solo se
+  guarda posponer/descartar (con huella). Nunca elimina ni combina duplicados.
+- Distribuir un ingreso (`domain/incomeDistribution.ts`): solo ingresos realizados; crea
+  apartados virtuales (metas), nunca dinero ni movimientos; pagos ya reservados no se
+  restan dos veces; todo o nada; deshacer solo si es coherente.
 - Registro de copias (`backup`): no modifica `updatedAt`. Una exportación fallida no se
   registra; «exportada» ≠ «verificada».
 
@@ -91,7 +99,7 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Ningún secreto, clave o credencial en el código, el navegador o los registros.
   No hace falta `.env` en esta fase.
 - La importación valida TODO el archivo y no aplica nada si hay un error.
-- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 6) y añadir migración con prueba.
+- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 7) y añadir migración con prueba.
   Las migraciones solo rellenan campos ausentes; nunca borran datos mal formados.
 - Datos de demostración siempre marcados con `isDemo: true`.
 - El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea

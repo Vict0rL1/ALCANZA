@@ -146,3 +146,35 @@ describe('distribuir un ingreso: cambios posteriores y deshacer', () => {
     expect(validateAppData(bad).ok).toBe(false)
   })
 })
+
+describe('distribuir un ingreso: fallo de guardado', () => {
+  it('si el navegador no puede guardar, lo almacenado queda intacto (sin escrituras parciales)', async () => {
+    const { LocalStorageRepository, STORAGE_KEY } = await import('../storage/localStorageRepository')
+    const store = new Map<string, string>()
+    let full = false
+    const fake = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        if (full) throw Object.assign(new Error('full'), { name: 'QuotaExceededError' })
+        store.set(k, v)
+      },
+      removeItem: (k: string) => void store.delete(k),
+    }
+    const original = (globalThis as { localStorage?: unknown }).localStorage
+    ;(globalThis as { localStorage?: unknown }).localStorage = fake
+    try {
+      const repo = new LocalStorageRepository()
+      expect(await repo.save(data)).toEqual({ ok: true })
+      const before = store.get(STORAGE_KEY)
+      full = true
+      const next = ok(applyDistribution(data, example, ctx)).data
+      expect((await repo.save(next)).ok).toBe(false)
+      expect(store.get(STORAGE_KEY)).toBe(before)
+      full = false // al recargar, se lee la última versión guardada completa
+      const loaded = await repo.load()
+      expect(loaded.status === 'ok' && loaded.data.incomeDistributions).toEqual([])
+    } finally {
+      ;(globalThis as { localStorage?: unknown }).localStorage = original
+    }
+  })
+})

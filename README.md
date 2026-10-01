@@ -89,7 +89,10 @@ npm run preview
 1. **Primera vez:** elige «Configurar con mis datos» (moneda, saldo de hoy, próximo
    ingreso, pagos pendientes y reserva) o «Explorar con datos de demostración».
 2. **Inicio:** cuánto puedes gastar hasta tu próximo ingreso, por día y por semana,
-   en qué se va tu saldo, avisos y próximos pagos. Pulsa «¿Cómo se calculó?» para ver
+   en qué se va tu saldo, avisos y próximos pagos. Un acceso compacto abre la **bandeja de
+   pendientes**: movimientos sin categoría, pagos sin confirmar, posibles duplicados,
+   saldos por verificar y revisiones de coherencia, cada uno con su motivo, un acceso para
+   resolverlo y opciones de posponer o descartar. Pulsa «¿Cómo se calculó?» para ver
    la cuenta completa.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
    (realizados o previstos). Busca, filtra (también por rango de fechas) y edita. **Eliminar envía a la Papelera**
@@ -100,6 +103,13 @@ npm run preview
    formulario, o desde Movimientos › Favoritos). Aparecen como botones en Inicio y en el
    formulario; abren el formulario con la fecha de hoy y tú confirmas. Nunca guardan nada
    solos.
+   **Dividir entre categorías**: una compra (por ejemplo, $120 en el súper) puede repartirse
+   en líneas (supermercado, hogar, ropa) que deben sumar exactamente el total. Sigue siendo
+   un solo movimiento para el saldo; los reportes y límites usan las líneas. Una devolución
+   de esa compra se reparte entre sus categorías.
+   **Distribuir este ingreso** (en un ingreso recibido): propone cuánto apartar para pagos
+   próximos y metas, muestra el antes y después y solo aplica al confirmar. El saldo no
+   cambia; se puede deshacer si es coherente.
    Arriba verás el resumen del mes: ingresos, gasto neto, gasto por categoría y límites
    mensuales opcionales por categoría. Con «Importar CSV» cargas el historial que
    descargas de la web de tu banco: revisas cada fila (nuevas, posibles duplicados, ya
@@ -171,7 +181,11 @@ escenarios), gastos planificados (sin doble reserva, pago distinto de lo apartad
 repeticiones y vencidos), presupuestos por periodo (solapados, devoluciones, archivo,
 reserva), revisión semanal (base cero, datos faltantes, zona horaria), escenarios
 (aislados y recalculados si cambian los datos), búsqueda (acentos, traducciones,
-papelera y 10 000 movimientos) y migraciones v4/v5 → v6.
+papelera y 10 000 movimientos), compras divididas (centavo exacto, reportes, devoluciones,
+papelera, reimportación), bandeja de pendientes (aparecen, se resuelven, se posponen, no se
+duplican, falsos positivos de duplicados), distribución de ingresos (sin crear dinero ni
+duplicar reservas, ingresos gastados, editados o eliminados, deshacer, fallo de guardado) y
+migraciones v4/v5/v6 → v7.
 
 ### Pruebas en el navegador (celular 390 px, celular 320 px y escritorio)
 

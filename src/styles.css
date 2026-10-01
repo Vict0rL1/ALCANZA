@@ -1823,6 +1823,7 @@ fieldset.bill-row {
 .toast {
   pointer-events: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 8px 8px 8px 14px;
@@ -1837,7 +1838,8 @@ fieldset.bill-row {
 }
 
 .toast__message {
-  flex: 1;
+  /* Con una acción larga en pantallas estrechas, la acción baja de línea y el texto se ve. */
+  flex: 1 1 9rem;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2235,4 +2237,32 @@ fieldset.bill-row {
 
 .split-status.is-ok {
   color: var(--good-text);
+}
+
+/* Acceso compacto a la bandeja de pendientes */
+.inbox-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.inbox-link span {
+  flex: 1;
+}
+
+.inbox-item {
+  display: grid;
+  gap: 8px;
+}
+
+.note--icon .icon {
+  vertical-align: -3px;
 }

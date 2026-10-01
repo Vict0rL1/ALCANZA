@@ -23,6 +23,7 @@ const ROUTES = [
   '/alcanza/escenarios',
   '/alcanza/escenarios/nuevo',
   '/buscar?q=cafe',
+  '/pendientes',
 ]
 
 async function horizontalOverflow(page: import('@playwright/test').Page) {
@@ -76,7 +77,7 @@ test('modo oscuro también pasa la auditoría de contraste', async ({ browser })
   const context = await browser.newContext({ colorScheme: 'dark', viewport: { width: 390, height: 844 } })
   const page = await context.newPage()
   await startDemo(page)
-  for (const route of ['/', '/alcanza', '/plan/calendario', '/plan/proyeccion']) {
+  for (const route of ['/', '/alcanza', '/plan/calendario', '/plan/proyeccion', '/pendientes']) {
     await go(page, route)
     if (route === '/alcanza') await page.getByLabel('Precio').fill('45')
     const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()

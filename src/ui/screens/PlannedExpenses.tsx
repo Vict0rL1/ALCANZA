@@ -9,7 +9,7 @@ import { goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
 import { deleteGoal, restoreGoal } from '../../domain/operations'
 import { openItemsUntil } from '../../domain/planItems'
-import { payPlannedExpense, plannedExpenseStatus, savePlannedExpense, type PlannedExpenseState } from '../../domain/plannedExpenses'
+import { linkedSettlement, payPlannedExpense, plannedExpenseStatus, savePlannedExpense, settlePlannedExpenseFromCalendar, type PlannedExpenseState } from '../../domain/plannedExpenses'
 import type { Goal, GoalFunding } from '../../domain/types'
 import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
@@ -41,6 +41,11 @@ export function PlannedExpenseCard({ goal, onAllocate }: { goal: Goal; onAllocat
   const fmt = useFormat()
   const today = useToday()
   const [paying, setPaying] = useState(false)
+  const data = useData()
+  const run = useRun()
+  const toast = useToast()
+  // El pago vinculado ya se registró (p. ej. desde el calendario): se cierra con ese movimiento.
+  const settledBy = linkedSettlement(data, goal)
   const s = plannedExpenseStatus(goal, today)
   const plan = goal.plan!
   const p = goalProgress(goal)
@@ -114,12 +119,32 @@ export function PlannedExpenseCard({ goal, onAllocate }: { goal: Goal; onAllocat
                 <span className="sr-only">: {goal.name}</span>
               </button>
             )}
-            <button type="button" className="btn btn--primary btn--small" onClick={() => setPaying(true)}>
-              <Icon name="check" size={16} />
-              {t('planned.pay')}
-              <span className="sr-only">: {goal.name}</span>
-            </button>
+            {settledBy ? (
+              <button
+                type="button"
+                className="btn btn--primary btn--small"
+                onClick={async () => {
+                  const { result, saved } = await run((d, c) => settlePlannedExpenseFromCalendar(d, goal.id, c))
+                  toast({ message: result.ok && saved ? t('inbox.settledToast') : t('save.error.generic'), tone: result.ok && saved ? 'good' : 'critical' })
+                }}
+              >
+                <Icon name="check" size={16} />
+                {t('inbox.action.settle')}
+                <span className="sr-only">: {goal.name}</span>
+              </button>
+            ) : (
+              <button type="button" className="btn btn--primary btn--small" onClick={() => setPaying(true)}>
+                <Icon name="check" size={16} />
+                {t('planned.pay')}
+                <span className="sr-only">: {goal.name}</span>
+              </button>
+            )}
           </div>
+          {settledBy && (
+            <Alert tone="warning" title={t('inbox.title.reserveForSettledBill', { name: goal.name })}>
+              {t('inbox.why.reserveForSettledBill', { amount: fmt.money(p.savedMinor) })}
+            </Alert>
+          )}
         </>
       )}
       {paid && <p className="note">{t('planned.paidNote')}</p>}
