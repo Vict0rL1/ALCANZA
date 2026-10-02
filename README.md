@@ -91,7 +91,7 @@ npm run preview
 2. **Inicio:** cuánto puedes gastar hasta tu próximo ingreso, por día y por semana,
    en qué se va tu saldo, avisos y próximos pagos. Un acceso compacto abre la **bandeja de
    pendientes**: movimientos sin categoría, pagos sin confirmar, posibles duplicados,
-   saldos por verificar y revisiones de coherencia, cada uno con su motivo, un acceso para
+   saldos por verificar, tarjetas cerca del límite, metas vencidas y revisiones de coherencia, cada uno con su motivo, un acceso para
    resolverlo y opciones de posponer o descartar. Pulsa «¿Cómo se calculó?» para ver
    la cuenta completa.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
@@ -106,7 +106,8 @@ npm run preview
    **Dividir entre categorías**: una compra (por ejemplo, $120 en el súper) puede repartirse
    en líneas (supermercado, hogar, ropa) que deben sumar exactamente el total. Sigue siendo
    un solo movimiento para el saldo; los reportes y límites usan las líneas. Una devolución
-   de esa compra se reparte entre sus categorías.
+   de esa compra se reparte entre sus categorías. Si ya dividiste una compra del mismo
+   comercio, se propone «Dividir como la última vez» con la misma proporción.
    **Distribuir este ingreso** (en un ingreso recibido): propone cuánto apartar para pagos
    próximos y metas, muestra el antes y después y solo aplica al confirmar. El saldo no
    cambia; se puede deshacer si es coherente.

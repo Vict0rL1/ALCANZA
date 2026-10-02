@@ -23,6 +23,7 @@ import { href, withQuery } from '../router'
 const KIND_ICON: Record<InboxItem['kind'], IconName> = {
   overdue: 'clock',
   balance: 'scale',
+  attention: 'alert',
   duplicate: 'list',
   uncategorized: 'star',
   integrity: 'shield',
@@ -152,7 +153,7 @@ function ItemText({ item }: { item: InboxItem }) {
   const name =
     item.planItem
       ? planItemName(item.planItem, t)
-      : item.kind === 'balance'
+      : item.accountId && item.kind !== 'duplicate'
         ? accountName(data.accounts, item.accountId, t)
         : goal
           ? goal.name
@@ -228,6 +229,16 @@ function InboxCard({ item, onPay, onSnooze, onDismiss }: { item: InboxItem; onPa
         {item.kind === 'balance' && (
           <a className="btn btn--primary btn--small" href={href(withQuery('/conciliar', { cuenta: item.accountId }))}>
             {t('inbox.action.verify')}
+          </a>
+        )}
+        {(item.reason === 'cardNearLimit' || item.reason === 'cardOverLimit') && (
+          <a className="btn btn--primary btn--small" href={href('/ajustes?seccion=cuentas')}>
+            {t('inbox.action.seeCard')}
+          </a>
+        )}
+        {item.reason === 'goalPastDue' && item.goalId && (
+          <a className="btn btn--primary btn--small" href={href(`/plan/metas/editar/${item.goalId}`)}>
+            {t('inbox.action.editGoal')}
           </a>
         )}
         {item.reason === 'reserveForSettledBill' && item.goalId && (

@@ -146,3 +146,22 @@ describe('compras divididas: papelera, copias e importación', () => {
     expect(again.ok && again.data.transactions).toHaveLength(1)
   })
 })
+
+describe('compras divididas: sugerencia desde el historial', () => {
+  it('reescala el último reparto del mismo comercio sin flotantes y con suma exacta', async () => {
+    const { scaleSplit, suggestSplitFromHistory } = await import('./splits')
+    const d = withPurchase() // Walmart 120 = 75 + 30 + 15
+    // Mismo total: copia exacta.
+    expect(suggestSplitFromHistory(d, 'walmart', 12000)!.lines.map((l) => l.amountMinor)).toEqual([7500, 3000, 1500])
+    // 100.00: floor(10000×7500/12000)=6250, floor(10000×3000/12000)=2500, floor(10000×1500/12000)=1250 → suma 10000.
+    expect(suggestSplitFromHistory(d, 'WALMART', 10000)!.lines.map((l) => l.amountMinor)).toEqual([6250, 2500, 1250])
+    // 1.00: 62, 25, 12 = 99 → el centavo restante va a la 1.ª línea: 63, 25, 12.
+    expect(scaleSplit([{ categoryId: 'a', amountMinor: 7500 }, { categoryId: 'b', amountMinor: 3000 }, { categoryId: 'c', amountMinor: 1500 }], 12000, 100).map((l) => l.amountMinor)).toEqual([63, 25, 12])
+    // Sin antecedentes, sin nota o sin total: nada.
+    expect(suggestSplitFromHistory(d, 'Costco', 10000)).toBeNull()
+    expect(suggestSplitFromHistory(d, '', 10000)).toBeNull()
+    expect(suggestSplitFromHistory(d, 'walmart', null)).toBeNull()
+    // No se sugiere a sí misma al editarla.
+    expect(suggestSplitFromHistory(d, 'walmart', 12000, 'buy')).toBeNull()
+  })
+})

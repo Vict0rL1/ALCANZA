@@ -4,7 +4,7 @@ import { dismissInboxItem, inboxView, possibleDuplicates, snoozeInboxItem, undis
 import { markOccurrence, reconcileAccount, saveTransaction } from './operations'
 import type { AppData } from './types'
 import { validateAppData } from '../storage/backup'
-import { account, baseData, bill, ctx, EARLIER, TODAY, tx } from '../test/fixtures'
+import { account, baseData, bill, ctx, EARLIER, goal, TODAY, tx } from '../test/fixtures'
 
 function ok<T>(r: { ok: true; data: AppData; value: T } | { ok: false; issues: unknown[] }) {
   if (!r.ok) throw new Error(JSON.stringify(r.issues))
@@ -127,5 +127,32 @@ describe('bandeja: copias', () => {
     const bad = JSON.parse(JSON.stringify(d))
     bad.inbox.snoozed[0].until = 'mañana'
     expect(validateAppData(bad).ok).toBe(false)
+  })
+})
+
+describe('bandeja: para tener en cuenta', () => {
+  const card = (debtMinor: number) =>
+    account({ id: 'visa', name: 'Visa', kind: 'credit', includeInBudget: false, anchor: { amountMinor: -debtMinor, date: TODAY, setAt: EARLIER }, card: { limitMinor: 100000 } })
+  const attention = (d: AppData, today = TODAY) => inboxView(d, today).active.filter((i) => i.kind === 'attention')
+
+  it('tarjeta: 89 % no avisa, 90 % avisa (descartable), por encima del límite siempre', () => {
+    expect(attention(baseData({ accounts: [baseData().accounts[0]!, card(89999)] }))).toEqual([])
+    const near = baseData({ accounts: [baseData().accounts[0]!, card(90000)] })
+    expect(attention(near).map((i) => [i.id, i.reason, i.amountMinor, i.canDismiss])).toEqual([['card:visa:near', 'cardNearLimit', 90000, true]])
+    const dismissed = ok(dismissInboxItem(near, attention(near)[0]!, ctx)).data
+    expect(attention(dismissed)).toEqual([])
+    // Superar el límite es otro aviso (no se puede descartar).
+    const over = { ...dismissed, accounts: [dismissed.accounts[0]!, card(100001)] }
+    expect(attention(over).map((i) => [i.reason, i.canDismiss])).toEqual([['cardOverLimit', false]])
+  })
+
+  it('meta vencida sin completar: aparece, se descarta y desaparece al completarla o cambiar la fecha', () => {
+    const d = baseData({ goals: [goal({ id: 'g', name: 'Viaje', targetMinor: 50000, targetDate: '2026-09-01', allocations: [{ id: 'a', amountMinor: 20000, date: '2026-08-01', createdAt: EARLIER }] })] })
+    expect(attention(d).map((i) => [i.id, i.amountMinor])).toEqual([['goal:g:2026-09-01', 30000]])
+    expect(attention(ok(dismissInboxItem(d, attention(d)[0]!, ctx)).data)).toEqual([])
+    const moved = { ...d, goals: [{ ...d.goals[0]!, targetDate: '2026-12-01' }] }
+    expect(attention(moved)).toEqual([])
+    const done = { ...d, goals: [{ ...d.goals[0]!, targetMinor: 20000 }] }
+    expect(attention(done)).toEqual([])
   })
 })

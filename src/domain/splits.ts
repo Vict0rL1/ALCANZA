@@ -8,7 +8,8 @@
  * Una devolución de una compra dividida puede repartirse entre sus categorías sin superar
  * lo que queda por devolver en cada una.
  */
-import { sumMinor } from './money'
+import { mulDivFloor, sumMinor } from './money'
+import { normalizeText } from './rules'
 import type { AppData, SplitLine, Transaction } from './types'
 
 export const MAX_SPLIT_LINES = 20
@@ -69,4 +70,38 @@ export function inferRefundSplit(data: Pick<AppData, 'transactions'>, original: 
   if (amountMinor === total && pending.length > 0) return pending
   if (pending.length === 1 && amountMinor <= pending[0]!.amountMinor) return [{ categoryId: pending[0]!.categoryId, amountMinor }]
   return null
+}
+
+/**
+ * Reescala un reparto a otro total sin flotantes: cada línea recibe
+ * floor(total × línea / total anterior) y el resto (por el redondeo) va a la 1.ª línea.
+ * Así Σ líneas = total exacto. Si el total es el mismo, se copian los importes.
+ */
+export function scaleSplit(lines: CategoryAmount[], previousTotalMinor: number, totalMinor: number): CategoryAmount[] {
+  if (previousTotalMinor <= 0 || lines.length === 0) return []
+  if (previousTotalMinor === totalMinor) return lines.map((l) => ({ ...l }))
+  const scaled = lines.map((l) => ({ categoryId: l.categoryId, amountMinor: mulDivFloor(totalMinor, l.amountMinor, previousTotalMinor) }))
+  scaled[0]!.amountMinor += totalMinor - sumMinor(scaled.map((l) => l.amountMinor))
+  return scaled
+}
+
+/**
+ * Sugerencia a partir del historial: la compra dividida más reciente con la misma
+ * descripción (sin mayúsculas ni acentos). Solo PROPONE líneas para revisar; nunca se
+ * aplica sola. Devuelve null si no hay antecedentes o el total aún no es válido.
+ */
+export function suggestSplitFromHistory(
+  data: Pick<AppData, 'transactions'>,
+  note: string,
+  totalMinor: number | null,
+  excludeId?: string,
+): { lines: CategoryAmount[]; from: Transaction } | null {
+  const key = normalizeText(note)
+  if (!key || !totalMinor || totalMinor <= 0) return null
+  const from = data.transactions
+    .filter((t) => t.id !== excludeId && t.kind === 'expense' && t.splits?.length && normalizeText(t.note ?? '') === key)
+    .sort((a, b) => (a.date === b.date ? (a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1))[0]
+  if (!from) return null
+  const lines = scaleSplit(categoryAllocations(from), from.amountMinor, totalMinor).filter((l) => l.amountMinor > 0)
+  return lines.length >= 2 ? { lines, from } : null
 }

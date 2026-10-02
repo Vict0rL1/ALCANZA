@@ -149,3 +149,25 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   await go(page, '/')
   await expect(page.getByTestId('inbox-link')).toContainText(/to review/)
 })
+
+test('sugerencia: dividir como la última vez en el mismo comercio (solo propone)', async ({ page }) => {
+  await startDemo(page)
+  await newExpense(page, '120', 'Costco')
+  await page.getByRole('button', { name: 'Dividir entre categorías' }).click()
+  const editor = page.getByTestId('split-editor')
+  await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
+  await editor.getByLabel('Importe de la línea 1').fill('90')
+  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await editor.getByLabel('Importe de la línea 2').fill('30')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+
+  // Nueva compra en el mismo comercio por 60: se propone 45 + 15 (misma proporción), sin aplicarse sola.
+  await newExpense(page, '60', 'costco')
+  const suggest = page.getByRole('button', { name: /Dividir como la última vez en «Costco»/ })
+  await expect(suggest).toBeVisible()
+  await expect(page.getByTestId('split-editor')).toHaveCount(0)
+  await suggest.click()
+  await expect(page.getByTestId('split-editor').getByLabel('Importe de la línea 1')).toHaveValue('45.00')
+  await expect(page.getByTestId('split-editor').getByLabel('Importe de la línea 2')).toHaveValue('15.00')
+  await expect(page.getByTestId('split-status')).toHaveText(/Cuadra/)
+})

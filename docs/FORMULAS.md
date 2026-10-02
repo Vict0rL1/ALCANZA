@@ -607,6 +607,10 @@ importe:
 - Cambiar el total sin ajustar las líneas se bloquea (la interfaz muestra «Falta asignar» o
   «Sobran» y ofrece «Asignar el resto aquí» como acción explícita). Quitar la división deja
   el movimiento con la categoría de la 1.ª línea.
+- **Sugerencia desde el historial:** si hay una compra dividida anterior con la misma
+  descripción, se ofrece «Dividir como la última vez» (solo propone; hay que guardar).
+  Reescalado sin flotantes: `línea = floor(total × línea anterior / total anterior)` y el
+  resto del redondeo va a la 1.ª línea, así Σ líneas = total exacto.
 - Una **regla de categoría** nunca sobrescribe una división (solo propone mientras no hay
   división ni elección manual). **Reimportar** el CSV reconoce la compra por su `importRef`.
 - **Papelera:** las líneas viajan dentro del movimiento (atómico). Si se elimina una compra
@@ -637,6 +641,9 @@ pago>`, `dup:<a>:<b>`, `bal:<cuenta>:<motivo>`, `int:…`), así nunca aparecen 
 - **Saldos por verificar:** cuentas del presupuesto y tarjetas nunca verificadas, verificadas
   hace más de 30 días o con la verificación «por revisar». Muestra por separado el
   **último movimiento registrado** y la **última verificación con el banco**.
+- **Para tener en cuenta:** tarjetas con deuda ≥ 90 % del límite (`deuda × 100 ≥ límite × 90`,
+  descartable; si luego supera el límite aparece otro aviso que no se descarta) y metas cuya
+  fecha pasó sin completarse (descartable; desaparece al completarla o cambiar la fecha).
 - **Coherencia:** gasto planificado cuyo pago vinculado ya se registró pero sigue con dinero
   apartado (se descontaría dos veces; «Cerrar con el pago registrado» lo resuelve sin crear
   otro gasto) y distribuciones cuyo ingreso cambió o se eliminó.

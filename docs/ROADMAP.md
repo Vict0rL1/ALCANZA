@@ -68,8 +68,8 @@ Pendiente:
 |---|---|
 | Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
-| Reglas automáticas de división | Hoy cada compra se divide a mano (o con «Asignar el resto aquí»); se podrían recordar repartos frecuentes por comercio. |
-| Bandeja: más comprobaciones | Por ejemplo, tarjetas cerca del límite o metas vencidas; hoy cubre categorías, pagos sin confirmar, duplicados, saldos y coherencia de reservas/distribuciones. |
+| Reglas automáticas de división | Ya se propone repetir el último reparto del mismo comercio; faltaría guardar repartos con nombre. |
+| Bandeja: más comprobaciones | Ya cubre tarjetas cerca o sobre el límite y metas vencidas; se podrían añadir límites de categoría superados o reglas de categoría sin uso. |
 | Distribución automática al cobrar | Hoy el asistente se ofrece al registrar un ingreso y nunca aplica nada solo; se podrían guardar plantillas de reparto. |
 | Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto). Requiere la fase de varias monedas (Fase 3): un proveedor de tasas de cambio con histórico, que es un servicio externo. |
 

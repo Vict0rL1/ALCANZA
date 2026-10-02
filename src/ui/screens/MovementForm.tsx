@@ -6,7 +6,7 @@ import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
 import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
-import { inferRefundSplit, refundableByCategory } from '../../domain/splits'
+import { inferRefundSplit, refundableByCategory, suggestSplitFromHistory } from '../../domain/splits'
 import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
 import type { AppData, CategoryRule, SplitLine, Transaction, TxKind, TxStatus } from '../../domain/types'
@@ -204,6 +204,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const refundPending = useMemo(() => (refundOriginal && refundSplitMode ? refundableByCategory(data, refundOriginal, id) : undefined), [data, refundOriginal, refundSplitMode, id])
   const inferredRefund = refundOriginal && refundSplitMode && parsedAmount.ok ? inferRefundSplit(data, refundOriginal, parsedAmount.minor, id) : null
   const expenseCategories = categoriesForKind('expense', data.categories)
+  // Propuesta: repartir como la última compra dividida con la misma descripción.
+  const historySplit = kind === 'expense' && !splitDrafts ? suggestSplitFromHistory(data, note, parsedAmount.ok ? parsedAmount.minor : null, id) : null
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
@@ -402,6 +404,19 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
           >
             <Icon name="list" size={16} />
             {t('split.start')}
+          </button>
+        )}
+        {historySplit && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--small"
+            onClick={() => {
+              setSplitDrafts(historySplit.lines.map((l) => newSplitDraft(l.categoryId, fmt.moneyInput(l.amountMinor))))
+              setRuleApplied(undefined)
+            }}
+          >
+            <Icon name="undo" size={16} />
+            {t('split.fromHistory', { note: historySplit.from.note ?? '', date: fmt.date(historySplit.from.date, { compact: true, today }) })}
           </button>
         )}
         {kind === 'expense' && splitDrafts && (

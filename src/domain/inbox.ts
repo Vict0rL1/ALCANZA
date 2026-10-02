@@ -15,13 +15,14 @@ import { distributionIncomeState } from './incomeDistribution'
 import { findSettlement, openItemsUntil, type PlanItem } from './planItems'
 import { lastVerified, reconciliationsFor, reconciliationState } from './reconcile'
 import { normalizeText } from './rules'
-import { goalSavedMinor } from './goals'
+import { cardSummary } from './cards'
+import { goalProgress, goalSavedMinor } from './goals'
 import type { OpContext, OpResult } from './operations'
 import type { AppData, InboxState, LocalDate, Transaction } from './types'
 
-export type InboxKind = 'uncategorized' | 'overdue' | 'duplicate' | 'balance' | 'integrity'
+export type InboxKind = 'uncategorized' | 'overdue' | 'duplicate' | 'balance' | 'attention' | 'integrity'
 
-export const INBOX_KINDS: readonly InboxKind[] = ['overdue', 'balance', 'duplicate', 'uncategorized', 'integrity']
+export const INBOX_KINDS: readonly InboxKind[] = ['overdue', 'balance', 'attention', 'duplicate', 'uncategorized', 'integrity']
 
 export type InboxReason =
   | 'otherCategory'
@@ -34,6 +35,9 @@ export type InboxReason =
   | 'reserveForSettledBill'
   | 'distributionIncomeChanged'
   | 'distributionIncomeMissing'
+  | 'cardNearLimit'
+  | 'cardOverLimit'
+  | 'goalPastDue'
 
 export interface InboxItem {
   /** Estable: el mismo problema siempre tiene el mismo id. */
@@ -173,6 +177,44 @@ function balances(data: AppData, today: LocalDate): InboxItem[] {
   return items
 }
 
+/** Uso de la tarjeta a partir del cual se avisa (90 %), comparado con enteros. */
+export const CARD_NEAR_LIMIT_PERCENT = 90
+
+/**
+ * Atención: tarjetas cerca o por encima del límite y metas cuya fecha pasó sin
+ * completarse. Un aviso «cerca del límite» descartado vuelve si se supera el límite.
+ */
+function attention(data: AppData, today: LocalDate): InboxItem[] {
+  const items: InboxItem[] = []
+  for (const account of data.accounts.filter((a) => a.kind === 'credit')) {
+    const c = cardSummary(data, account, today)
+    if (c.limitMinor === null || c.limitMinor <= 0) continue
+    const base = { kind: 'attention' as const, accountId: account.id, amountMinor: c.debtMinor }
+    if (c.overLimit) {
+      items.push({ ...base, id: `card:${account.id}:over`, reason: 'cardOverLimit', fingerprint: 'over', canDismiss: false })
+    } else if (c.debtMinor * 100 >= c.limitMinor * CARD_NEAR_LIMIT_PERCENT) {
+      items.push({ ...base, id: `card:${account.id}:near`, reason: 'cardNearLimit', fingerprint: `near|${c.limitMinor}`, canDismiss: true })
+    }
+  }
+  for (const g of data.goals) {
+    // Los gastos planificados tienen su propio aviso de vencido en Metas.
+    if (g.kind === 'expense' || !g.targetDate || g.targetDate >= today) continue
+    const remaining = goalProgress(g).remainingMinor
+    if (remaining <= 0) continue
+    items.push({
+      id: `goal:${g.id}:${g.targetDate}`,
+      kind: 'attention',
+      reason: 'goalPastDue',
+      fingerprint: `${g.targetDate}|${g.targetMinor}`,
+      date: g.targetDate,
+      amountMinor: remaining,
+      goalId: g.id,
+      canDismiss: true,
+    })
+  }
+  return items
+}
+
 function integrity(data: AppData): InboxItem[] {
   const items: InboxItem[] = []
   // Un gasto planificado vinculado a un pago que ya se registró sigue con dinero apartado:
@@ -216,7 +258,7 @@ function integrity(data: AppData): InboxItem[] {
 
 /** Todos los pendientes calculados (sin aplicar posponer/descartar). */
 export function computeInbox(data: AppData, today: LocalDate): InboxItem[] {
-  return [...overdue(data, today), ...balances(data, today), ...duplicates(data), ...uncategorized(data), ...integrity(data)]
+  return [...overdue(data, today), ...balances(data, today), ...attention(data, today), ...duplicates(data), ...uncategorized(data), ...integrity(data)]
 }
 
 export function inboxView(data: AppData, today: LocalDate): InboxView {
