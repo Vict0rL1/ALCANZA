@@ -1,0 +1,25 @@
+/**
+ * Interfaz de almacenamiento. La app solo habla con esta interfaz, así que en
+ * la siguiente fase se puede añadir un repositorio con servidor (API + base de
+ * datos) sin cambiar la lógica financiera ni las pantallas.
+ */
+import type { AppData } from '../domain/types'
+import type { ImportIssue } from './backup'
+
+export type LoadResult =
+  | { status: 'empty' }
+  | { status: 'ok'; data: AppData }
+  | { status: 'corrupt'; raw: string; issues: ImportIssue[] }
+
+export type SaveErrorCode = 'quota' | 'unavailable' | 'unknown'
+export type SaveResult = { ok: true } | { ok: false; error: SaveErrorCode }
+
+export interface DataRepository {
+  /** Descripción para la interfaz, por ejemplo "este navegador". */
+  readonly kind: 'local' | 'memory'
+  load(): Promise<LoadResult>
+  save(data: AppData): Promise<SaveResult>
+  clear(): Promise<void>
+  /** Avisa si otra pestaña cambió los datos. Devuelve la función para dejar de escuchar. */
+  subscribe(onExternalChange: () => void): () => void
+}
