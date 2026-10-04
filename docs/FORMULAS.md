@@ -644,6 +644,13 @@ pago>`, `dup:<a>:<b>`, `bal:<cuenta>:<motivo>`, `int:…`), así nunca aparecen 
 - **Para tener en cuenta:** tarjetas con deuda ≥ 90 % del límite (`deuda × 100 ≥ límite × 90`,
   descartable; si luego supera el límite aparece otro aviso que no se descarta) y metas cuya
   fecha pasó sin completarse (descartable; desaparece al completarla o cambiar la fecha).
+  También: **límites de categoría superados este mes** (mismo gasto neto del resumen
+  mensual, con las líneas de compras divididas; un aviso por categoría y mes, id
+  `limit:<categoría>:<AAAA-MM>`, importe = exceso; descartable mientras no cambie el límite)
+  y **reglas de categoría que no hacen nada**: su categoría está archivada o no existe, o
+  llevan ≥ 90 días creadas (fecha de creación pasada a la zona horaria) y ningún movimiento
+  realizado de los últimos 90 días contiene su texto (sin acentos ni mayúsculas; las reglas
+  de gasto cuentan gastos y devoluciones). Solo se sugiere revisarlas; nunca se borran.
 - **Coherencia:** gasto planificado cuyo pago vinculado ya se registró pero sigue con dinero
   apartado (se descontaría dos veces; «Cerrar con el pago registrado» lo resuelve sin crear
   otro gasto) y distribuciones cuyo ingreso cambió o se eliminó.

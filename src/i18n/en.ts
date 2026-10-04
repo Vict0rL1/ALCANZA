@@ -1549,4 +1549,12 @@ export const en: Record<keyof typeof es, string> = {
   'inbox.why.goalPastDue': '{amount} still needed. You can change the date or the target; what\'s already set aside doesn\'t change.',
   'inbox.action.seeCard': 'See the card',
   'inbox.action.editGoal': 'Edit the goal',
+  'inbox.title.categoryOverLimit': '«{name}» is over its limit this month',
+  'inbox.why.categoryOverLimit': 'Net spending this month (including split purchase lines) is over the limit by {amount}. It is only a heads-up: the limit blocks nothing and does not change what is available.',
+  'inbox.title.ruleCategoryUnavailable': 'The rule "{name}" points to an archived category',
+  'inbox.why.ruleCategoryUnavailable': 'While "{category}" is archived or missing, this rule suggests nothing. Change its category or delete it.',
+  'inbox.title.ruleUnused': 'The rule "{name}" has not been used in 90 days',
+  'inbox.why.ruleUnused': 'No recent movement contains that text (last match: {lastMovement}). The merchant name may have changed at your bank. Nothing is deleted automatically.',
+  'inbox.action.seeCategory': 'See movements in this category',
+  'inbox.action.seeRules': 'See rules',
 }

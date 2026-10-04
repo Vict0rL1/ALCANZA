@@ -156,3 +156,62 @@ describe('bandeja: para tener en cuenta', () => {
     expect(attention(done)).toEqual([])
   })
 })
+
+describe('bandeja: límites de categoría y reglas', () => {
+  const attention = (d: AppData, today = TODAY) => inboxView(d, today).active.filter((i) => i.kind === 'attention')
+  const rule = (over: Partial<AppData['categoryRules'][number]> = {}) => ({
+    id: 'r',
+    pattern: 'Café Olé',
+    kind: 'expense' as const,
+    categoryId: 'dining',
+    createdAt: '2026-06-01T16:00:00.000Z',
+    updatedAt: '2026-06-01T16:00:00.000Z',
+    ...over,
+  })
+
+  it('límite superado este mes (con líneas de compras divididas): un aviso por categoría y mes, descartable', () => {
+    const d = baseData({
+      categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 5000 }],
+      transactions: [
+        tx({ id: 'a', categoryId: 'dining', amountMinor: 3000, date: '2026-09-02' }),
+        tx({ id: 's', amountMinor: 4000, categoryId: 'groceries', date: '2026-09-10', splits: [{ id: 'l1', categoryId: 'groceries', amountMinor: 1999 }, { id: 'l2', categoryId: 'dining', amountMinor: 2001 }] }),
+        tx({ id: 'old', categoryId: 'dining', amountMinor: 9000, date: '2026-08-30' }),
+      ],
+    })
+    // 3000 + 2001 = 5001 > 5000: excede por 1 centavo (agosto no cuenta).
+    expect(attention(d).map((i) => [i.id, i.reason, i.amountMinor, i.canDismiss])).toEqual([['limit:dining:2026-09', 'categoryOverLimit', 1, true]])
+    const atLimit = { ...d, categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 5001 }] }
+    expect(attention(atLimit)).toEqual([])
+    const dismissed = ok(dismissInboxItem(d, attention(d)[0]!, ctx)).data
+    expect(attention(dismissed)).toEqual([])
+    // Mes nuevo: sin gasto en octubre, no hay aviso.
+    expect(attention(d, '2026-10-01')).toEqual([])
+  })
+
+  it('regla con la categoría archivada: se avisa (la regla se ignoraría sin decir nada)', () => {
+    const custom = { id: 'c_cafe', kind: 'expense' as const, name: 'Cafés', archived: true, createdAt: EARLIER, updatedAt: EARLIER }
+    const d = baseData({ categories: [custom], categoryRules: [rule({ categoryId: 'c_cafe', createdAt: EARLIER })] })
+    expect(attention(d).map((i) => [i.id, i.reason, i.ruleId])).toEqual([['rule:r:category', 'ruleCategoryUnavailable', 'r']])
+    expect(attention({ ...d, categories: [{ ...custom, archived: false }] })).toEqual([])
+  })
+
+  it('regla sin uso: solo si tiene ≥ 90 días y ningún movimiento de los últimos 90 días contiene su texto', () => {
+    // Creada el 1-jun (119 días antes) y sin coincidencias.
+    const unused = baseData({ categoryRules: [rule()], transactions: [tx({ id: 'x', note: 'CAFE OLE #12', date: '2026-05-20', categoryId: 'dining' })] })
+    expect(attention(unused).map((i) => [i.id, i.reason, i.lastMovementDate])).toEqual([['rule:r:unused', 'ruleUnused', '2026-05-20']])
+    // Una coincidencia reciente (sin acentos ni mayúsculas) la mantiene en uso.
+    const used = { ...unused, transactions: [...unused.transactions, tx({ id: 'y', note: 'cafe ole centro', date: '2026-08-15', categoryId: 'dining' })] }
+    expect(attention(used)).toEqual([])
+    // Un ingreso con el mismo texto no cuenta para una regla de gastos.
+    const income = { ...unused, transactions: [tx({ id: 'z', kind: 'income', categoryId: 'salary', note: 'Café Olé', date: '2026-09-01' })] }
+    expect(attention(income).map((i) => i.id)).toEqual(['rule:r:unused'])
+    // Regla reciente (menos de 90 días): todavía no se juzga.
+    expect(attention(baseData({ categoryRules: [rule({ createdAt: '2026-07-15T16:00:00.000Z' })] }))).toEqual([])
+    // Descartar se recuerda hasta que cambie el texto o la categoría.
+    const kept = ok(dismissInboxItem(unused, attention(unused)[0]!, ctx)).data
+    expect(attention(kept)).toEqual([])
+    expect(attention({ ...kept, categoryRules: [rule({ pattern: 'Olé café' })] }).map((i) => i.id)).toEqual(['rule:r:unused'])
+    // Nunca se borra nada.
+    expect(kept.categoryRules).toHaveLength(1)
+  })
+})

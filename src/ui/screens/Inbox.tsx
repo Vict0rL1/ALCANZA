@@ -17,7 +17,7 @@ import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { MarkPaidDialog } from '../dialogs'
 import { useFormat } from '../format'
-import { accountName, planItemName, transactionTitle } from '../labels'
+import { accountName, categoryLabel, planItemName, transactionTitle } from '../labels'
 import { href, withQuery } from '../router'
 
 const KIND_ICON: Record<InboxItem['kind'], IconName> = {
@@ -150,10 +150,15 @@ function ItemText({ item }: { item: InboxItem }) {
   const tx = item.txIds?.[0] ? data.transactions.find((x) => x.id === item.txIds![0]) : undefined
   const other = item.txIds?.[1] ? data.transactions.find((x) => x.id === item.txIds![1]) : undefined
   const goal = item.goalId ? data.goals.find((g) => g.id === item.goalId) : undefined
+  const rule = item.ruleId ? data.categoryRules.find((r) => r.id === item.ruleId) : undefined
   const name =
     item.planItem
       ? planItemName(item.planItem, t)
-      : item.accountId && item.kind !== 'duplicate'
+      : rule
+        ? rule.pattern
+        : item.categoryId
+          ? categoryLabel(t, item.categoryId)
+          : item.accountId && item.kind !== 'duplicate'
         ? accountName(data.accounts, item.accountId, t)
         : goal
           ? goal.name
@@ -165,6 +170,7 @@ function ItemText({ item }: { item: InboxItem }) {
     date: item.date ? fmt.date(item.date, { compact: true, today }) : '',
     amount: item.amountMinor !== undefined ? fmt.money(item.amountMinor) : '',
     other: other ? fmt.date(other.date, { compact: true, today }) : '',
+    category: categoryLabel(t, item.categoryId),
     lastMovement: item.lastMovementDate ? fmt.date(item.lastMovementDate, { compact: true, today }) : t('inbox.none'),
     verified: item.verifiedDate ? fmt.date(item.verifiedDate, { compact: true, today }) : t('inbox.never'),
   }
@@ -234,6 +240,16 @@ function InboxCard({ item, onPay, onSnooze, onDismiss }: { item: InboxItem; onPa
         {(item.reason === 'cardNearLimit' || item.reason === 'cardOverLimit') && (
           <a className="btn btn--primary btn--small" href={href('/ajustes?seccion=cuentas')}>
             {t('inbox.action.seeCard')}
+          </a>
+        )}
+        {item.reason === 'categoryOverLimit' && item.categoryId && (
+          <a className="btn btn--primary btn--small" href={href(withQuery('/movimientos', { categoria: item.categoryId, desde: item.date }))}>
+            {t('inbox.action.seeCategory')}
+          </a>
+        )}
+        {item.ruleId && (
+          <a className="btn btn--primary btn--small" href={href('/ajustes?seccion=reglas')}>
+            {t('inbox.action.seeRules')}
           </a>
         )}
         {item.reason === 'goalPastDue' && item.goalId && (

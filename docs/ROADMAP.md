@@ -58,7 +58,9 @@ Hecho:
 - ✅ **Bandeja de pendientes, compras divididas y distribución de ingresos (formato v7):**
   avisos calculados con ids estables (posponer/descartar sin tocar cifras), compras
   repartidas entre categorías con devoluciones coherentes, y reparto de un ingreso recibido
-  entre pagos y metas sin crear dinero ni restar dos veces.
+  entre pagos y metas sin crear dinero ni restar dos veces. La bandeja también avisa de
+  tarjetas cerca o sobre el límite, metas vencidas, límites de categoría superados y reglas
+  de categoría sin uso o con la categoría archivada.
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
@@ -69,7 +71,6 @@ Pendiente:
 | Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
 | Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
 | Reglas automáticas de división | Ya se propone repetir el último reparto del mismo comercio; faltaría guardar repartos con nombre. |
-| Bandeja: más comprobaciones | Ya cubre tarjetas cerca o sobre el límite y metas vencidas; se podrían añadir límites de categoría superados o reglas de categoría sin uso. |
 | Distribución automática al cobrar | Hoy el asistente se ofrece al registrar un ingreso y nunca aplica nada solo; se podrían guardar plantillas de reparto. |
 | Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto). Requiere la fase de varias monedas (Fase 3): un proveedor de tasas de cambio con histórico, que es un servicio externo. |
 

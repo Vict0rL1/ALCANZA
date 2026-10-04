@@ -1548,4 +1548,12 @@ export const es = {
   'inbox.why.goalPastDue': 'Aún faltan {amount}. Puedes cambiar la fecha o el objetivo; lo ya apartado no cambia.',
   'inbox.action.seeCard': 'Ver la tarjeta',
   'inbox.action.editGoal': 'Editar la meta',
+  'inbox.title.categoryOverLimit': '«{name}» superó su límite de este mes',
+  'inbox.why.categoryOverLimit': 'El gasto neto del mes (incluidas las líneas de compras divididas) supera el límite por {amount}. Es solo un aviso: el límite no bloquea nada ni cambia el disponible.',
+  'inbox.title.ruleCategoryUnavailable': 'La regla «{name}» apunta a una categoría archivada',
+  'inbox.why.ruleCategoryUnavailable': 'Mientras «{category}» esté archivada o no exista, esta regla no propone nada. Cámbiala de categoría o elimínala.',
+  'inbox.title.ruleUnused': 'La regla «{name}» no se ha usado en 90 días',
+  'inbox.why.ruleUnused': 'Ningún movimiento reciente contiene ese texto (última coincidencia: {lastMovement}). Puede que el comercio cambie de nombre en tu banco. Nada se elimina solo.',
+  'inbox.action.seeCategory': 'Ver movimientos de la categoría',
+  'inbox.action.seeRules': 'Ver las reglas',
 } as const

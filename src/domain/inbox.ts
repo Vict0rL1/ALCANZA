@@ -10,11 +10,13 @@
  * Resolver el problema (categorizar, registrar el pago, verificar el saldo…) hace que el
  * aviso deje de calcularse.
  */
-import { addDays, daysBetween } from './dates'
+import { categoriesForKind } from './categories'
+import { addDays, daysBetween, endOfMonth, localDateInTimeZone, startOfMonth } from './dates'
 import { distributionIncomeState } from './incomeDistribution'
 import { findSettlement, openItemsUntil, type PlanItem } from './planItems'
 import { lastVerified, reconciliationsFor, reconciliationState } from './reconcile'
-import { normalizeText } from './rules'
+import { limitStatuses, periodSummary } from './insights'
+import { normalizeText, RULE_PATTERN_MIN } from './rules'
 import { cardSummary } from './cards'
 import { goalProgress, goalSavedMinor } from './goals'
 import type { OpContext, OpResult } from './operations'
@@ -38,6 +40,9 @@ export type InboxReason =
   | 'cardNearLimit'
   | 'cardOverLimit'
   | 'goalPastDue'
+  | 'categoryOverLimit'
+  | 'ruleCategoryUnavailable'
+  | 'ruleUnused'
 
 export interface InboxItem {
   /** Estable: el mismo problema siempre tiene el mismo id. */
@@ -51,6 +56,8 @@ export interface InboxItem {
   txIds?: string[]
   accountId?: string
   goalId?: string
+  categoryId?: string
+  ruleId?: string
   distributionId?: string
   planItem?: PlanItem
   /** Fechas para explicar el porqué (p. ej. último movimiento vs. última verificación). */
@@ -177,6 +184,9 @@ function balances(data: AppData, today: LocalDate): InboxItem[] {
   return items
 }
 
+/** Días sin coincidencias (y de antigüedad mínima) para considerar que una regla no se usa. */
+export const RULE_UNUSED_DAYS = 90
+
 /** Uso de la tarjeta a partir del cual se avisa (90 %), comparado con enteros. */
 export const CARD_NEAR_LIMIT_PERCENT = 90
 
@@ -211,6 +221,56 @@ function attention(data: AppData, today: LocalDate): InboxItem[] {
       goalId: g.id,
       canDismiss: true,
     })
+  }
+  // Límites de categoría superados este mes (mismo cálculo que el resumen del mes: gasto
+  // neto, con las líneas de las compras divididas). Un aviso por categoría y mes.
+  const month = startOfMonth(today)
+  const summary = periodSummary(data, month, endOfMonth(today))
+  for (const l of limitStatuses(summary, data.categoryLimits)) {
+    if (!l.over) continue
+    items.push({
+      id: `limit:${l.categoryId}:${month.slice(0, 7)}`,
+      kind: 'attention',
+      reason: 'categoryOverLimit',
+      fingerprint: `${l.limitMinor}`,
+      date: month,
+      amountMinor: l.spentMinor - l.limitMinor,
+      categoryId: l.categoryId,
+      canDismiss: true,
+    })
+  }
+  items.push(...ruleItems(data, today))
+  return items
+}
+
+/**
+ * Reglas de categoría que no hacen nada:
+ *  - su categoría está archivada o ya no existe (la regla se ignora sin avisar);
+ *  - llevan al menos 90 días creadas y ningún movimiento realizado de los últimos 90 días
+ *    contiene su texto. La fecha de creación (marca de tiempo) se pasa a la zona horaria.
+ * Solo se sugiere revisarlas; nunca se borran solas.
+ */
+function ruleItems(data: AppData, today: LocalDate): InboxItem[] {
+  const items: InboxItem[] = []
+  const usable = { expense: categoriesForKind('expense', data.categories), income: categoriesForKind('income', data.categories) }
+  const since = addDays(today, -RULE_UNUSED_DAYS)
+  const notes = data.transactions
+    .filter((t) => t.status === 'realized' && t.kind !== 'transfer' && t.kind !== 'adjustment' && t.note)
+    .map((t) => ({ kind: t.kind === 'income' ? 'income' : 'expense', date: t.date, text: normalizeText(t.note!) }))
+  for (const rule of data.categoryRules) {
+    const base = { kind: 'attention' as const, ruleId: rule.id, categoryId: rule.categoryId, canDismiss: true }
+    if (!usable[rule.kind].includes(rule.categoryId)) {
+      items.push({ ...base, id: `rule:${rule.id}:category`, reason: 'ruleCategoryUnavailable', fingerprint: rule.categoryId })
+      continue
+    }
+    const pattern = normalizeText(rule.pattern)
+    if (pattern.length < RULE_PATTERN_MIN) continue
+    const created = localDateInTimeZone(new Date(rule.createdAt), data.settings.timeZone)
+    if (daysBetween(created, today) < RULE_UNUSED_DAYS) continue
+    const matches = notes.filter((n) => n.kind === rule.kind && n.text.includes(pattern))
+    if (matches.some((n) => n.date >= since && n.date <= today)) continue
+    const last = matches.reduce<LocalDate | null>((max, n) => (max === null || n.date > max ? n.date : max), null)
+    items.push({ ...base, id: `rule:${rule.id}:unused`, reason: 'ruleUnused', fingerprint: `${pattern}|${rule.categoryId}`, lastMovementDate: last })
   }
   return items
 }
