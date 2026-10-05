@@ -274,6 +274,38 @@ code {
   color: var(--good-text);
 }
 
+@media (max-width: 479px) {
+  .save-indicator--saved .save-indicator__text,
+  .save-indicator--saving .save-indicator__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Pantallas bajas (celular en horizontal): la barra superior no se queda fija. */
+@media (max-height: 500px) {
+  .topbar {
+    position: static;
+  }
+}
+
+/* Al enfocar un campo (p. ej. con el teclado del celular abierto), el navegador lo desplaza
+   para que no quede tapado por la barra superior fija ni por la barra inferior. No se
+   ocultan barras al escribir: al tocar «Guardar» reaparecerían bajo el dedo. */
+html {
+  scroll-padding-top: 72px;
+  scroll-padding-bottom: calc(var(--nav-h) + 16px + var(--safe-bottom));
+}
+@media (max-height: 500px) {
+  html {
+    scroll-padding-top: 8px;
+  }
+}
+
 .save-indicator--error {
   color: var(--critical-text);
   font-weight: 600;

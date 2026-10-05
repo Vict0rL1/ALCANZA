@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { accountBalance } from '../../domain/balances'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
@@ -326,11 +326,14 @@ export function Settings() {
           <li>{t('settings.storage.local')}</li>
           <li>{t('settings.storage.lost')}</li>
           <li>{t('settings.storage.noSync')}</li>
+          <li>{t('settings.storage.eviction')}</li>
+          <li>{t('settings.storage.notEncrypted')}</li>
           <li>{t(pwa.offlineReady ? 'settings.storage.offlineReady' : 'settings.storage.offlineNotReady')}</li>
           <li>{t('settings.storage.noAccount')}</li>
           <li>{t('settings.storage.noBank')}</li>
           <li>{t('settings.storage.noAi')}</li>
         </ul>
+        <PersistentStorage />
       </Card>
 
       <Card labelledBy="notifications-title">
@@ -543,5 +546,49 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
       {kind === 'credit' && <CardFields value={cardText} onChange={setCardText} errors={cardErrors} fmt={fmt} />}
       {generalIssue && <Alert tone="critical" title={issueMessage(t, fmt, generalIssue)} role="alert" />}
     </Dialog>
+  )
+}
+
+type PersistState = 'unsupported' | 'granted' | 'notGranted' | 'checking'
+
+/**
+ * Pedir al navegador que no borre los datos del sitio por falta de espacio
+ * (`navigator.storage.persist`). Es una función estándar del navegador, sin servicios
+ * externos. El navegador decide; reduce el riesgo pero no lo elimina.
+ */
+function PersistentStorage() {
+  const { t } = useT()
+  const supported = typeof navigator !== 'undefined' && !!navigator.storage?.persisted && !!navigator.storage.persist
+  const [status, setStatus] = useState<PersistState>(supported ? 'checking' : 'unsupported')
+  useEffect(() => {
+    if (!supported) return
+    let alive = true
+    navigator.storage
+      .persisted()
+      .then((p) => alive && setStatus(p ? 'granted' : 'notGranted'))
+      .catch(() => alive && setStatus('unsupported'))
+    return () => {
+      alive = false
+    }
+  }, [supported])
+  if (status === 'checking') return null
+  return (
+    <div className="stack-sm" data-testid="persist-storage">
+      <p>
+        <Icon name={status === 'granted' ? 'check' : 'info'} size={16} /> {t(`settings.storage.persist.${status}` as 'settings.storage.persist.granted')}
+      </p>
+      {status === 'notGranted' && (
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={async () => {
+            const granted = await navigator.storage.persist().catch(() => false)
+            setStatus(granted ? 'granted' : 'notGranted')
+          }}
+        >
+          {t('settings.storage.persist.request')}
+        </button>
+      )}
+    </div>
   )
 }

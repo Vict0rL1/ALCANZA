@@ -167,12 +167,21 @@ const NAV: { path: string; match: string; key: 'nav.home' | 'nav.movements' | 'n
 function SaveIndicator({ save }: { save: SaveStatus }) {
   const { t } = useT()
   let content: React.ReactNode = null
-  if (save.state === 'saving') content = <>{t('save.saving')}</>
+  // En pantallas estrechas «Guardando…» y «Guardado» se muestran solo con icono (el texto
+  // sigue para lectores de pantalla) para que la barra superior no ocupe dos filas.
+  // Los errores siempre muestran su texto.
+  if (save.state === 'saving')
+    content = (
+      <>
+        <Icon name="clock" size={16} />
+        <span className="save-indicator__text">{t('save.saving')}</span>
+      </>
+    )
   if (save.state === 'saved')
     content = (
       <>
         <Icon name="check" size={16} />
-        {t('save.saved')}
+        <span className="save-indicator__text">{t('save.saved')}</span>
       </>
     )
   if (save.state === 'error')

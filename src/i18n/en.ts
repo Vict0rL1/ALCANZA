@@ -1579,4 +1579,10 @@ export const en: Record<keyof typeof es, string> = {
   'shell.screenFailedText': 'The app may have been updated in another tab, or there is no connection. Your data did not change. Reload to continue.',
   'settings.backup.importUndone': 'Import undone: your previous data is back',
   'explain.goalPaid': 'already used by the recorded payment: {amount}',
+  'settings.storage.eviction': 'The browser can delete this data on its own: for example, when it runs low on space, or Safari on iPhone after about 7 days without opening the site if it is not added to the Home Screen. The app cannot guarantee that it is kept: export copies.',
+  'settings.storage.notEncrypted': 'The data is not encrypted or password-protected: anyone using this browser can see it. Use a device account with a lock.',
+  'settings.storage.persist.granted': 'The browser agreed to keep this data even when space runs low (clearing the site data manually still deletes it).',
+  'settings.storage.persist.notGranted': 'The browser may delete this data when space runs low. You can ask it to keep the data; the browser decides and not all agree.',
+  'settings.storage.persist.unsupported': 'This browser does not let you ask it to keep the data.',
+  'settings.storage.persist.request': 'Ask the browser to keep the data',
 }

@@ -5,6 +5,12 @@ import { defineConfig, devices } from '@playwright/test'
 // `npx playwright install chromium`.
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined
 
+// Firefox y WebKit (motor de Safari) son opcionales porque requieren descargar esos
+// navegadores: `npx playwright install firefox webkit` y luego
+// `PLAYWRIGHT_ALL_BROWSERS=1 npm run test:e2e`. WebKit automatizado en Linux/Windows NO
+// equivale a Safari en un iPhone real (otro sistema, teclado, PWA y almacenamiento).
+const extraBrowsers = process.env.PLAYWRIGHT_ALL_BROWSERS === '1'
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -36,6 +42,14 @@ export default defineConfig({
       name: 'escritorio',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, launchOptions: { executablePath } },
     },
+    ...(extraBrowsers
+      ? [
+          // Firefox no emula «isMobile»: se prueba con el tamaño de un celular.
+          { name: 'firefox-celular', use: { browserName: 'firefox' as const, viewport: { width: 390, height: 844 } } },
+          { name: 'webkit-iphone', use: { ...devices['iPhone 13'] } },
+          { name: 'firefox-escritorio', use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } } },
+        ]
+      : []),
   ],
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',

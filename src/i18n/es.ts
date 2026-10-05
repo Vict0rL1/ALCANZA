@@ -1578,4 +1578,10 @@ export const es = {
   'shell.screenFailedText': 'Puede que la app se haya actualizado en otra pestaña o que no haya conexión. Tus datos no cambiaron. Recarga para continuar.',
   'settings.backup.importUndone': 'Importación deshecha: se recuperaron los datos anteriores',
   'explain.goalPaid': 'ya usado en el pago registrado: {amount}',
+  'settings.storage.eviction': 'El navegador puede borrar estos datos por su cuenta: por ejemplo, si le falta espacio, o Safari en iPhone tras unos 7 días sin abrir el sitio si no está añadido a la pantalla de inicio. La app no puede garantizar que se conserven: exporta copias.',
+  'settings.storage.notEncrypted': 'Los datos no están cifrados ni protegidos con contraseña: cualquiera que use este navegador puede verlos. Usa una cuenta del dispositivo con bloqueo.',
+  'settings.storage.persist.granted': 'El navegador aceptó conservar estos datos aunque le falte espacio (borrar los datos del sitio a mano los elimina igual).',
+  'settings.storage.persist.notGranted': 'El navegador puede borrar estos datos si le falta espacio. Puedes pedirle que los conserve; él decide y no todos aceptan.',
+  'settings.storage.persist.unsupported': 'Este navegador no permite pedir que se conserven los datos.',
+  'settings.storage.persist.request': 'Pedir al navegador que conserve los datos',
 } as const
