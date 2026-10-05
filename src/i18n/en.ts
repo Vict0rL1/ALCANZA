@@ -1455,7 +1455,7 @@ export const en: Record<keyof typeof es, string> = {
   'inbox.title.verificationNeedsReview': 'The verification of "{name}" needs review',
   'inbox.why.verificationNeedsReview': 'Transactions in the verified period changed or a difference was left unresolved.',
   'inbox.title.reserveForSettledBill': '"{name}" was already paid but still has money set aside',
-  'inbox.why.reserveForSettledBill': 'The linked payment is already recorded; if the money set aside ({amount}) stays reserved, it would be subtracted twice.',
+  'inbox.why.reserveForSettledBill': 'The linked payment is already recorded and the money set aside is no longer subtracted twice. Close it to release any leftover ({amount} set aside) and keep the payment in its history.',
   'inbox.title.distributionIncomeChanged': 'The income "{name}" changed after you distributed it',
   'inbox.why.distributionIncomeChanged': 'Its amount, date or account no longer match the distribution. Check whether the set-asides still make sense.',
   'inbox.title.distributionIncomeMissing': 'An income that was distributed was deleted',
@@ -1578,4 +1578,5 @@ export const en: Record<keyof typeof es, string> = {
   'shell.screenFailed': 'This screen could not be opened',
   'shell.screenFailedText': 'The app may have been updated in another tab, or there is no connection. Your data did not change. Reload to continue.',
   'settings.backup.importUndone': 'Import undone: your previous data is back',
+  'explain.goalPaid': 'already used by the recorded payment: {amount}',
 }

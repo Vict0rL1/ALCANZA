@@ -65,7 +65,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Gastos planificados = metas `kind: 'expense'` (`domain/plannedExpenses.ts`): el plan es
   solo sugerencia; solo lo apartado descuenta. Vinculados a una ocurrencia, esa ocurrencia
   no se reserva dos veces (`reserves.ts`). Pagar = gasto real + liberar reserva en una
-  operación; si se repite, el siguiente periodo no queda financiado.
+  operación; si se repite, el siguiente periodo no queda financiado. Si la ocurrencia se paga
+  desde el calendario, lo pagado consume lo apartado en el cálculo aunque no se haya cerrado.
 - Presupuestos por periodo: asignado ≠ disponible; solo guardan ids (`txIds`); solapados
   cuentan una vez en el total; la reserva opcional es una meta que lo gastado consume.
 - Revisión semanal: lunes–domingo en la zona horaria; comparación equivalente; sin

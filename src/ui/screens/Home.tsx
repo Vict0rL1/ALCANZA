@@ -270,7 +270,7 @@ export function Home() {
                 {budget.goalReservations.map((g) => (
                   <p className="calc__detail" key={g.goal.id}>
                     {g.goal.name} · {fmt.money(g.amountMinor)}
-                    {g.consumedMinor > 0 ? ` · ${t('explain.goalConsumed', { amount: fmt.money(g.consumedMinor) })}` : ''}
+                    {g.consumedMinor > 0 ? ` · ${t(g.goal.kind === 'expense' && g.goal.plan?.link ? 'explain.goalPaid' : 'explain.goalConsumed', { amount: fmt.money(g.consumedMinor) })}` : ''}
                   </p>
                 ))}
                 <CalcRow op="=" label={t('explain.available')} value={fmt.money(budget.availableMinor)} strong />

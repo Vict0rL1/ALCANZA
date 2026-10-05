@@ -8,6 +8,11 @@
  *  2. Gasto planificado vinculado a una ocurrencia del calendario: la reserva del
  *     pago previsto se reduce en lo que ya está apartado para él.
  *        reserva del pago = importe − min(apartado efectivo, importe)
+ *  3. Si esa ocurrencia ya se pagó (total o parcialmente) desde el calendario u otro
+ *     formulario, lo pagado consume lo apartado aunque la persona aún no haya «cerrado»
+ *     el gasto planificado. Si no, el pago restaría del saldo Y la reserva seguiría
+ *     descontándose (doble conteo).
+ *        reserva efectiva = max(0, apartado − pagado de la ocurrencia vinculada)
  *
  * Así, apartado + pago previsto nunca suman más que el pago.
  */
@@ -47,14 +52,30 @@ export interface GoalReserveLine {
   amountMinor: number
 }
 
-/** Reservas de las metas del presupuesto, ya descontado lo consumido por su periodo. */
+/**
+ * Lo ya pagado (realizado, con efecto sobre las cuentas del presupuesto) de la ocurrencia a
+ * la que está vinculado un gasto planificado aún abierto. Incluye pagos parciales.
+ */
+export function linkedPaidFromBudgetPool(data: Pick<AppData, 'transactions' | 'accounts'>, goal: Goal): number {
+  const link = goal.kind === 'expense' && !goal.plan?.paidAt ? goal.plan?.link : undefined
+  if (!link) return 0
+  const paid = sumMinor(
+    data.transactions
+      .filter((t) => t.status === 'realized' && t.scheduleId === link.scheduleId && t.occurrenceDate === link.occurrenceDate)
+      .map((t) => -txEffectOnBudgetPool(t, data.accounts)),
+  )
+  return Math.max(0, paid)
+}
+
+/** Reservas de las metas del presupuesto, ya descontado lo consumido por su periodo o por su pago vinculado. */
 export function goalReserveLines(data: Pick<AppData, 'goals' | 'periodBudgets' | 'transactions' | 'accounts'>): GoalReserveLine[] {
   return data.goals
     .filter((g) => g.fundedFrom === 'budget')
     .map((goal) => {
       const savedMinor = Math.max(0, goalSavedMinor(goal))
       const period = data.periodBudgets.find((b) => b.goalId === goal.id)
-      const consumedMinor = period ? Math.min(savedMinor, periodSpentFromBudgetPool(data, period)) : 0
+      const spent = (period ? periodSpentFromBudgetPool(data, period) : 0) + linkedPaidFromBudgetPool(data, goal)
+      const consumedMinor = Math.min(savedMinor, spent)
       return { goal, savedMinor, consumedMinor, amountMinor: savedMinor - consumedMinor }
     })
     .filter((l) => l.amountMinor > 0 || l.consumedMinor > 0)

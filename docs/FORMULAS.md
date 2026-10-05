@@ -10,6 +10,23 @@ evitar errores y dobles conteos. El código que implementa cada regla está en
 
 ---
 
+## 0. Saldo, patrimonio, disponible y proyección: qué es cada cifra
+
+Son cifras distintas y la app nunca las mezcla:
+
+| Cifra | Qué incluye | Dónde se ve |
+|---|---|---|
+| **Saldo de una cuenta** | Saldo de referencia + movimientos realizados posteriores (§3). En una tarjeta es negativo: la deuda. | Ajustes › Cuentas, Conciliar |
+| **Saldo para gastar (S)** | Suma de los saldos de las cuentas que **cuentan para el presupuesto**. Una tarjeta incluida resta su deuda. | Explicación de Inicio |
+| **Patrimonio** | Suma de **todas** las cuentas (también ahorro y tarjetas fuera del presupuesto). La app no lo muestra como cifra principal; se usa en pruebas para comprobar que transferir o apartar no crea ni destruye dinero. | — |
+| **Disponible («Puedes gastar»)** | S − pagos pendientes o vencidos hasta el día del próximo ingreso − apartados del presupuesto (§6, §7). Nunca suma ingresos futuros ni crédito disponible. | Inicio |
+| **Proyección** | Parte de S y aplica, día a día, los ingresos y pagos **previstos** (§9). Los apartados no se restan (el dinero sigue en la cuenta); se marca si el saldo proyectado cae por debajo de ellos. Los ingresos retrasados no se suman. | Plan › Proyección |
+| **Crédito disponible** | Límite − deuda de una tarjeta. **No es dinero propio**: nunca entra en S, en el disponible ni en el patrimonio. | Tarjeta |
+
+Por eso, por ejemplo, transferir al ahorro baja S y el disponible pero no el patrimonio;
+apartar para una meta baja el disponible pero no S ni el patrimonio; y un ingreso previsto
+aparece en la proyección pero no en el disponible.
+
 ## 1. Dinero: enteros en unidades menores
 
 - Todo importe se guarda como **número entero de unidades menores** (centavos para
@@ -474,6 +491,14 @@ los apartados, así que nunca hay una segunda reserva:
   el disponible se reduce en lo que la meta ya cubre (`reserves.ts`, `scheduleCoverage`):
   `reserva de la ocurrencia = importe − min(importe, apartado de la meta)`.
   Una ocurrencia solo puede estar vinculada a una meta.
+- **Pagada desde el calendario (u otro formulario) sin cerrar el gasto planificado:** lo
+  pagado de esa ocurrencia (incluidos pagos parciales, con efecto sobre las cuentas del
+  presupuesto) **consume** lo apartado en el cálculo, aunque la persona aún no lo haya
+  cerrado: `reserva efectiva = max(0, apartado − pagado)` (`linkedPaidFromBudgetPool`).
+  En versiones anteriores la reserva seguía descontándose y el pago restaba dos veces
+  hasta cerrar el aviso de la bandeja (corregido; prueba en `independent.test.ts` §6).
+  Cerrar («Cerrar con el pago registrado») ya no cambia «Puedes gastar»: libera el
+  sobrante y guarda el ciclo en el historial.
 - **Aportar a un gasto vinculado** (`maxBudgetAllocation`): la parte que cubre un pago ya
   reservado no cuesta dinero libre (solo pasa de «reservado para el pago» a «apartado en la
   meta»): `máximo = min(falta, parte neutral + dinero libre)`.

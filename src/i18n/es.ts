@@ -1454,7 +1454,7 @@ export const es = {
   'inbox.title.verificationNeedsReview': 'La verificación de «{name}» necesita revisión',
   'inbox.why.verificationNeedsReview': 'Cambiaron movimientos del periodo verificado o quedó una diferencia sin resolver.',
   'inbox.title.reserveForSettledBill': '«{name}» ya se pagó pero sigue con dinero apartado',
-  'inbox.why.reserveForSettledBill': 'El pago vinculado ya está registrado; si lo apartado ({amount}) sigue reservado, ese dinero se descontaría dos veces.',
+  'inbox.why.reserveForSettledBill': 'El pago vinculado ya está registrado y lo apartado ya no se descuenta dos veces. Ciérralo para liberar lo que sobre ({amount} apartados) y guardar el pago en su historial.',
   'inbox.title.distributionIncomeChanged': 'El ingreso «{name}» cambió después de distribuirlo',
   'inbox.why.distributionIncomeChanged': 'Su importe, fecha o cuenta ya no coinciden con la distribución. Revisa si los apartados siguen teniendo sentido.',
   'inbox.title.distributionIncomeMissing': 'Se eliminó un ingreso que estaba distribuido',
@@ -1577,4 +1577,5 @@ export const es = {
   'shell.screenFailed': 'No se pudo abrir esta pantalla',
   'shell.screenFailedText': 'Puede que la app se haya actualizado en otra pestaña o que no haya conexión. Tus datos no cambiaron. Recarga para continuar.',
   'settings.backup.importUndone': 'Importación deshecha: se recuperaron los datos anteriores',
+  'explain.goalPaid': 'ya usado en el pago registrado: {amount}',
 } as const
