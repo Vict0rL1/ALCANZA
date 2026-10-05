@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, showAllNotices, startDemo } from './helpers'
 
 test('agregar, buscar, editar y eliminar con deshacer', async ({ page }) => {
   await startDemo(page)
@@ -119,6 +119,7 @@ test('límite mensual por categoría: progreso, aviso en Inicio y quitar con des
   await expect(summary.getByText('Pasado por $7.05')).toBeVisible()
 
   await go(page, '/')
+  await showAllNotices(page)
   await expect(page.getByText('Te pasaste del límite en 1 categoría')).toBeVisible()
   await expect(page.getByTestId('available')).toHaveText('$136.78') // informativo: no cambia el disponible
 

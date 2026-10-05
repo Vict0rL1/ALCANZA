@@ -67,13 +67,33 @@ Para detener la app, vuelve a la terminal y pulsa `Ctrl + C`.
 
 ### Probarla en tu celular (misma red Wi-Fi)
 
-```bash
-npm run dev -- --host
-```
+Recomendado: la **versión compilada**, que es la que se probaría con usuarios.
 
-La terminal mostrará también una dirección «Network», por ejemplo
-`http://192.168.1.20:5173/`. Escríbela en el navegador del celular. Los datos del
-celular son independientes de los de la computadora.
+1. Conecta la computadora y el celular a la **misma red Wi-Fi** (no una red de invitados que
+   aísle dispositivos).
+2. En la carpeta del proyecto ejecuta:
+
+   ```bash
+   npm run build
+   npm run preview -- --host
+   ```
+
+3. La terminal muestra una dirección «Network», por ejemplo `http://192.168.1.20:4173/`.
+   Escríbela tal cual en Safari (iPhone) o Chrome (Android). Si no carga, revisa que el
+   cortafuegos de la computadora permita conexiones entrantes al puerto 4173.
+4. En el celular elige «Explorar con datos de demostración» o configura con **datos
+   ficticios**. Los datos del celular son independientes de los de la computadora.
+5. Para terminar: en la computadora pulsa `Ctrl + C`. Para borrar los datos del celular:
+   *Ajustes › Demostración y reinicio › Borrar todos los datos*.
+
+Limitaciones de esta forma de probar: por `http://` y una IP el navegador **no activa el
+uso sin conexión ni la instalación como app** (exigen https o `localhost`), y Safari puede
+borrar los datos del sitio tras unos 7 días sin abrirlo. Para probar eso hace falta
+publicarla con https (decisión pendiente, ver `docs/ROADMAP.md`). La lista de
+comprobaciones manuales para iPhone y Android está en `docs/USER_TESTING.md` §8.
+
+Para desarrollo (recarga al guardar archivos, sin service worker): `npm run dev -- --host`
+(puerto 5173).
 
 ### Versión optimizada (como quedaría publicada)
 
@@ -186,7 +206,8 @@ papelera y 10 000 movimientos), compras divididas (centavo exacto, reportes, dev
 papelera, reimportación), bandeja de pendientes (aparecen, se resuelven, se posponen, no se
 duplican, falsos positivos de duplicados), distribución de ingresos (sin crear dinero ni
 duplicar reservas, ingresos gastados, editados o eliminados, deshacer, fallo de guardado) y
-migraciones v4/v5/v6 → v7.
+migraciones v1–v6 → v7, 30 casos calculados a mano (`independent.test.ts`) y fallos
+controlados de almacenamiento y de dos pestañas (`persistence.test.ts`).
 
 ### Pruebas en el navegador (celular 390 px, celular 320 px y escritorio)
 
@@ -206,6 +227,12 @@ de copias, verificación de saldos, ingresos variables, gastos planificados, per
 revisión semanal, escenarios y búsqueda, en español e inglés), comprueban que no haya
 desplazamiento horizontal (también con texto al 200 %), la navegación con teclado y
 una auditoría automática de accesibilidad (axe) en modo claro y oscuro.
+
+**Otros navegadores (opcional).** Firefox y WebKit (el motor de Safari) requieren
+descargarlos: `npx playwright install firefox webkit` y después
+`PLAYWRIGHT_ALL_BROWSERS=1 npm run test:e2e`. WebKit automatizado en una computadora **no
+equivale** a Safari en un iPhone real (teclado, instalación, almacenamiento y gestos
+cambian): esa prueba es manual (`docs/USER_TESTING.md` §8).
 
 ### Todas las comprobaciones
 
@@ -258,6 +285,15 @@ modo oscuro y diseño desde 320 px hasta escritorio. En la versión compilada
 dispositivo y **abre sin internet** tras la primera visita; cuando hay una versión nueva
 aparece el aviso «Actualizar ahora». En modo desarrollo (`npm run dev`) y al abrirla por
 IP en la red local no se activa el uso sin conexión (el navegador lo exige así).
+
+**Protección de los datos (lo que hay y lo que no):** los datos están solo en el
+`localStorage` de este navegador, **sin cifrar y sin contraseña**: cualquiera que use ese
+navegador puede verlos. No hay servidor, cuentas ni envío de datos (la versión compilada
+declara una política de seguridad que bloquea scripts y conexiones a otros sitios). El
+navegador puede borrar los datos (al limpiar datos del sitio, con poco espacio o, en
+Safari, tras ~7 días sin uso si no está instalada); por eso existen las copias exportadas.
+Si no se puede guardar, la app lo dice, conserva lo último guardado y ofrece descargar una
+copia; dos pestañas abiertas no se sobrescriben entre sí.
 
 **No incluye todavía (y la app no finge tenerlo):** cuentas de usuario, sincronización,
 conexión bancaria automática (sí se pueden importar archivos CSV descargados), varias

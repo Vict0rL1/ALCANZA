@@ -102,6 +102,12 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - La importación valida TODO el archivo y no aplica nada si hay un error.
 - Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 7) y añadir migración con prueba.
   Las migraciones solo rellenan campos ausentes; nunca borran datos mal formados.
+- Guardado (`localStorageRepository.ts`): nunca sobrescribe lo que otra pestaña u otra
+  versión guardó después de leer (error `conflict`); si guardar falla, se avisa de forma
+  persistente, se conserva lo último guardado y se ofrece descargar una copia. Nunca se
+  muestra «Guardado» si no se guardó ni se reemplazan datos por una demo o un estado vacío.
 - Datos de demostración siempre marcados con `isDemo: true`.
 - El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea
   archivos de la app, nunca datos. Solo se registra en producción y contexto seguro.
+  Actualizar solo recarga la pestaña que lo pidió. La versión compilada lleva una CSP
+  (`vite.config.ts`): sin scripts ni conexiones a otros sitios.

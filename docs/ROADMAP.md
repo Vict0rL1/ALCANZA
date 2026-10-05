@@ -64,15 +64,55 @@ Hecho:
 - ✅ **Inglés:** interfaz completa en inglés (el tipo de `en.ts` exige todas las
   claves), selector en la bienvenida y en Ajustes, datos de demostración traducidos.
 
-Pendiente:
+- ✅ **Preparación para la prueba con usuarios:** casos financieros calculados a mano
+  (`independent.test.ts`) — corrigió un doble descuento al pagar desde el calendario un
+  gasto planificado vinculado —, guardado sin sobrescrituras entre pestañas, aviso
+  persistente si no se puede guardar, apertura correcta con el almacenamiento lleno,
+  datos de versiones futuras protegidos, actualización de la PWA solo a petición, Inicio
+  con la cifra principal primero y avisos agrupados, bienvenida con cálculo provisional,
+  política de seguridad de contenido y guía `docs/USER_TESTING.md`.
 
-| Tarea | Notas |
+---
+
+## Trabajo pendiente ordenado
+
+### A. Errores que bloquean una prueba controlada
+
+Ninguno conocido tras esta revisión (ver la conclusión del PR). Antes de la prueba hay que
+completar la **lista manual de `docs/USER_TESTING.md` §8 en un iPhone y un Android reales**:
+no se pudo hacer en este entorno. Si allí aparece un error de guardado, de cálculo o un
+flujo bloqueado, pasa a esta sección.
+
+### B. Necesario antes de admitir usuarios reales (con su dinero)
+
+| Tarea | Por qué |
 |---|---|
-| Tombstones para sincronizar | La papelera local ya existe; para sincronizar hará falta registrar también los eliminados definitivamente. |
-| Almacenamiento IndexedDB | Más espacio que `localStorage` y escritura asíncrona. La interfaz `DataRepository` ya lo permite. |
-| Reglas automáticas de división | Ya se propone repetir el último reparto del mismo comercio; faltaría guardar repartos con nombre. |
-| Distribución automática al cobrar | Hoy el asistente se ofrece al registrar un ingreso y nunca aplica nada solo; se podrían guardar plantillas de reparto. |
-| Presupuestos por periodo en varias monedas | Hoy una sola moneda (la del presupuesto). Requiere la fase de varias monedas (Fase 3): un proveedor de tasas de cambio con histórico, que es un servicio externo. |
+| Probar en Safari/iPhone, Firefox y Android reales | Solo se automatizó Chromium. WebKit automatizado tampoco equivale a Safari en iOS. |
+| Revisión con lector de pantalla real (VoiceOver, TalkBack, NVDA) | axe solo detecta parte de los problemas. |
+| Resultados de la prueba con usuarios corregidos | En especial cualquier mala interpretación de «Puedes gastar» (gravedad 4). |
+| Copias de seguridad automáticas fuera del navegador | Hoy dependen de que la persona exporte. Requiere decidir un destino (archivo local programado, nube) → ver D. |
+| Publicar en https con un dominio propio | Necesario para usar sin conexión e instalar en el teléfono fuera de la red local. Requiere decidir alojamiento (ver D). |
+| Política de privacidad y términos | Aunque los datos no salgan del dispositivo, hay que explicarlo por escrito. |
+| Almacenamiento IndexedDB | Solo si se comprueba un problema real: hoy `localStorage` (≈5 MB) cubre años de movimientos de una persona; el guardado ya es atómico y detecta conflictos. Reevaluar si aparecen errores de cuota. |
+
+### C. Funciones opcionales (sin servicios externos)
+
+| Función | Notas |
+|---|---|
+| Plantillas de división con nombre | Hoy se propone repetir el último reparto del mismo comercio. |
+| Plantillas de distribución del ingreso | Hoy el asistente propone según prioridad; nunca aplica nada solo. |
+| Planificación de deudas | Bola de nieve / avalancha con enteros y redondeo documentado. |
+| Varias monedas con tasas **manuales** | La persona escribe la tasa fechada; nunca se suman monedas sin convertir. Sin proveedor externo. |
+| Importar OFX/QFX | Reutilizaría la vista previa y la huella del CSV. |
+
+### D. Integraciones que requieren decisiones, cuentas o credenciales
+
+| Integración | Qué hay que decidir |
+|---|---|
+| Alojamiento https | Proveedor, dominio y costo. |
+| Cuentas de usuario y sincronización (Fase 2) | Proveedor de autenticación, base de datos, costos, privacidad y cumplimiento legal. Requiere *tombstones* (los eliminados definitivamente también se registran). |
+| Tasas de cambio automáticas | Proveedor de tasas con histórico (puede tener costo o límites). |
+| Conexión bancaria, OCR, voz, notificaciones push | Ver Fases 3–5. Ninguna está implementada ni simulada. |
 
 ## Fase 2 — Cuentas de usuario y sincronización
 

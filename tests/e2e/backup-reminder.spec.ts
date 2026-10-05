@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, START, startDemo } from './helpers'
+import { available, go, showAllNotices, START, startDemo } from './helpers'
 
 const KEY = 'margen.data.v1'
 
@@ -73,6 +73,7 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
   await expect(page.getByTestId('available')).toHaveText('$136.78')
   const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v7'))
   expect(JSON.parse(preserved!).fromVersion).toBe(4)
+  await showAllNotices(page)
   await expect(page.getByText('Haz una copia de seguridad')).toBeVisible()
   await expect(page.getByText('Nunca has exportado tus datos.')).toBeVisible()
 
@@ -90,6 +91,8 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
   // 8 días después vuelve a recordarlo; «Exportar ahora» lo resuelve.
   await page.clock.setSystemTime(new Date(START.getTime() + 8 * 86_400_000))
   await page.reload()
+  await expect(page.getByTestId('available')).toBeVisible()
+  await showAllNotices(page)
   await expect(page.getByText('Haz una copia de seguridad')).toBeVisible()
   await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar ahora' }).click()])
   await expect(page.getByText('Haz una copia de seguridad')).toHaveCount(0)

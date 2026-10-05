@@ -28,9 +28,40 @@ function serviceWorker(): Plugin {
   }
 }
 
+/**
+ * Política de seguridad de contenido (solo en la versión compilada: el servidor de
+ * desarrollo necesita scripts en línea). Solo se cargan archivos de la propia app y
+ * no se permite conectar con otros sitios: si alguna vez se colara texto con código,
+ * el navegador no lo ejecutaría ni podría enviar datos fuera.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  // React aplica algunos estilos en línea (atributo style) para gráficos y barras.
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ')
+
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'margen-csp',
+    apply: 'build',
+    transformIndexHtml(html) {
+      return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), serviceWorker()],
+  plugins: [react(), serviceWorker(), contentSecurityPolicy()],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).
     include: ['src/**/*.test.ts'],

@@ -122,15 +122,20 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   type Preview = { data: AppData; budget: BudgetResult } | { issues: Issue[] }
   const [preview, setPreview] = useState<Preview | null>(null)
 
-  const next = () => {
-    const { input, errs } = buildInput(step)
+  /**
+   * Avanza un paso. Con `toSummary` (desde «Pagos próximos») salta el paso opcional del
+   * apartado y muestra ya el primer cálculo: lo avanzado se configura después.
+   */
+  const next = (toSummary = false) => {
+    const upTo = toSummary ? 4 : step
+    const { input, errs } = buildInput(upTo)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    if (step === 4 && input) {
+    if (upTo === 4 && input) {
       const r = createInitialData(input, { today, now: new Date().toISOString() })
       setPreview(r.ok ? { data: r.data, budget: computeBudget(r.data, today) } : { issues: r.issues })
     }
-    setStep((s) => s + 1)
+    setStep((s) => (toSummary ? 5 : s + 1))
     window.scrollTo({ top: 0 })
     requestAnimationFrame(() => document.getElementById('setup-step-title')?.focus())
   }
@@ -164,7 +169,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
     </>
   )
 
-  const nav = (nextLabel?: string) => (
+  const nav = (nextLabel?: string, skipToSummary = false) => (
     <div className="form__actions">
       <button type="button" className="btn btn--secondary btn--large" onClick={back}>
         <Icon name="back" />
@@ -174,6 +179,11 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
         {nextLabel ?? t('common.next')}
         <Icon name="chevronRight" />
       </button>
+      {skipToSummary && (
+        <button type="button" className="btn btn--ghost btn--large" onClick={() => next(true)}>
+          {t('setup.skipToSummary')}
+        </button>
+      )}
     </div>
   )
 
@@ -319,7 +329,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
                   {t('setup.bills.add')}
                 </button>
                 <p className="note">{t('setup.bills.monthEnd')}</p>
-                {nav()}
+                {nav(undefined, true)}
               </>
             )}
 
@@ -367,6 +377,14 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
               </div>
               {preview.budget.availableMinor < 0 && <Alert tone="warning" title={t('home.negativeTitle', { amount: fmt.money(-preview.budget.availableMinor) })}>{t('home.negativeText')}</Alert>}
               {preview.budget.overdueIncomes.length > 0 && <Alert tone="warning" title={t('setup.summary.incomePast')} />}
+              {(bills.length === 0 || hasIncome === 'no') && (
+                <Alert tone="info" title={t('setup.summary.provisionalTitle')}>
+                  <ul className="bullets">
+                    {bills.length === 0 && <li>{t('setup.summary.provisionalBills')}</li>}
+                    {hasIncome === 'no' && <li>{t('setup.summary.provisionalIncome', { days: Number(horizon) })}</li>}
+                  </ul>
+                </Alert>
+              )}
               <p className="note">{t('setup.summary.note')}</p>
             </>
           ) : (

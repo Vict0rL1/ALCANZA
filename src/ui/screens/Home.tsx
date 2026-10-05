@@ -80,57 +80,14 @@ export function Home() {
   const otherReminders = reminderItems.filter((i) => i.state !== 'overdue')
   const pendingCount = useMemo(() => inboxView(data, today).active.length, [data, today])
 
-  return (
-    <div className="stack">
-      <PageHeader title={t('home.title')} />
-
-      {/* Acceso compacto a la bandeja de pendientes (sin llenar la pantalla de avisos) */}
-      <a className="inbox-link" href={href('/pendientes')} data-testid="inbox-link">
-        <Icon name={pendingCount > 0 ? 'alert' : 'checkCircle'} size={18} />
-        <span>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</span>
-        <Icon name="chevronRight" size={16} />
-      </a>
-
-      {/* Avisos que requieren acción */}
-      {budget.overdueIncomes.map((item) => (
-        <Alert
-          key={item.key}
-          tone="warning"
-          title={t('home.alert.lateIncomeTitle', { name: planItemName(item, t), date: fmt.date(item.date) })}
-          actions={
-            <>
-              <button type="button" className="btn btn--small btn--primary" onClick={() => setPayItem(item)}>
-                {t('home.alert.markReceived')}
-              </button>
-              {item.source === 'schedule' && (
-                <button type="button" className="btn btn--small btn--secondary" onClick={() => void skip(item)}>
-                  {t('home.alert.didNotArrive')}
-                </button>
-              )}
-              <a className="btn btn--small btn--ghost" href={href(`/plan/programado/editar/${item.sourceId}`)}>
-                {t('home.alert.changeDate')}
-              </a>
-            </>
-          }
-        >
-          {t('home.alert.lateIncomeText')}
-        </Alert>
-      ))}
-      {budget.incomeDueToday.map((item) => (
-        <Alert
-          key={item.key}
-          tone="info"
-          title={t('home.alert.incomeTodayTitle', { name: planItemName(item, t) })}
-          actions={
-            <button type="button" className="btn btn--small btn--primary" onClick={() => setPayItem(item)}>
-              {t('home.alert.markReceived')}
-            </button>
-          }
-        >
-          {t('home.alert.incomeTodayText')}
-        </Alert>
-      ))}
-      {budget.overdueBills.length > 0 && (
+  // Avisos que no cambian la cifra principal: se agrupan debajo de ella para no saturar
+  // la pantalla (el primero visible; el resto, plegado). Orden: pagos vencidos, copia de
+  // seguridad (sin servidor, es la única protección contra perder datos), saldo antiguo,
+  // límites y metas.
+  const notices = [
+    budget.overdueBills.length > 0 && {
+      key: 'overdueBills',
+      node: (
         <Alert
           tone="warning"
           title={tn('home.alert.overdueBills', budget.overdueBills.length)}
@@ -142,42 +99,11 @@ export function Home() {
         >
           {t('home.alert.overdueBillsText')}
         </Alert>
-      )}
-      {budget.isBalanceStale && budget.balanceAgeDays !== null && (
-        <Alert
-          tone="warning"
-          icon="clock"
-          title={tn('home.alert.staleTitle', budget.balanceAgeDays)}
-          actions={
-            <button type="button" className="btn btn--small btn--primary" onClick={() => setBalanceOpen(true)}>
-              {t('home.updateBalance')}
-            </button>
-          }
-        >
-          {t('home.alert.staleText')}
-        </Alert>
-      )}
-      {overLimits.length > 0 && (
-        <Alert
-          tone="warning"
-          title={tn('home.alert.limitOverTitle', overLimits.length)}
-          actions={
-            <a className="btn btn--small btn--secondary" href={href('/movimientos')}>
-              {t('home.alert.seeSummary')}
-            </a>
-          }
-        >
-          {t('home.alert.limitOverText', {
-            list: overLimits.map((l) => `${categoryLabel(t, l.categoryId)} (${t('limits.over', { amount: fmt.money(-l.remainingMinor) })})`).join(' · '),
-          })}
-        </Alert>
-      )}
-      {budget.goalsExceedMoney && (
-        <Alert tone="warning" title={t('home.alert.goalsExceedTitle')}>
-          {t('home.alert.goalsExceedText')}
-        </Alert>
-      )}
-      {backup.due && (
+      ),
+    },
+    (backup.due) && {
+      key: 'backup',
+      node: (
         <Alert
           tone="info"
           icon="shield"
@@ -196,7 +122,56 @@ export function Home() {
         >
           {backup.neverExported ? t('home.backup.textNever') : t('home.backup.textOld', { date: fmt.date(localDateInTimeZone(new Date(backup.lastExportAt!), data.settings.timeZone)) })}
         </Alert>
-      )}
+      ),
+    },
+    (budget.isBalanceStale && budget.balanceAgeDays !== null) && {
+      key: 'stale',
+      node: (
+        <Alert
+          tone="warning"
+          icon="clock"
+          title={tn('home.alert.staleTitle', budget.balanceAgeDays)}
+          actions={
+            <button type="button" className="btn btn--small btn--primary" onClick={() => setBalanceOpen(true)}>
+              {t('home.updateBalance')}
+            </button>
+          }
+        >
+          {t('home.alert.staleText')}
+        </Alert>
+      ),
+    },
+    (overLimits.length > 0) && {
+      key: 'limits',
+      node: (
+        <Alert
+          tone="warning"
+          title={tn('home.alert.limitOverTitle', overLimits.length)}
+          actions={
+            <a className="btn btn--small btn--secondary" href={href('/movimientos')}>
+              {t('home.alert.seeSummary')}
+            </a>
+          }
+        >
+          {t('home.alert.limitOverText', {
+            list: overLimits.map((l) => `${categoryLabel(t, l.categoryId)} (${t('limits.over', { amount: fmt.money(-l.remainingMinor) })})`).join(' · '),
+          })}
+        </Alert>
+      ),
+    },
+    (budget.goalsExceedMoney) && {
+      key: 'goals',
+      node: (
+        <Alert tone="warning" title={t('home.alert.goalsExceedTitle')}>
+          {t('home.alert.goalsExceedText')}
+        </Alert>
+      ),
+    },
+  ].filter((n): n is { key: string; node: React.JSX.Element } => !!n)
+
+  return (
+    <div className="stack">
+      <PageHeader title={t('home.title')} />
 
       <div className="home-grid">
         <div className="stack">
@@ -291,6 +266,12 @@ export function Home() {
                   </>
                 )}
                 <p className="calc__detail">{t('explain.futureIncomeNotCounted')}</p>
+                <ul className="bullets calc__glossary" aria-label={t('explain.glossary.title')}>
+                  <li>{t('explain.glossary.balance')}</li>
+                  <li>{t('explain.glossary.reserved')}</li>
+                  <li>{t('explain.glossary.goals')}</li>
+                  <li>{t('explain.glossary.card')}</li>
+                </ul>
                 <p className="calc__detail">
                   <a href={href('/ajustes?seccion=formulas')}>{t('explain.moreInfo')}</a>
                 </p>
@@ -309,6 +290,65 @@ export function Home() {
             </div>
             <FavoriteChips returnTo="/" limit={4} />
           </Card>
+          {/* Ingresos sin confirmar: explican por qué no se suman a la cifra principal */}
+          {budget.overdueIncomes.map((item) => (
+            <Alert
+              key={item.key}
+              tone="warning"
+              title={t('home.alert.lateIncomeTitle', { name: planItemName(item, t), date: fmt.date(item.date) })}
+              actions={
+                <>
+                  <button type="button" className="btn btn--small btn--primary" onClick={() => setPayItem(item)}>
+                    {t('home.alert.markReceived')}
+                  </button>
+                  {item.source === 'schedule' && (
+                    <button type="button" className="btn btn--small btn--secondary" onClick={() => void skip(item)}>
+                      {t('home.alert.didNotArrive')}
+                    </button>
+                  )}
+                  <a className="btn btn--small btn--ghost" href={href(`/plan/programado/editar/${item.sourceId}`)}>
+                    {t('home.alert.changeDate')}
+                  </a>
+                </>
+              }
+            >
+              {t('home.alert.lateIncomeText')}
+            </Alert>
+          ))}
+          {budget.incomeDueToday.map((item) => (
+            <Alert
+              key={item.key}
+              tone="info"
+              title={t('home.alert.incomeTodayTitle', { name: planItemName(item, t) })}
+              actions={
+                <button type="button" className="btn btn--small btn--primary" onClick={() => setPayItem(item)}>
+                  {t('home.alert.markReceived')}
+                </button>
+              }
+            >
+              {t('home.alert.incomeTodayText')}
+            </Alert>
+          ))}
+          {notices[0]?.node}
+          {notices.length > 1 && (
+            <details className="explain" data-testid="more-notices">
+              <summary>
+                <Icon name="alert" size={16} />
+                {tn('home.moreNotices', notices.length - 1)}
+              </summary>
+              <div className="explain__body stack-sm">
+                {notices.slice(1).map((n) => (
+                  <div key={n.key}>{n.node}</div>
+                ))}
+              </div>
+            </details>
+          )}
+          {/* Acceso compacto a la bandeja de pendientes (sin llenar la pantalla de avisos) */}
+          <a className="inbox-link" href={href('/pendientes')} data-testid="inbox-link">
+            <Icon name={pendingCount > 0 ? 'alert' : 'checkCircle'} size={18} />
+            <span>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</span>
+            <Icon name="chevronRight" size={16} />
+          </a>
           {/* Recordatorios dentro de la app */}
           {(otherReminders.length > 0 || cardReminders.length > 0) && (
             <Card labelledBy="reminders-title">

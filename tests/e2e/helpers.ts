@@ -37,3 +37,9 @@ export async function movementCount(page: Page): Promise<number> {
   const text = (await page.locator('.summary-line').textContent()) ?? ''
   return Number(/(\d+) movimiento/.exec(text)?.[1] ?? NaN)
 }
+
+/** Inicio agrupa los avisos secundarios en «N avisos más»: los despliega si existen. */
+export async function showAllNotices(page: Page) {
+  const more = page.getByTestId('more-notices')
+  if ((await more.count()) > 0 && !(await more.evaluate((d) => (d as HTMLDetailsElement).open))) await more.locator('summary').click()
+}

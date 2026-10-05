@@ -58,3 +58,22 @@ test('sin fecha de ingreso pide un horizonte y no divide entre cero', async ({ p
   await expect(page.getByText('Te faltan $25.50 para cubrir pagos y apartados')).toBeVisible()
   await expect(page.locator('.stat__value').first()).toHaveText('$0.00')
 })
+
+test('camino corto: saldo + próximo ingreso → resultado provisional sin pasos opcionales', async ({ page }) => {
+  await openApp(page)
+  await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  await page.getByLabel('Saldo disponible').fill('500')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByLabel('Importe esperado').fill('800')
+  await page.getByLabel('Fecha del próximo ingreso').fill('2026-10-08')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  // Sin pagos: se puede ver el resultado ya (el apartado se configura después).
+  await page.getByRole('button', { name: 'Ver mi resultado ahora' }).click()
+  await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
+  await expect(page.locator('.hero__value')).toHaveText('$500.00') // el ingreso futuro no se suma
+  await expect(page.getByText('Cálculo provisional')).toBeVisible()
+  await expect(page.getByText(/No agregaste pagos próximos/)).toBeVisible()
+  await page.getByRole('button', { name: 'Empezar a usar Margen' }).click()
+  await expect(page.getByTestId('available')).toHaveText('$500.00')
+  await expect(page.getByText('Modo demostración')).toHaveCount(0)
+})
