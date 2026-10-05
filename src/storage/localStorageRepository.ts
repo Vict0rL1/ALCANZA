@@ -29,29 +29,34 @@ function preservePreMigration(storage: Storage, raw: string, fromVersion: number
   }
 }
 
+/**
+ * Acceso para LEER. No se prueba escribiendo: con el almacenamiento lleno una escritura de
+ * prueba falla, y eso no debe hacer creer a la app que no hay datos (se mostraría vacía).
+ */
 function getStorage(): Storage | null {
   try {
     const s = globalThis.localStorage
-    const probe = '__margen_probe__'
-    s.setItem(probe, '1')
-    s.removeItem(probe)
+    s.getItem(STORAGE_KEY)
     return s
   } catch {
     return null
   }
 }
 
-export function isLocalStorageAvailable(): boolean {
-  return getStorage() !== null
-}
-
 export class LocalStorageRepository implements DataRepository {
   readonly kind = 'local' as const
+  /**
+   * Texto guardado tal como lo leyó o escribió ESTA pestaña (`null` = no había datos;
+   * `undefined` = todavía no se leyó). Si al guardar el almacenamiento tiene otra cosa,
+   * alguien más lo cambió: no se sobrescribe sin que la persona lo decida.
+   */
+  private baseline: string | null | undefined = undefined
 
   async load(): Promise<LoadResult> {
     const storage = getStorage()
     if (!storage) throw new Error('localStorage no disponible')
     const raw = storage.getItem(STORAGE_KEY)
+    this.baseline = raw
     if (raw === null) return { status: 'empty' }
     let parsed: unknown
     try {
@@ -72,17 +77,22 @@ export class LocalStorageRepository implements DataRepository {
     const storage = getStorage()
     if (!storage) return { ok: false, error: 'unavailable' }
     try {
-      storage.setItem(STORAGE_KEY, JSON.stringify(data))
+      if (this.baseline !== undefined && storage.getItem(STORAGE_KEY) !== this.baseline) return { ok: false, error: 'conflict' }
+      const text = JSON.stringify(data)
+      storage.setItem(STORAGE_KEY, text)
+      this.baseline = text
       return { ok: true }
     } catch (error) {
       const name = (error as { name?: string } | null)?.name
       if (name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED') return { ok: false, error: 'quota' }
+      if (name === 'SecurityError') return { ok: false, error: 'unavailable' }
       return { ok: false, error: 'unknown' }
     }
   }
 
   async clear(): Promise<void> {
     getStorage()?.removeItem(STORAGE_KEY)
+    this.baseline = null
   }
 
   /** Guarda una copia de datos dañados antes de reemplazarlos, por si hace falta recuperarlos. */

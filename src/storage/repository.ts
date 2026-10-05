@@ -11,7 +11,13 @@ export type LoadResult =
   | { status: 'ok'; data: AppData }
   | { status: 'corrupt'; raw: string; issues: ImportIssue[] }
 
-export type SaveErrorCode = 'quota' | 'unavailable' | 'unknown'
+/**
+ * - quota: no queda espacio.
+ * - unavailable: el navegador bloquea el almacenamiento.
+ * - conflict: otra pestaña (u otra versión de la app) guardó cambios después de que esta
+ *   pestaña leyera los datos. No se sobrescriben: la persona decide.
+ */
+export type SaveErrorCode = 'quota' | 'unavailable' | 'conflict' | 'unknown'
 export type SaveResult = { ok: true } | { ok: false; error: SaveErrorCode }
 
 export interface DataRepository {

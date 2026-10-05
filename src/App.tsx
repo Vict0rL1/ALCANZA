@@ -1,9 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Language } from './domain/types'
 import { I18nContext, createTranslator, useT } from './i18n'
 import { usePwaState } from './pwa/register'
 import { getStore, useAppState, type SaveStatus } from './state/store'
+import { createBackup, backupFileName } from './storage/backup'
+import { APP_VERSION, downloadText } from './ui/backupActions'
 import { Alert } from './ui/components/common'
+import { ConfirmDialog } from './ui/components/Dialog'
 import { Icon, type IconName } from './ui/components/Icon'
 import { ToastProvider } from './ui/components/Toasts'
 import { href, useRoute, type Route } from './ui/router'
@@ -51,7 +54,7 @@ export function App() {
       <ToastProvider>
         <UpdateBanner />
         {state.phase === 'loading' && <Loading />}
-        {state.phase === 'corrupt' && <Corrupt raw={state.raw} />}
+        {state.phase === 'corrupt' && <Corrupt raw={state.raw} newerVersion={state.issues.some((i) => i.code === 'schemaTooNew')} />}
         {state.phase === 'ready' && !state.data && (
           <>
             {state.storage === 'memory' && <MemoryWarning />}
@@ -64,18 +67,25 @@ export function App() {
   )
 }
 
-/** Aviso real de versión nueva (solo aparece si el service worker instaló una). */
+/**
+ * Aviso real de versión nueva (solo aparece si el service worker instaló una). Actualizar
+ * recarga la app: si hay cambios sin guardar, primero hay que resolverlos.
+ */
 function UpdateBanner() {
   const { t } = useT()
-  const { update } = usePwaState()
-  if (!update) return null
+  const { update, reloadNeeded } = usePwaState()
+  const state = useAppState()
+  const unsaved = state.phase === 'ready' && state.unsaved
+  if (!update && !reloadNeeded) return null
   return (
     <div className="banner banner--info" role="status">
       <Icon name="info" size={18} />
-      <span>{t('shell.updateText')}</span>
-      <button type="button" className="btn btn--small btn--inverse" onClick={update}>
-        {t('shell.updateAction')}
-      </button>
+      <span>{t(reloadNeeded ? 'shell.updateOtherTab' : unsaved ? 'shell.updateBlocked' : 'shell.updateText')}</span>
+      {!unsaved && (
+        <button type="button" className="btn btn--small btn--inverse" onClick={() => (update ? update() : window.location.reload())}>
+          {t(reloadNeeded ? 'shell.updateReload' : 'shell.updateAction')}
+        </button>
+      )}
     </div>
   )
 }
@@ -90,33 +100,47 @@ function Loading() {
   )
 }
 
-function Corrupt({ raw }: { raw: string }) {
+/**
+ * Los datos guardados no se pueden leer. Nunca se reemplazan sin preguntar: primero se
+ * ofrece descargarlos y empezar de nuevo pide confirmación (y guarda una copia interna).
+ * Si los guardó una versión más nueva de Margen, lo que hace falta es actualizar la app.
+ */
+function Corrupt({ raw, newerVersion }: { raw: string; newerVersion: boolean }) {
   const { t } = useT()
-  const downloadRaw = () => {
-    const blob = new Blob([raw], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'margen-datos-danados.json'
-    a.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
+  const { update } = usePwaState()
+  const [confirming, setConfirming] = useState(false)
+  const downloadRaw = () => downloadText(newerVersion ? 'margen-datos-version-nueva.json' : 'margen-datos-danados.json', raw)
   return (
     <main className="center-screen" id="main">
       <div className="card setup__card">
-        <Alert tone="critical" title={t('shell.corruptTitle')} role="alert">
-          <p>{t('shell.corruptText')}</p>
+        <Alert tone="critical" title={t(newerVersion ? 'shell.newerTitle' : 'shell.corruptTitle')} role="alert">
+          <p>{t(newerVersion ? 'shell.newerText' : 'shell.corruptText')}</p>
         </Alert>
         <div className="form__actions form__actions--stack">
+          {newerVersion && (
+            <button type="button" className="btn btn--primary" onClick={() => (update ? update() : window.location.reload())}>
+              {t('shell.newerReload')}
+            </button>
+          )}
           <button type="button" className="btn btn--secondary" onClick={downloadRaw}>
             <Icon name="download" />
             {t('shell.corruptDownload')}
           </button>
-          <button type="button" className="btn btn--danger-ghost" onClick={() => void getStore().discardCorrupt()}>
+          <button type="button" className="btn btn--danger-ghost" onClick={() => setConfirming(true)}>
             {t('shell.corruptReset')}
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirming}
+        title={t('shell.corruptConfirmTitle')}
+        confirmLabel={t('shell.corruptReset')}
+        destructive
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void getStore().discardCorrupt()}
+      >
+        <p>{t('shell.corruptConfirmText')}</p>
+      </ConfirmDialog>
     </main>
   )
 }
@@ -155,7 +179,7 @@ function SaveIndicator({ save }: { save: SaveStatus }) {
     content = (
       <>
         <Icon name="alert" size={16} />
-        {t(save.error === 'quota' ? 'save.error.quota' : save.error === 'unavailable' ? 'save.error.unavailable' : 'save.error.generic')}
+        {t(save.error === 'quota' ? 'save.error.quota' : save.error === 'unavailable' ? 'save.error.unavailable' : save.error === 'conflict' ? 'save.error.conflict' : 'save.error.notSaved')}
       </>
     )
   return (
@@ -165,9 +189,73 @@ function SaveIndicator({ save }: { save: SaveStatus }) {
   )
 }
 
+/**
+ * El último guardado falló: lo almacenado sigue siendo el último estado guardado y lo que se
+ * ve incluye cambios que se perderían al cerrar. Se explica el motivo y se ofrecen salidas
+ * (descargar una copia, reintentar o cargar lo guardado), sin decidir por la persona.
+ */
+function SaveProblemBanner({ error }: { error: string }) {
+  const { t } = useT()
+  const [busy, setBusy] = useState(false)
+  const conflict = error === 'conflict'
+  const download = () => {
+    const data = getStore().data
+    if (!data) return
+    const now = new Date()
+    downloadText(backupFileName(now, data.isDemo), JSON.stringify(createBackup(data, now, APP_VERSION), null, 2))
+  }
+  const reason = error === 'quota' ? 'quota' : error === 'unavailable' ? 'unavailable' : conflict ? 'conflict' : 'unknown'
+  return (
+    <div className="banner banner--critical banner--stack" role="alert" data-testid="save-problem">
+      <Icon name="alert" size={18} />
+      <div className="stack-sm">
+        <p>
+          <strong>{t('save.problem.title')}</strong> {t(`save.problem.${reason}` as 'save.problem.quota')}
+        </p>
+        <div className="button-row">
+          <button type="button" className="btn btn--small btn--inverse" onClick={download}>
+            <Icon name="download" size={16} />
+            {t('save.problem.download')}
+          </button>
+          {conflict ? (
+            <button type="button" className="btn btn--small btn--inverse" onClick={() => void getStore().reload()}>
+              {t('save.problem.loadSaved')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--small btn--inverse"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true)
+                await getStore().retrySave()
+                setBusy(false)
+              }}
+            >
+              {t('save.problem.retry')}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Shell() {
   const { t } = useT()
   const state = useAppState()
+  const unsaved = state.phase === 'ready' && state.unsaved
+
+  // Con cambios sin guardar, el navegador pregunta antes de cerrar o recargar la pestaña.
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
   const route = useRoute()
   const mainRef = useRef<HTMLElement>(null)
   const first = useRef(true)
@@ -237,7 +325,8 @@ function Shell() {
           </a>
         </div>
       )}
-      {state.externalChange && (
+      {state.unsaved && <SaveProblemBanner error={state.save.state === 'error' ? state.save.error : 'unknown'} />}
+      {state.externalChange && !state.unsaved && (
         <div className="banner banner--info" role="status">
           <Icon name="info" size={18} />
           <span>{t('shell.externalChange')}</span>
@@ -273,11 +362,43 @@ function Shell() {
           })}
         </nav>
         <main className="main" id="main" ref={mainRef} tabIndex={-1}>
-          <Suspense fallback={null}>
-            <Screen route={route} />
-          </Suspense>
+          <ScreenBoundary key={route.path}>
+            <Suspense fallback={null}>
+              <Screen route={route} />
+            </Suspense>
+          </ScreenBoundary>
         </main>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Si una pantalla no se puede cargar (p. ej. la app se actualizó en otra pestaña y sus
+ * archivos ya no existen, o no hay conexión), se explica y se ofrece recargar en vez de
+ * dejar la pantalla en blanco. Los datos no se tocan.
+ */
+class ScreenBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    return this.state.failed ? <ScreenFailed /> : this.props.children
+  }
+}
+
+function ScreenFailed() {
+  const { t } = useT()
+  return (
+    <div className="stack">
+      <h1 id="page-title" tabIndex={-1}>
+        {t('shell.screenFailed')}
+      </h1>
+      <p>{t('shell.screenFailedText')}</p>
+      <button type="button" className="btn btn--primary" onClick={() => window.location.reload()}>
+        {t('shell.updateReload')}
+      </button>
     </div>
   )
 }

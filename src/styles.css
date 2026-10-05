@@ -340,6 +340,14 @@ code {
   padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
   font-size: 0.92rem;
 }
+.banner--stack {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+.banner--stack > .stack-sm {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 .banner--demo {
   background: #3b2f86;

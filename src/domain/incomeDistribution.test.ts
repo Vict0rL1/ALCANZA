@@ -170,7 +170,7 @@ describe('distribuir un ingreso: fallo de guardado', () => {
       const next = ok(applyDistribution(data, example, ctx)).data
       expect((await repo.save(next)).ok).toBe(false)
       expect(store.get(STORAGE_KEY)).toBe(before)
-      full = false // al recargar, se lee la última versión guardada completa
+      // Al recargar (aunque el almacenamiento siga lleno) se lee la última versión guardada completa.
       const loaded = await repo.load()
       expect(loaded.status === 'ok' && loaded.data.incomeDistributions).toEqual([])
     } finally {

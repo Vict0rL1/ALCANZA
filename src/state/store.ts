@@ -24,6 +24,11 @@ export type AppState =
       storage: DataRepository['kind']
       /** Otra pestaña guardó cambios más recientes. */
       externalChange: boolean
+      /**
+       * El último guardado falló: lo que se ve incluye cambios que NO están en el
+       * almacenamiento (que conserva intacto el último estado guardado).
+       */
+      unsaved: boolean
     }
 
 export class AppStore {
@@ -63,12 +68,18 @@ export class AppStore {
         save: { state: 'idle' },
         storage: this.repo.kind,
         externalChange: false,
+        unsaved: false,
       })
     } catch {
       // El navegador bloquea el almacenamiento: se trabaja solo en memoria y se avisa.
       this.repo = new MemoryRepository()
-      this.set({ phase: 'ready', data: null, save: { state: 'idle' }, storage: 'memory', externalChange: false })
+      this.set({ phase: 'ready', data: null, save: { state: 'idle' }, storage: 'memory', externalChange: false, unsaved: false })
     }
+  }
+
+  /** Hay cambios a la vista que no se pudieron guardar. */
+  get hasUnsavedChanges(): boolean {
+    return this.state.phase === 'ready' && this.state.unsaved
   }
 
   private onExternalChange() {
@@ -93,13 +104,25 @@ export class AppStore {
     this.set({ ...this.state, data, save: { state: 'saving' } })
     const result = await this.repo.save(data)
     if (this.state.phase !== 'ready') return result.ok
-    this.set({ ...this.state, save: result.ok ? { state: 'saved', at: Date.now() } : { state: 'error', error: result.error } })
+    this.set({
+      ...this.state,
+      save: result.ok ? { state: 'saved', at: Date.now() } : { state: 'error', error: result.error },
+      unsaved: !result.ok,
+      // Un conflicto equivale a saber que otra pestaña cambió los datos.
+      externalChange: this.state.externalChange || (!result.ok && result.error === 'conflict'),
+    })
     return result.ok
+  }
+
+  /** Vuelve a intentar guardar lo que se ve (tras liberar espacio, por ejemplo). */
+  async retrySave(): Promise<boolean> {
+    if (this.state.phase !== 'ready' || !this.state.data) return false
+    return this.commit(this.state.data)
   }
 
   async clearAll(): Promise<void> {
     await this.repo.clear()
-    this.set({ phase: 'ready', data: null, save: { state: 'idle' }, storage: this.repo.kind, externalChange: false })
+    this.set({ phase: 'ready', data: null, save: { state: 'idle' }, storage: this.repo.kind, externalChange: false, unsaved: false })
   }
 
   /** Descarta datos dañados (tras ofrecer descargarlos) y vuelve a empezar. */

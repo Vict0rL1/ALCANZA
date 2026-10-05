@@ -97,9 +97,25 @@ export function Settings() {
 
   const applyImport = async () => {
     if (!importState || !('data' in importState)) return
+    // Se conserva en memoria lo que había para poder deshacer la importación.
+    const previous = getStore().data
     const ok = await getStore().commit(importState.data)
     setImportState(null)
-    toast({ message: ok ? t('settings.backup.imported') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+    toast({
+      message: ok ? t('settings.backup.imported') : t('save.error.generic'),
+      tone: ok ? 'good' : 'critical',
+      ...(ok && previous
+        ? {
+            action: {
+              label: t('common.undo'),
+              onClick: async () => {
+                const undone = await getStore().commit(previous)
+                toast({ message: undone ? t('settings.backup.importUndone') : t('save.error.generic'), tone: undone ? 'good' : 'critical' })
+              },
+            },
+          }
+        : {}),
+    })
   }
 
   const resetDemo = async () => {
