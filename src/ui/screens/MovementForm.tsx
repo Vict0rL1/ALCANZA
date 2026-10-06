@@ -182,17 +182,21 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     if (k === 'transfer' && toAccountId === accountId) setToAccountId(data.accounts.find((a) => a.id !== accountId)?.id ?? '')
   }
 
+  // Solo hace falta para devoluciones. Lo ya devuelto se suma en UNA pasada (antes era O(n²):
+  // con 10.000 movimientos guardar tardaba más de un segundo; ver docs/PERFORMANCE.md).
   const refundCandidates = useMemo(() => {
+    if (kind !== 'refund') return []
+    const refunded = new Map<string, number>()
+    for (const r of data.transactions) {
+      if (r.kind === 'refund' && r.refundOfId && r.id !== id) refunded.set(r.refundOfId, sumMinor([refunded.get(r.refundOfId) ?? 0, r.amountMinor]))
+    }
     return data.transactions
       .filter((tx) => tx.kind === 'expense' && tx.status === 'realized' && tx.id !== id)
-      .map((tx) => {
-        const refunded = sumMinor(data.transactions.filter((r) => r.kind === 'refund' && r.refundOfId === tx.id && r.id !== id).map((r) => r.amountMinor))
-        return { tx, remaining: tx.amountMinor - refunded }
-      })
+      .map((tx) => ({ tx, remaining: tx.amountMinor - (refunded.get(tx.id) ?? 0) }))
       .filter((c) => c.remaining > 0 || c.tx.id === refundOfId)
       .sort((a, b) => (a.tx.date < b.tx.date ? 1 : -1))
       .slice(0, 50)
-  }, [data.transactions, id, refundOfId])
+  }, [data.transactions, id, refundOfId, kind])
 
   const proposedPeriods = existing ? [] : periodsProposedFor(data, { kind, date, categoryId })
   const periodChecked = (budgetId: string) => (budgetId in periodChoice ? periodChoice[budgetId]! : proposedPeriods.includes(budgetId))

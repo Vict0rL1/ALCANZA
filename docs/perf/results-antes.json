@@ -1,0 +1,46 @@
+[
+  {
+    "size": 1000,
+    "mb": 0.3,
+    "seed": "ok",
+    "firstOpen": 229,
+    "open": 94,
+    "home": 26,
+    "movements": 34,
+    "search": 21,
+    "filter": 18,
+    "globalSearch": 37,
+    "weeklyReview": 21,
+    "projection": 28,
+    "inbox": 24,
+    "save": 92,
+    "export": 71,
+    "importParse": 52,
+    "importApply": 69
+  },
+  {
+    "size": 10000,
+    "mb": 2.94,
+    "seed": "ok",
+    "firstOpen": 307,
+    "open": 198,
+    "home": 45,
+    "movements": 42,
+    "search": 28,
+    "filter": 20,
+    "globalSearch": 81,
+    "weeklyReview": 16,
+    "projection": 26,
+    "inbox": 61,
+    "save": 1270,
+    "export": 166,
+    "importParse": 279,
+    "importApply": 109
+  },
+  {
+    "size": 50000,
+    "mb": 14.77,
+    "seed": "QuotaExceededError",
+    "note": "localStorage rechazó 14.77 MB (QuotaExceededError)"
+  }
+]
