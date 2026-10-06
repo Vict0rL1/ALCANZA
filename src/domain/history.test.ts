@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeBudget } from './budget'
-import { canRevert, diffForHistory, HISTORY_MAX_ENTRIES, recordHistory, revertConflicts, revertEntry, stateBefore } from './history'
+import { canRevert, diffForHistory, HISTORY_MAX_ENTRIES, recordHistory, revertConflicts, revertEntry, setValue, setValues, stateBefore } from './history'
 import { allocateToGoal, deleteTransaction, markOccurrence, saveTransaction, updateSettings } from './operations'
 import type { AppData } from './types'
 import { validateAppData } from '../storage/backup'
@@ -137,5 +137,25 @@ describe('historial: reconstruir un estado anterior', () => {
     // Con un corte en medio no se puede reconstruir.
     const withCut = commit(d, d, { source: 'replace' })
     expect(stateBefore(withCut, 0)).toBeNull()
+  })
+})
+
+describe('historial: aplicar en bloque', () => {
+  it('equivale a aplicar los cambios uno a uno (crear, editar, borrar y repetir el mismo registro)', () => {
+    let seed = 7
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)
+    for (let round = 0; round < 50; round++) {
+      const start = baseData({ transactions: Array.from({ length: 8 }, (_, i) => tx({ id: `t${i}`, amountMinor: 100 + i })) })
+      const values = Array.from({ length: 12 }, () => {
+        const id = `t${Math.floor(rand() * 12)}`
+        const value = rand() < 0.3 ? null : tx({ id, amountMinor: Math.floor(rand() * 1000) + 1 })
+        return { collection: 'transactions' as const, id, value }
+      })
+      let sequential = start
+      for (const v of values) sequential = setValue(sequential, v.collection, v.id, v.value)
+      const batch = setValues(start, values)
+      const byId = (d: AppData) => Object.fromEntries(d.transactions.map((t) => [t.id, t.amountMinor]))
+      expect(byId(batch)).toEqual(byId(sequential))
+    }
   })
 })

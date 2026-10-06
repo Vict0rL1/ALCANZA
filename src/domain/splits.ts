@@ -8,6 +8,7 @@
  * Una devolución de una compra dividida puede repartirse entre sus categorías sin superar
  * lo que queda por devolver en cada una.
  */
+import { txIndex } from './txIndex'
 import { mulDivFloor, sumMinor } from './money'
 import { normalizeText } from './rules'
 import type { AppData, SplitLine, Transaction } from './types'
@@ -48,8 +49,8 @@ export function splitDifference(totalMinor: number, lines: Pick<SplitLine, 'amou
 export function refundableByCategory(data: Pick<AppData, 'transactions'>, original: Transaction, excludeRefundId?: string): Map<string, number> {
   const remaining = new Map<string, number>()
   for (const a of categoryAllocations(original)) remaining.set(a.categoryId, (remaining.get(a.categoryId) ?? 0) + a.amountMinor)
-  for (const r of data.transactions) {
-    if (r.kind !== 'refund' || r.refundOfId !== original.id || r.id === excludeRefundId) continue
+  for (const r of txIndex(data.transactions).refundsOf.get(original.id) ?? []) {
+    if (r.id === excludeRefundId) continue
     for (const a of categoryAllocations(r)) {
       if (remaining.has(a.categoryId)) remaining.set(a.categoryId, remaining.get(a.categoryId)! - a.amountMinor)
     }

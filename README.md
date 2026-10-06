@@ -118,9 +118,21 @@ npm run preview
    pendientes**: movimientos sin categoría, pagos sin confirmar, posibles duplicados,
    saldos por verificar, tarjetas cerca del límite, metas vencidas y revisiones de coherencia, cada uno con su motivo, un acceso para
    resolverlo y opciones de posponer o descartar. Pulsa «¿Cómo se calculó?» para ver
-   la cuenta completa.
+   la cuenta completa: saldo usado por cuenta, pagos comprometidos (y cuáles son estimados),
+   apartados, deuda de tarjetas, el supuesto del próximo ingreso e **información pendiente**.
+   **¿Qué cambió?** compara el disponible de hoy con el de ayer (u otra fecha) y lo desglosa
+   por cada cambio registrado y por el paso del tiempo; el desglose suma exactamente la
+   diferencia y, si algo no se puede explicar, lo dice. Con el **icono de candado** («Ocultar
+   importes») activas el modo privado. En Ajustes › Inicio y privacidad eliges vista completa o
+   esencial, el orden de las secciones (con botones) y hasta 3 accesos rápidos.
 3. **Movimientos:** registra gastos, ingresos, transferencias y devoluciones
-   (realizados o previstos). Busca, filtra (también por rango de fechas) y edita. **Eliminar envía a la Papelera**
+   (realizados o previstos). El formulario es corto (tipo, importe, cuenta, categoría; el
+   resto en «Más detalles»), recuerda la última cuenta usada, propone categorías recientes y
+   tiene «Guardar y agregar otro» y «Duplicar como borrador». Si sales a medias, el borrador
+   se conserva en el dispositivo para recuperarlo o descartarlo. Atajos de escritorio: `N`
+   (nuevo), `/` (buscar), `Ctrl/Cmd + Intro` (guardar). **Plantillas** (Movimientos ›
+   Plantillas) con importes fijos o porcentajes para dividir compras y distribuir ingresos:
+   solo rellenan el formulario, con una regla de redondeo explícita. Busca, filtra (también por rango de fechas) y edita. **Eliminar envía a la Papelera**
    (enlace arriba en Movimientos): ahí ves la fecha de eliminación y los detalles, puedes
    restaurar incluso después de cerrar la app, o eliminar definitivamente (uno o todos,
    con confirmación). «Deshacer» sigue funcionando como acceso rápido.
@@ -148,6 +160,10 @@ npm run preview
    simulaciones con nombre (comprar hoy o en otra fecha, subir un pago mensual, reducir un
    gasto previsto, o un ingreso hipotético que solo cambia la proyección) y compara hasta 3 con tu situación actual con las mismas hipótesis.
    Nunca cambian tus datos; si tus datos reales cambian, el escenario se marca para revisar.
+   **Plan ante un faltante**: si el saldo proyectado baja de cero, muestra cuándo, cuánto,
+   qué lo causa y qué ingresos se suponen, y simula palancas (mover o reducir compras
+   previstas, cambiar supuestos de ingresos o del gasto diario). Los pagos programados nunca
+   se tocan. Solo se aplican cambios de planificación, con confirmación y deshacer.
    **Revisión semanal** (tarjeta en Inicio, se puede ocultar): ingresos, gastos, balance,
    categorías principales, comparación con la semana anterior, próximos pagos y metas.
    **Buscar** (lupa arriba a la derecha): encuentra movimientos, cuentas, categorías,
@@ -172,7 +188,9 @@ npm run preview
    «pendiente de revisión».
 7. **Ajustes:** idioma, formato de números y fechas, zona horaria, cuentas (y tarjetas con
    límite, tasa y fechas), categorías personalizadas, reglas de categoría, copia de seguridad,
-   reinicio de la demo y borrado de datos.
+   reinicio de la demo y borrado de datos. **Historial de cambios** (Ajustes › Almacenamiento):
+   qué cambió, cuándo y los valores anteriores; puedes revertir un cambio si nada lo modificó
+   después. Es local y editable, no una auditoría inviolable.
 
 ### Copias de seguridad (importante)
 
@@ -294,8 +312,8 @@ cambios sin guardar (las otras pestañas solo reciben un aviso para recargar des
 con dos versiones reales en `tests/e2e/pwa-update.spec.ts`). En modo desarrollo (`npm run dev`) y al abrirla por
 IP en la red local no se activa el uso sin conexión (el navegador lo exige así).
 
-**Protección de los datos (lo que hay y lo que no):** los datos están solo en el
-`localStorage` de este navegador, **sin cifrar y sin contraseña**: cualquiera que use ese
+**Protección de los datos (lo que hay y lo que no):** los datos están solo en este
+navegador (IndexedDB; `localStorage` si no está disponible; ver `docs/STORAGE.md`), **sin cifrar y sin contraseña**: cualquiera que use ese
 navegador puede verlos. No hay servidor, cuentas ni envío de datos (la versión compilada
 declara una política de seguridad que bloquea scripts y conexiones a otros sitios). El
 navegador puede borrar los datos (al limpiar datos del sitio, con poco espacio o, en
@@ -306,6 +324,9 @@ copia; dos pestañas abiertas no se sobrescriben entre sí.
 **No incluye todavía (y la app no finge tenerlo):** cuentas de usuario, sincronización,
 conexión bancaria automática (sí se pueden importar archivos CSV descargados), varias
 monedas, notificaciones del teléfono, IA. Ver `docs/ROADMAP.md`.
+
+**Rendimiento:** medido con 1.000, 10.000 y 50.000 movimientos sintéticos en la versión
+compilada; cifras, cuellos de botella corregidos y límites en `docs/PERFORMANCE.md`.
 
 ## 9. Solución de problemas
 

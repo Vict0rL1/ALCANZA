@@ -72,6 +72,18 @@ Hecho:
   con la cifra principal primero y avisos agrupados, bienvenida con cálculo provisional,
   política de seguridad de contenido y guía `docs/USER_TESTING.md`.
 
+- ✅ **Uso, claridad y fiabilidad (formato v8):**
+  - **Almacenamiento:** IndexedDB con migración verificada y reanudable desde
+    `localStorage`, necesaria porque 50k movimientos no cabían.
+  - **Historial local:** cambios reversibles.
+  - **«¿Qué cambió?»:** desglose exacto al céntimo.
+  - **«¿Cómo se calculó?» ampliado:** tarjetas, estimados, supuestos e información pendiente.
+  - **Registro rápido:** borradores persistentes, «Guardar y agregar otro», duplicar y atajos.
+  - **Plantillas:** de división y distribución, con regla de redondeo explícita.
+  - **Plan ante un faltante:** palancas simuladas y aplicación confirmada con deshacer.
+  - **Personalización:** de Inicio, vista esencial y modo privado.
+  - **Rendimiento:** medido y corregido con 50k movimientos (`docs/PERFORMANCE.md`).
+
 ---
 
 ## Trabajo pendiente ordenado
@@ -93,14 +105,14 @@ flujo bloqueado, pasa a esta sección.
 | Copias de seguridad automáticas fuera del navegador | Hoy dependen de que la persona exporte. Requiere decidir un destino (archivo local programado, nube) → ver D. |
 | Publicar en https con un dominio propio | Necesario para usar sin conexión e instalar en el teléfono fuera de la red local. Requiere decidir alojamiento (ver D). |
 | Política de privacidad y términos | Aunque los datos no salgan del dispositivo, hay que explicarlo por escrito. |
-| Almacenamiento IndexedDB | Solo si se comprueba un problema real: hoy `localStorage` (≈5 MB) cubre años de movimientos de una persona; el guardado ya es atómico y detecta conflictos. Reevaluar si aparecen errores de cuota. |
+| Medir en teléfonos reales con 10k–50k movimientos | `docs/PERFORMANCE.md` solo mide Chromium de escritorio; no se extrapola. |
 
 ### C. Funciones opcionales (sin servicios externos)
 
 | Función | Notas |
 |---|---|
-| Plantillas de división con nombre | Hoy se propone repetir el último reparto del mismo comercio. |
-| Plantillas de distribución del ingreso | Hoy el asistente propone según prioridad; nunca aplica nada solo. |
+| «¿Qué cambió?» incremental | Con 50k movimientos y 1.000 entradas tarda ~2 s (se muestra «Calculando…»). Hacerlo incremental exige duplicar la fórmula del disponible. |
+| Marcar pagos programados como opcionales | El plan ante un faltante trata todos los pagos programados como obligatorios. |
 | Planificación de deudas | Bola de nieve / avalancha con enteros y redondeo documentado. |
 | Varias monedas con tasas **manuales** | La persona escribe la tasa fechada; nunca se suman monedas sin convertir. Sin proveedor externo. |
 | Importar OFX/QFX | Reutilizaría la vista previa y la huella del CSV. |

@@ -16,13 +16,13 @@
  */
 import { computeBudget, type BudgetResult } from './budget'
 import { addDays, localDateInTimeZone } from './dates'
-import { applyEntry, stateBefore } from './history'
+import { applyEntries, stateBefore } from './history'
 import type { PlanItem } from './planItems'
 import type { AppData, HistoryEntry, LocalDate, Timestamp, Transaction } from './types'
 import { sumMinor } from './money'
 
 /** Como mucho se calculan estos pasos; si hay más entradas, se agrupan las consecutivas de la misma clase. */
-export const WHAT_CHANGED_MAX_STEPS = 60
+export const WHAT_CHANGED_MAX_STEPS = 40
 
 export type ChangeCategory =
   | 'expenses'
@@ -180,7 +180,7 @@ export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint
   let prev = from
   let neutralEntries = 0
   for (const group of groups) {
-    for (const entry of group.entries) state = applyEntry(state, entry)
+    state = applyEntries(state, group.entries)
     const next = computeBudget(state, fromDate)
     const deltaMinor = next.availableMinor - prev.availableMinor
     if (deltaMinor === 0 && group.entries.length === 1) neutralEntries++

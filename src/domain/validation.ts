@@ -3,6 +3,7 @@
  * copias de seguridad (datos no confiables). Los mensajes visibles se buscan
  * en i18n con la clave `issue.<code>`.
  */
+import { txIndex } from './txIndex'
 import { categoriesForKind, isCustomCategoryId, isExpenseCategory } from './categories'
 import { isValidLocalDate, isValidTimeZone, isValidTimestamp } from './dates'
 import { isValidId } from './ids'
@@ -293,14 +294,13 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
   }
 
   if (tx.refundOfId !== undefined) {
-    const original = data.transactions.find((t) => t.id === tx.refundOfId)
+    const index = txIndex(data.transactions)
+    const original = index.byId.get(tx.refundOfId)
     if (tx.kind !== 'refund' || !original || original.kind !== 'expense' || original.id === tx.id) {
       issues.push({ path: `${p}refundOfId`, code: 'refundTargetInvalid' })
     } else if (isMinorAmount(tx.amountMinor)) {
       const otherRefunds = sumMinor(
-        data.transactions
-          .filter((t) => t.kind === 'refund' && t.refundOfId === original.id && t.id !== tx.id)
-          .map((t) => t.amountMinor),
+        (index.refundsOf.get(original.id) ?? []).filter((t) => t.id !== tx.id).map((t) => t.amountMinor),
       )
       const remaining = original.amountMinor - otherRefunds
       if (tx.amountMinor > remaining) {
@@ -455,7 +455,7 @@ function validateSplits(tx: Transaction, ctx: ValidationContext): Issue[] {
   if (diff !== 0) issues.push({ path: `${p}splits`, code: 'splitMismatch', params: { differenceMinor: diff } })
   if (tx.categoryId !== lines[0]!.categoryId) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   if (tx.kind === 'refund') {
-    const original = tx.refundOfId ? ctx.data.transactions.find((t) => t.id === tx.refundOfId) : undefined
+    const original = tx.refundOfId ? txIndex(ctx.data.transactions).byId.get(tx.refundOfId) : undefined
     if (!original || !original.splits?.length) return [...issues, { path: `${p}splits`, code: 'invalidValue' }]
     const pending = refundableByCategory(ctx.data, original, tx.id)
     const byCategory = new Map<string, number>()

@@ -6,7 +6,8 @@
  */
 import { addDays, daysBetween } from '../domain/dates'
 import { occurrencesBetween } from '../domain/recurrence'
-import { SCHEMA_VERSION, type Account, type AppData, type Schedule, type Transaction, type TrashEntry } from '../domain/types'
+import { SCHEMA_VERSION, type Account, type AppData, type HistoryEntry, type Schedule, type Transaction, type TrashEntry } from '../domain/types'
+import { HISTORY_MAX_ENTRIES } from '../domain/history'
 
 /** Generador pseudoaleatorio reproducible (mulberry32). */
 function rng(seed: number) {
@@ -150,6 +151,11 @@ export function createSyntheticData({ movements, today, timeZone = 'America/Toro
   const trashed = new Set(trash.map((e) => e.id))
   const transactions = txs.filter((t) => !trashed.has(t.id))
 
+  // Historial: el alta de los movimientos más recientes (como si se hubieran registrado en la
+  // app), hasta el máximo que conserva la app. Coherente con los datos: deshacerlo los quita.
+  const recent = [...transactions].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0)).slice(-Math.min(HISTORY_MAX_ENTRIES, Math.ceil(movements / 10)))
+  const history: HistoryEntry[] = recent.map((t, i) => ({ id: `h${i}`, at: t.createdAt, source: 'app', changes: [{ collection: 'transactions', id: t.id, before: null, after: t }] }))
+
   return {
     schemaVersion: SCHEMA_VERSION,
     budgetId: `synthetic-${movements}`,
@@ -172,8 +178,8 @@ export function createSyntheticData({ movements, today, timeZone = 'America/Toro
     inbox: { snoozed: [], dismissed: [] },
     incomeDistributions: [],
     templates: [],
-    history: [],
-    historyStartedAt: anchorSetAt,
+    history,
+    historyStartedAt: history[0]?.at ?? anchorSetAt,
     createdAt: anchorSetAt,
     updatedAt: anchorSetAt,
     revision: 1,

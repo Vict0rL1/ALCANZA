@@ -12,6 +12,7 @@ import { useT, type MessageKey } from '../../i18n'
 import { MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
 import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
 import { IndexedDbRepository } from '../../storage/indexedDbRepository'
+import { nextFrame, ReadCancelled, readFileWithProgress } from '../readFile'
 import { usePwaState } from '../../pwa/register'
 import { useRun, useToday } from '../../state/hooks'
 import { getStore, useAppState, useData } from '../../state/store'
@@ -61,6 +62,8 @@ export function Settings() {
   const today = useToday()
   const [accountDialog, setAccountDialog] = useState<Account | 'new' | null>(null)
   const [balanceFor, setBalanceFor] = useState<string | null>(null)
+  const [importProgress, setImportProgress] = useState<{ stage: 'reading' | 'validating'; loaded: number; total: number } | null>(null)
+  const importAbort = useRef<AbortController | null>(null)
   const [importState, setImportState] = useState<{ issues: ImportIssue[] } | { data: AppData; exportedAt: string | null } | null>(null)
   const [confirm, setConfirm] = useState<'resetDemo' | 'clearAll' | 'leaveDemo' | null>(null)
   const [understood, setUnderstood] = useState(false)
@@ -94,10 +97,26 @@ export function Settings() {
       setImportState({ issues: [{ path: 'file', code: 'tooLarge' }] })
       return
     }
-    const text = await file.text()
-    const result = parseBackup(text)
-    setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
-    if (fileRef.current) fileRef.current.value = ''
+    const controller = new AbortController()
+    importAbort.current = controller
+    setImportProgress({ stage: 'reading', loaded: 0, total: file.size })
+    try {
+      const text = await readFileWithProgress(file, (loaded, total) => setImportProgress({ stage: 'reading', loaded, total }), controller.signal)
+      setImportProgress({ stage: 'validating', loaded: file.size, total: file.size })
+      await nextFrame()
+      if (controller.signal.aborted) throw new ReadCancelled()
+      const result = parseBackup(text)
+      if (controller.signal.aborted) throw new ReadCancelled()
+      setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
+    } catch (e) {
+      // Cancelar: no se aplica nada; los datos siguen como estaban.
+      if (e instanceof ReadCancelled) toast({ message: t('settings.backup.importCancelled'), tone: 'info' })
+      else setImportState({ issues: [{ path: 'file', code: 'invalidJson' }] })
+    } finally {
+      importAbort.current = null
+      setImportProgress(null)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
 
   const applyImport = async () => {
@@ -318,6 +337,19 @@ export function Settings() {
             <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} data-testid="import-file" />
           </label>
         </div>
+        {importProgress && (
+          <div className="stack-sm" role="status" data-testid="import-progress">
+            <p>
+              {importProgress.stage === 'reading'
+                ? t('settings.backup.importReading', { pct: Math.floor((importProgress.loaded / Math.max(1, importProgress.total)) * 100), mb: (importProgress.total / 1048576).toFixed(1) })
+                : t('settings.backup.importValidating')}
+            </p>
+            <progress max={importProgress.total || 1} value={importProgress.stage === 'reading' ? importProgress.loaded : undefined} aria-label={t('settings.backup.importProgress')} />
+            <button type="button" className="btn btn--secondary btn--small" onClick={() => importAbort.current?.abort()}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        )}
         <p className="note">{t('backup.verifyHint')}</p>
         {verifyIssues && (
           <Alert tone="critical" title={t('backup.verifyFailed')} role="alert">

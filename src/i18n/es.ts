@@ -1958,4 +1958,9 @@ export const es = {
   'settings.toc.reset': 'Demostración y borrado',
   'settings.toc.formulas': 'Cómo se calcula',
   'settings.toc.about': 'Acerca de Clara',
+  'changes.loading': 'Calculando el desglose…',
+  'settings.backup.importReading': 'Leyendo la copia: {pct} % de {mb} MB…',
+  'settings.backup.importValidating': 'Comprobando toda la copia antes de ofrecer reemplazar tus datos…',
+  'settings.backup.importProgress': 'Progreso de la importación',
+  'settings.backup.importCancelled': 'Importación cancelada. Tus datos no cambiaron.',
 } as const

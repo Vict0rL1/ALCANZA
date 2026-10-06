@@ -30,6 +30,9 @@ async function time(fn) {
 }
 
 async function go(page, hash, waitFor) {
+  // Como en las pruebas: espera a que termine un guardado anterior (al terminar, el formulario
+  // vuelve a su pantalla de origen y pisaría esta navegación).
+  await page.locator('.save-indicator--saving').waitFor({ state: 'detached' }).catch(() => undefined)
   return time(async () => {
     await page.evaluate((h) => (window.location.hash = h), hash)
     await page.locator('#page-title').waitFor()
@@ -140,6 +143,13 @@ for (const size of sizes) {
     row.weeklyReview = await nav('/revision', 'main')
     row.projection = await nav('/plan/proyeccion', 'main')
     row.inbox = await nav('/pendientes', 'main')
+    row.newForm = await nav('/movimientos/nuevo', 'input[name="amount"]')
+    row.history = await nav('/ajustes/historial', '.history-entry')
+    row.shortfall = await nav('/alcanza/faltante', 'main')
+    // «¿Qué cambió?» desde ayer y desde el inicio del historial (rehace hasta 1.000 entradas).
+    row.whatChanged = await nav('/cambios', '[data-testid="changes-total"], .alert')
+    await page.getByLabel('Comparar con').evaluate((el) => el.setAttribute('data-bench', 'point'))
+    row.whatChangedFull = ms(await typeInto(page, 'select[data-bench="point"]', 'historyStart'))
 
     // Guardar un movimiento nuevo (formulario → guardado → vuelta a la lista).
     const saves = []
@@ -149,6 +159,7 @@ for (const size of sizes) {
       saves.push(await time(async () => {
         await page.getByRole('button', { name: 'Guardar', exact: true }).click()
         await page.getByText('Movimiento guardado').first().waitFor()
+        await page.waitForFunction(() => !location.hash.includes('/movimientos/nuevo'))
       }))
     }
     row.save = ms(median(saves))

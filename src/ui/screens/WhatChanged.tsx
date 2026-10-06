@@ -3,10 +3,10 @@
  * cambio registrado y por el paso del tiempo. Cálculo en `domain/whatChanged.ts`: el desglose
  * suma exactamente la diferencia; lo que no se puede explicar se muestra como tal.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addDays, isValidLocalDate, localDateInTimeZone } from '../../domain/dates'
 import type { PlanItem } from '../../domain/planItems'
-import { whatChanged, type ChangeStep, type ComparePoint } from '../../domain/whatChanged'
+import { whatChanged, type ChangeStep, type ComparePoint, type WhatChangedResult } from '../../domain/whatChanged'
 import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
@@ -48,7 +48,15 @@ export function WhatChanged({ route }: { route: Route }) {
         return { kind: 'date', date: isValidLocalDate(custom) && custom <= today ? custom : today }
     }
   }, [choice, custom, today, lastCut])
-  const r = useMemo(() => whatChanged(data, today, point), [data, today, point])
+  // Con mucho historial el cálculo tarda (medido: < 1 s con 50.000 movimientos y 1.000
+  // entradas). Se hace después de pintar la pantalla, con un aviso mientras tanto.
+  const [computed, setComputed] = useState<{ data: unknown; today: string; point: ComparePoint; value: WhatChangedResult } | null>(null)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setComputed({ data, today, point, value: whatChanged(data, today, point) }), 0)
+    return () => window.clearTimeout(timer)
+  }, [data, today, point])
+  // Solo vale el resultado calculado con los datos y el punto actuales.
+  const r = computed && computed.data === data && computed.today === today && computed.point === point ? computed.value : null
 
   const options: { value: Choice; label: string }[] = [
     { value: 'today', label: t('changes.point.today') },
@@ -75,7 +83,12 @@ export function WhatChanged({ route }: { route: Route }) {
         {choice === 'custom' && <TextField label={t('fields.date')} type="date" max={today} value={custom} onChange={(e) => setCustom(e.target.value)} />}
       </Card>
 
-      {r.status === 'beforeHistory' && (
+      {!r && (
+        <p className="note" role="status" data-testid="changes-loading">
+          {t('changes.loading')}
+        </p>
+      )}
+      {r?.status === 'beforeHistory' && (
         <Alert
           tone="info"
           title={t('changes.beforeHistoryTitle')}
@@ -88,7 +101,7 @@ export function WhatChanged({ route }: { route: Route }) {
           {t('changes.beforeHistoryText', { date: fmt.timestamp(r.historyStartedAt), earliest: fmt.date(r.earliestDate) })}
         </Alert>
       )}
-      {r.status === 'cut' && (
+      {r?.status === 'cut' && (
         <Alert
           tone="info"
           title={t('changes.cutTitle')}
@@ -101,9 +114,9 @@ export function WhatChanged({ route }: { route: Route }) {
           {t('changes.cutText', { date: fmt.timestamp(r.cutAt) })}
         </Alert>
       )}
-      {r.status === 'future' && <Alert tone="info" title={t('changes.future')} />}
+      {r?.status === 'future' && <Alert tone="info" title={t('changes.future')} />}
 
-      {r.status === 'ok' && (
+      {r?.status === 'ok' && (
         <>
           <Card labelledBy="changes-summary" className="hero">
             <h2 id="changes-summary" className="card__title">

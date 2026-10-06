@@ -138,18 +138,64 @@ export function revertEntry(data: AppData, entryId: string, ctx: OpContext): OpR
  * Se usa para «¿Qué cambió?».
  */
 export function stateBefore(data: AppData, entryIndex: number): AppData | null {
-  let state = data
+  const values: { collection: HistoryCollection; id: string; value: unknown }[] = []
+  // En orden inverso: el último valor que queda para cada registro es el anterior a la
+  // primera entrada deshecha.
   for (let i = data.history.length - 1; i >= entryIndex; i--) {
     const e = data.history[i]!
     if (e.source === 'replace') return null
-    for (const change of [...e.changes].reverse()) state = setValue(state, change.collection, change.id, change.before)
+    for (let j = e.changes.length - 1; j >= 0; j--) {
+      const change = e.changes[j]!
+      values.push({ collection: change.collection, id: change.id, value: change.before })
+    }
   }
-  return state
+  return values.length ? setValues(data, values) : data
 }
 
-/** Aplica los cambios de una entrada hacia delante (valor nuevo de cada registro). */
+/**
+ * Aplica muchos cambios de una vez: cada colección se reconstruye UNA vez (antes se copiaba la
+ * lista entera por cada cambio: con 50.000 movimientos y 1.000 entradas tardaba segundos).
+ * Si un registro aparece varias veces, gana el último valor de la lista.
+ */
+export function setValues(data: AppData, values: { collection: HistoryCollection; id: string; value: unknown }[]): AppData {
+  const byCollection = new Map<HistoryCollection, Map<string, unknown>>()
+  for (const v of values) {
+    let m = byCollection.get(v.collection)
+    if (!m) byCollection.set(v.collection, (m = new Map()))
+    m.delete(v.id)
+    m.set(v.id, v.value)
+  }
+  let next = data
+  for (const [collection, m] of byCollection) {
+    if (collection === 'settings') {
+      for (const value of m.values()) next = setValue(next, 'settings', SETTINGS_ID, value)
+      continue
+    }
+    const list = next[collection] as WithId[]
+    const seen = new Set<string>()
+    const out: WithId[] = []
+    for (const item of list) {
+      if (!m.has(item.id)) out.push(item)
+      else {
+        seen.add(item.id)
+        const value = m.get(item.id)
+        if (value !== null) out.push(value as WithId)
+      }
+    }
+    for (const [id, value] of m) if (!seen.has(id) && value !== null) out.push(value as WithId)
+    next = { ...next, [collection]: out }
+  }
+  return next
+}
+
+/** Aplica los cambios de una o varias entradas hacia delante (valor nuevo de cada registro). */
+export function applyEntries(data: AppData, entries: HistoryEntry[]): AppData {
+  return setValues(
+    data,
+    entries.flatMap((e) => e.changes.map((c) => ({ collection: c.collection, id: c.id, value: c.after }))),
+  )
+}
+
 export function applyEntry(data: AppData, entry: HistoryEntry): AppData {
-  let state = data
-  for (const change of entry.changes) state = setValue(state, change.collection, change.id, change.after)
-  return state
+  return applyEntries(data, [entry])
 }

@@ -22,8 +22,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - `src/domain/` — **lógica financiera pura**. Sin React, sin `localStorage`, sin `Date.now()`
   implícito: "hoy" y "ahora" llegan como parámetros (`OpContext`). Aquí viven todas las
   fórmulas y validaciones. Toda regla nueva lleva prueba en `*.test.ts`.
-- `src/storage/` — persistencia detrás de `DataRepository` (hoy `localStorage`), copias
-  de seguridad (`backup.ts`) y migraciones (`migrations.ts`).
+- `src/storage/` — persistencia detrás de `DataRepository` (IndexedDB; `localStorage` si no hay),
+  copias de seguridad (`backup.ts`), migraciones (`migrations.ts`) y borradores (`drafts.ts`).
 - `src/state/` — estado en memoria (`AppStore`) y hooks. Aplica resultados de
   `domain/operations.ts`; no calcula dinero.
 - `src/ui/` — pantallas y componentes. Solo muestran y llaman operaciones.
@@ -85,6 +85,19 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   restan dos veces; todo o nada; deshacer solo si es coherente.
 - Registro de copias (`backup`): no modifica `updatedAt`. Una exportación fallida no se
   registra; «exportada» ≠ «verificada».
+- Historial (`domain/history.ts`): `AppStore.commit` registra antes/después de cada registro
+  financiero que cambió (máx. 1000 entradas). Revertir solo si nada cambió después y validando
+  todo; importar/demo = corte `replace`. Es local, no una auditoría inviolable.
+- «¿Qué cambió?» (`domain/whatChanged.ts`): Σ pasos + tiempo + sin explicar = diferencia, al
+  céntimo. Nunca inventa causas ni compara antes del historial o de un corte.
+- Plantillas (`domain/templates.ts`): solo rellenan formularios; regla de redondeo explícita;
+  nunca superan el total; líneas no disponibles no se aplican. Borradores: texto del formulario,
+  fuera de cálculos y copias.
+- Plan ante faltante (`domain/shortfall.ts`): palancas simuladas sobre copia; pagos programados
+  nunca son palanca; aplicar solo planificación, con confirmación, todo o nada, como `plan` en el
+  historial.
+- Preferencias de presentación y modo privado (`ui/preferences.ts`): del dispositivo; nunca
+  cambian cifras, datos ni exportaciones; el modo privado no es autenticación ni cifrado.
 
 ## Interfaz y accesibilidad
 
@@ -101,9 +114,9 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Ningún secreto, clave o credencial en el código, el navegador o los registros.
   No hace falta `.env` en esta fase.
 - La importación valida TODO el archivo y no aplica nada si hay un error.
-- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 7) y añadir migración con prueba.
+- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 8) y añadir migración con prueba.
   Las migraciones solo rellenan campos ausentes; nunca borran datos mal formados.
-- Guardado (`localStorageRepository.ts`): nunca sobrescribe lo que otra pestaña u otra
+- Guardado (`indexedDbRepository.ts`, `localStorageRepository.ts`; ver `docs/STORAGE.md`): nunca sobrescribe lo que otra pestaña u otra
   versión guardó después de leer (error `conflict`); si guardar falla, se avisa de forma
   persistente, se conserva lo último guardado y se ofrece descargar una copia. Nunca se
   muestra «Guardado» si no se guardó ni se reemplazan datos por una demo o un estado vacío.

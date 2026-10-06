@@ -1959,4 +1959,9 @@ export const en: Record<keyof typeof es, string> = {
   'settings.toc.reset': 'Demo and deletion',
   'settings.toc.formulas': 'How it\'s calculated',
   'settings.toc.about': 'About Clara',
+  'changes.loading': 'Calculating the breakdown…',
+  'settings.backup.importReading': 'Reading the backup: {pct}% of {mb} MB…',
+  'settings.backup.importValidating': 'Checking the whole backup before offering to replace your data…',
+  'settings.backup.importProgress': 'Import progress',
+  'settings.backup.importCancelled': 'Import cancelled. Your data didn\'t change.',
 }
