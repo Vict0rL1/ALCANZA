@@ -8,6 +8,7 @@ import { daysBetween, localDateToDisplayDate, parseLocalDate } from '../domain/d
 import { formatMoney, localeSeparators, minorToInputString } from '../domain/money'
 import type { LocalDate, Settings, Timestamp } from '../domain/types'
 import { useData } from '../state/store'
+import { usePrivacy } from './preferences'
 
 const DATE_LOCALE: Record<Settings['language'], string> = { es: 'es-MX', en: 'en-CA' }
 
@@ -15,6 +16,8 @@ export interface Formatter {
   currency: string
   numberLocale: string
   money: (minor: number, options?: { sign?: boolean }) => string
+  /** Modo privado activo: los importes se muestran ocultos. */
+  privacy: boolean
   moneyInput: (minor: number) => string
   decimalSeparator: string
   date: (date: LocalDate, options?: { weekday?: boolean; compact?: boolean; today?: LocalDate }) => string
@@ -25,7 +28,10 @@ export interface Formatter {
   percent: (fraction: number) => string
 }
 
-export function createFormatter(settings: Settings): Formatter {
+/** Lo que se muestra en lugar de un importe en modo privado (también en etiquetas accesibles). */
+export const MASKED_AMOUNT = '•••'
+
+export function createFormatter(settings: Settings, options: { privacy?: boolean } = {}): Formatter {
   const lang = DATE_LOCALE[settings.language]
   const cache = new Map<string, Intl.DateTimeFormat>()
   const dtf = (key: string, options: Intl.DateTimeFormatOptions) => {
@@ -42,8 +48,11 @@ export function createFormatter(settings: Settings): Formatter {
     currency: settings.currency,
     numberLocale: settings.numberLocale,
     decimalSeparator: localeSeparators(settings.numberLocale).decimal,
-    money: (minor, options) =>
-      formatMoney(minor, settings.currency, settings.numberLocale, { signDisplay: options?.sign ? 'exceptZero' : 'auto' }),
+    // Modo privado: solo cambia lo que se MUESTRA. Los campos de entrada (moneyInput) y las
+    // exportaciones no usan esta función.
+    money: (minor, opts) =>
+      options.privacy ? MASKED_AMOUNT : formatMoney(minor, settings.currency, settings.numberLocale, { signDisplay: opts?.sign ? 'exceptZero' : 'auto' }),
+    privacy: !!options.privacy,
     moneyInput: (minor) => minorToInputString(minor, settings.currency, settings.numberLocale),
     date: (date, options = {}) => {
       const d = localDateToDisplayDate(date)
@@ -81,7 +90,8 @@ export function createFormatter(settings: Settings): Formatter {
 
 export function useFormat(): Formatter {
   const { settings } = useData()
-  return useMemo(() => createFormatter(settings), [settings])
+  const privacy = usePrivacy()
+  return useMemo(() => createFormatter(settings, { privacy }), [settings, privacy])
 }
 
 /** "hoy", "mañana", "en 3 días", "hace 2 días". */

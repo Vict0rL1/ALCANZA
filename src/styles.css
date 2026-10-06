@@ -2670,3 +2670,65 @@ kbd {
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 12px);
 }
+
+/* Personalización */
+.reorder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.reorder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reorder-item__buttons {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tool-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.tool-links a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.settings-toc {
+  display: grid;
+  gap: var(--space-3, 12px);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.settings-toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-toc a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+}
+
+.settings-toc__group {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--muted);
+}

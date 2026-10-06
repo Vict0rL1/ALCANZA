@@ -80,17 +80,19 @@ export function CheckboxField({
   checked,
   onChange,
   name,
+  disabled,
 }: {
   label: ReactNode
   hint?: ReactNode
   checked: boolean
   onChange: (checked: boolean) => void
   name?: string
+  disabled?: boolean
 }) {
   const id = useId()
   return (
     <div className="check">
-      <input id={id} type="checkbox" name={name} checked={checked} onChange={(e) => onChange(e.target.checked)} aria-describedby={hint ? `${id}-hint` : undefined} />
+      <input id={id} type="checkbox" name={name} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} aria-describedby={hint ? `${id}-hint` : undefined} />
       <div>
         <label htmlFor={id}>{label}</label>
         {hint && (

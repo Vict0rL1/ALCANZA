@@ -22,7 +22,9 @@ import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
 import { relativeDayKey, useFormat } from '../format'
 import { categoryLabel, planItemName } from '../labels'
-import { href } from '../router'
+import { href, withQuery } from '../router'
+import { usePreferences, type HomeSection, type QuickAction } from '../preferences'
+import type { IconName } from '../components/Icon'
 
 export function Home() {
   const { t, tn } = useT()
@@ -31,6 +33,8 @@ export function Home() {
   const today = useToday()
   const run = useRun()
   const toast = useToast()
+  const [prefs, setPrefs] = usePreferences()
+  const essential = prefs.view === 'essential'
   const budget = useMemo(() => computeBudget(data, today), [data, today])
   const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 6), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
@@ -169,9 +173,304 @@ export function Home() {
     },
   ].filter((n): n is { key: string; node: React.JSX.Element } => !!n)
 
+  const QUICK: Record<QuickAction, { href: string; icon: IconName; label: string }> = {
+    afford: { href: '/alcanza', icon: 'cart', label: t('home.canIAfford') },
+    income: { href: withQuery('/movimientos/nuevo', { kind: 'income', returnTo: '/' }), icon: 'arrowUp', label: t('quickAction.income') },
+    transfer: { href: withQuery('/movimientos/nuevo', { kind: 'transfer', returnTo: '/' }), icon: 'transfer', label: t('quickAction.transfer') },
+    whatChanged: { href: '/cambios', icon: 'clock', label: t('changes.title') },
+    search: { href: '/buscar', icon: 'search', label: t('quickAction.search') },
+    calendar: { href: '/plan/calendario', icon: 'calendar', label: t('quickAction.calendar') },
+    reconcile: { href: '/conciliar', icon: 'scale', label: t('home.verify.action') },
+    scenarios: { href: '/alcanza/escenarios', icon: 'trend', label: t('scenario.title') },
+  }
+
+  // Vista esencial: acceso a todo lo demás desde una sola tarjeta (nada queda inaccesible).
+  const toolsCard = (
+    <Card labelledBy="tools-title">
+      <h2 id="tools-title" className="card__title">
+        <Icon name="sliders" />
+        {t('home.tools.title')}
+      </h2>
+      <ul className="tool-links">
+        <li>
+          <a href={href('/pendientes')}>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</a>
+        </li>
+        <li>
+          <a href={href('/plan/calendario')}>{t('home.seeCalendar')}</a>
+        </li>
+        <li>
+          <a href={href('/plan/metas')}>{t('home.seeGoals')}</a>
+        </li>
+        <li>
+          <a href={href('/conciliar')}>{t('home.verify.action')}</a>
+        </li>
+        <li>
+          <a href={href('/revision')}>{t('weekly.open')}</a>
+        </li>
+        <li>
+          <a href={href('/alcanza/escenarios')}>{t('scenario.title')}</a>
+        </li>
+      </ul>
+      <button type="button" className="btn btn--secondary" onClick={() => setPrefs((p) => ({ ...p, view: 'full' }))}>
+        {t('home.tools.showFull')}
+      </button>
+    </Card>
+  )
+
+  const sectionNodes: Record<HomeSection, React.ReactNode> = {
+    inbox: (
+    <>
+      {/* Acceso compacto a la bandeja de pendientes (sin llenar la pantalla de avisos) */}
+      <a className="inbox-link" href={href('/pendientes')} data-testid="inbox-link">
+        <Icon name={pendingCount > 0 ? 'alert' : 'checkCircle'} size={18} />
+        <span>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</span>
+        <Icon name="chevronRight" size={16} />
+      </a>
+    </>
+  ),
+    reminders: (
+    <>
+      {/* Recordatorios dentro de la app */}
+      {(otherReminders.length > 0 || cardReminders.length > 0) && (
+        <Card labelledBy="reminders-title">
+          <h2 id="reminders-title" className="card__title">
+            <Icon name="clock" />
+            {t('home.remindersTitle')}
+          </h2>
+          <ul className="item-list">
+            {cardReminders.map(({ account, summary }) => (
+              <li key={`card-${account.id}`} className="item">
+                <div className="item__main">
+                  <p className="item__title">{t('card.reminderTitle')}</p>
+                  <p className="item__meta">
+                    {t('card.reminderItem', {
+                      name: account.name,
+                      date: fmt.date(summary.nextDueDate!, { compact: true, today }),
+                      debt: fmt.money(summary.debtMinor),
+                      min: fmt.money(summary.minPaymentMinor),
+                    })}
+                  </p>
+                </div>
+              </li>
+            ))}
+            {otherReminders.map((i) => (
+              <li key={i.key} className="item">
+                <div className="item__main">
+                  <p className="item__title">{planItemName(i, t)}</p>
+                  <p className="item__meta">
+                    {rel(i.date)} · {fmt.date(i.date, { compact: true, today })}
+                  </p>
+                </div>
+                <p className="item__amount">{fmt.money(i.amountMinor)}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="note">{t('home.remindersNote')}</p>
+        </Card>
+      )}
+    </>
+  ),
+    upcoming: (
+    <>
+      {/* Próximos pagos */}
+      <Card labelledBy="upcoming-title">
+        <h2 id="upcoming-title" className="card__title">
+          <Icon name="calendar" />
+          {t('home.upcomingTitle')}
+        </h2>
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title={t('home.upcomingEmpty')}
+            action={
+              <a className="btn btn--secondary" href={href('/plan/programado/nuevo')}>
+                {t('calendar.new')}
+              </a>
+            }
+          />
+        ) : (
+          <ul className="item-list">
+            {upcoming.map((i) => (
+              <li key={i.key} className="item">
+                <div className="item__main">
+                  <p className="item__title">{planItemName(i, t)}</p>
+                  <p className="item__meta">
+                    {fmt.date(i.date, { compact: true, today, weekday: true })} · {rel(i.date)}
+                    {i.state === 'overdue' && (
+                      <>
+                        {' '}
+                        <Badge tone="warning" icon="alert">
+                          {t('state.overdue')}
+                        </Badge>
+                      </>
+                    )}
+                    {i.isEstimate && (
+                      <>
+                        {' '}
+                        <Badge>{t('state.estimate')}</Badge>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="item__side">
+                  <p className="item__amount">
+                    {i.budgetEffectMinor > 0 ? '+' : i.budgetEffectMinor < 0 ? '−' : ''}
+                    {fmt.money(i.amountMinor)}
+                  </p>
+                  <button type="button" className="btn btn--small btn--secondary" onClick={() => setPayItem(i)}>
+                    {i.direction === 'income' ? t('calendar.markReceived') : t('calendar.markPaid')}
+                    <span className="sr-only">: {planItemName(i, t)}</span>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <a className="link-more" href={href('/plan/calendario')}>
+          {t('home.seeCalendar')}
+          <Icon name="chevronRight" size={16} />
+        </a>
+      </Card>
+    </>
+  ),
+    weekly: (
+    <>
+      {/* Revisión semanal (se puede ocultar en Ajustes) */}
+      {week && (
+        <Card labelledBy="week-title">
+          <h2 id="week-title" className="card__title">
+            <Icon name="calendar" />
+            {t('weekly.homeTitle')}
+          </h2>
+          <p data-testid="week-home">
+            {t('weekly.homeSpent', { amount: fmt.money(week.current.spendingMinor), income: fmt.money(week.current.incomeMinor) })}
+          </p>
+          <p className="note">
+            {week.current.coverage !== 'complete' || week.previous.coverage !== 'complete'
+              ? t('weekly.homeNoCompare')
+              : t('weekly.homeCompare', { amount: fmt.money(week.previous.spendingMinor) })}
+          </p>
+          <div className="button-row">
+            <a className="btn btn--secondary btn--small" href={href('/revision')}>
+              {t('weekly.open')}
+            </a>
+            <button type="button" className="btn btn--ghost btn--small" onClick={() => void hideWeekly()}>
+              {t('weekly.hide')}
+            </button>
+          </div>
+        </Card>
+      )}
+    </>
+  ),
+    freshness: (
+    <>
+      {/* Actualización de datos */}
+      <Card className="freshness" labelledBy="freshness-title">
+        <h2 id="freshness-title" className="card__title">
+          <Icon name="clock" />
+          {t('home.freshnessTitle')}
+        </h2>
+        {budget.balanceSetAt && (
+          <p>
+            {t('home.freshnessText', { when: fmt.timestamp(budget.balanceSetAt) })}{' '}
+            {budget.balanceAgeDays !== null && <span className="muted">({tn('home.freshnessAge', budget.balanceAgeDays)})</span>}
+          </p>
+        )}
+        <ul className="bullets" data-testid="verification">
+          <li>
+            {verification.lastMovementDate
+              ? t('home.verify.lastMovement', { date: fmt.date(verification.lastMovementDate, { compact: true, today }) })
+              : t('home.verify.noMovements')}
+          </li>
+          {verification.oldestVerifiedDate ? (
+            <li>
+              {t('home.verify.verified', {
+                date: fmt.date(verification.oldestVerifiedDate, { compact: true, today }),
+                age: tn('home.freshnessAge', verification.daysSinceVerified ?? 0),
+              })}
+            </li>
+          ) : (
+            <li>{tn('home.verify.unverified', verification.unverifiedAccounts.length)}</li>
+          )}
+          {verification.needsAttention.length > 0 && (
+            <li>
+              <Badge tone="warning" icon="alert">
+                {tn('home.verify.attention', verification.needsAttention.length)}
+              </Badge>
+            </li>
+          )}
+        </ul>
+        <p className="note">{t('home.freshnessNote')}</p>
+        <div className="button-row">
+          <a className="btn btn--primary" href={href('/conciliar')}>
+            <Icon name="scale" />
+            {t('home.verify.action')}
+          </a>
+          <button type="button" className="btn btn--secondary" onClick={() => setBalanceOpen(true)}>
+            {t('home.updateBalance')}
+          </button>
+        </div>
+      </Card>
+    </>
+  ),
+    goals: (
+    <>
+      {/* Metas */}
+      <Card labelledBy="goals-title">
+        <h2 id="goals-title" className="card__title">
+          <Icon name="target" />
+          {t('home.goalsTitle')}
+        </h2>
+        {goalsForHome.length === 0 ? (
+          <EmptyState
+            icon="target"
+            title={t('goals.empty')}
+            action={
+              <a className="btn btn--secondary" href={href('/plan/metas/nueva')}>
+                {t('goals.new')}
+              </a>
+            }
+          />
+        ) : (
+          <ul className="goal-mini-list">
+            {goalsForHome.map((g) => {
+              const p = goalProgress(g)
+              const valueText = t('goals.progressText', { saved: fmt.money(p.savedMinor), target: fmt.money(p.targetMinor), pct: fmt.percent(p.fraction) })
+              return (
+                <li key={g.id}>
+                  <div className="goal-mini__row">
+                    <span className="goal-mini__name">{g.name}</span>
+                    <span className="goal-mini__pct">{fmt.percent(p.fraction)}</span>
+                  </div>
+                  <Meter fraction={p.fraction} label={g.name} valueText={valueText} />
+                  <p className="item__meta">{valueText}</p>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <a className="link-more" href={href('/plan/metas')}>
+          {t('home.seeGoals')}
+          <Icon name="chevronRight" size={16} />
+        </a>
+      </Card>
+    </>
+  ),
+  }
+
   return (
     <div className="stack">
-      <PageHeader title={t('home.title')} />
+      <PageHeader title={t('home.title')}>
+        <button type="button" className="btn btn--ghost" aria-pressed={prefs.privacy} onClick={() => setPrefs((p) => ({ ...p, privacy: !p.privacy }))} data-testid="privacy-toggle">
+          <Icon name="lock" />
+          {prefs.privacy ? t('privacy.show') : t('privacy.hide')}
+        </button>
+      </PageHeader>
+      {prefs.privacy && (
+        <p className="note note--icon" role="status">
+          <Icon name="lock" size={16} /> {t('privacy.banner')}
+        </p>
+      )}
 
       <div className="home-grid">
         <div className="stack">
@@ -310,12 +609,15 @@ export function Home() {
                 <Icon name="plus" />
                 {t('home.addMovement')}
               </a>
-              <a className="btn btn--secondary btn--large" href={href('/alcanza')}>
-                <Icon name="cart" />
-                {t('home.canIAfford')}
-              </a>
+              {!essential &&
+                prefs.quickActions.map((a) => (
+                  <a key={a} className="btn btn--secondary btn--large" href={href(QUICK[a].href)}>
+                    <Icon name={QUICK[a].icon} />
+                    {QUICK[a].label}
+                  </a>
+                ))}
             </div>
-            <FavoriteChips returnTo="/" limit={4} />
+            {!essential && <FavoriteChips returnTo="/" limit={4} />}
           </Card>
           {/* Ingresos sin confirmar: explican por qué no se suman a la cifra principal */}
           {budget.overdueIncomes.map((item) => (
@@ -370,227 +672,20 @@ export function Home() {
               </div>
             </details>
           )}
-          {/* Acceso compacto a la bandeja de pendientes (sin llenar la pantalla de avisos) */}
-          <a className="inbox-link" href={href('/pendientes')} data-testid="inbox-link">
-            <Icon name={pendingCount > 0 ? 'alert' : 'checkCircle'} size={18} />
-            <span>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</span>
-            <Icon name="chevronRight" size={16} />
-          </a>
-          {/* Recordatorios dentro de la app */}
-          {(otherReminders.length > 0 || cardReminders.length > 0) && (
-            <Card labelledBy="reminders-title">
-              <h2 id="reminders-title" className="card__title">
-                <Icon name="clock" />
-                {t('home.remindersTitle')}
-              </h2>
-              <ul className="item-list">
-                {cardReminders.map(({ account, summary }) => (
-                  <li key={`card-${account.id}`} className="item">
-                    <div className="item__main">
-                      <p className="item__title">{t('card.reminderTitle')}</p>
-                      <p className="item__meta">
-                        {t('card.reminderItem', {
-                          name: account.name,
-                          date: fmt.date(summary.nextDueDate!, { compact: true, today }),
-                          debt: fmt.money(summary.debtMinor),
-                          min: fmt.money(summary.minPaymentMinor),
-                        })}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-                {otherReminders.map((i) => (
-                  <li key={i.key} className="item">
-                    <div className="item__main">
-                      <p className="item__title">{planItemName(i, t)}</p>
-                      <p className="item__meta">
-                        {rel(i.date)} · {fmt.date(i.date, { compact: true, today })}
-                      </p>
-                    </div>
-                    <p className="item__amount">{fmt.money(i.amountMinor)}</p>
-                  </li>
-                ))}
-              </ul>
-              <p className="note">{t('home.remindersNote')}</p>
-            </Card>
-          )}
-
-          {/* Próximos pagos */}
-          <Card labelledBy="upcoming-title">
-            <h2 id="upcoming-title" className="card__title">
-              <Icon name="calendar" />
-              {t('home.upcomingTitle')}
-            </h2>
-            {upcoming.length === 0 ? (
-              <EmptyState
-                icon="calendar"
-                title={t('home.upcomingEmpty')}
-                action={
-                  <a className="btn btn--secondary" href={href('/plan/programado/nuevo')}>
-                    {t('calendar.new')}
-                  </a>
-                }
-              />
-            ) : (
-              <ul className="item-list">
-                {upcoming.map((i) => (
-                  <li key={i.key} className="item">
-                    <div className="item__main">
-                      <p className="item__title">{planItemName(i, t)}</p>
-                      <p className="item__meta">
-                        {fmt.date(i.date, { compact: true, today, weekday: true })} · {rel(i.date)}
-                        {i.state === 'overdue' && (
-                          <>
-                            {' '}
-                            <Badge tone="warning" icon="alert">
-                              {t('state.overdue')}
-                            </Badge>
-                          </>
-                        )}
-                        {i.isEstimate && (
-                          <>
-                            {' '}
-                            <Badge>{t('state.estimate')}</Badge>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                    <div className="item__side">
-                      <p className="item__amount">
-                        {i.budgetEffectMinor > 0 ? '+' : i.budgetEffectMinor < 0 ? '−' : ''}
-                        {fmt.money(i.amountMinor)}
-                      </p>
-                      <button type="button" className="btn btn--small btn--secondary" onClick={() => setPayItem(i)}>
-                        {i.direction === 'income' ? t('calendar.markReceived') : t('calendar.markPaid')}
-                        <span className="sr-only">: {planItemName(i, t)}</span>
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <a className="link-more" href={href('/plan/calendario')}>
-              {t('home.seeCalendar')}
-              <Icon name="chevronRight" size={16} />
-            </a>
-          </Card>
+          {essential ? toolsCard : null}
         </div>
 
-        <div className="stack">
-          {/* Revisión semanal (se puede ocultar en Ajustes) */}
-          {week && (
-            <Card labelledBy="week-title">
-              <h2 id="week-title" className="card__title">
-                <Icon name="calendar" />
-                {t('weekly.homeTitle')}
-              </h2>
-              <p data-testid="week-home">
-                {t('weekly.homeSpent', { amount: fmt.money(week.current.spendingMinor), income: fmt.money(week.current.incomeMinor) })}
-              </p>
-              <p className="note">
-                {week.current.coverage !== 'complete' || week.previous.coverage !== 'complete'
-                  ? t('weekly.homeNoCompare')
-                  : t('weekly.homeCompare', { amount: fmt.money(week.previous.spendingMinor) })}
-              </p>
-              <div className="button-row">
-                <a className="btn btn--secondary btn--small" href={href('/revision')}>
-                  {t('weekly.open')}
-                </a>
-                <button type="button" className="btn btn--ghost btn--small" onClick={() => void hideWeekly()}>
-                  {t('weekly.hide')}
-                </button>
-              </div>
-            </Card>
-          )}
-
-          {/* Actualización de datos */}
-          <Card className="freshness" labelledBy="freshness-title">
-            <h2 id="freshness-title" className="card__title">
-              <Icon name="clock" />
-              {t('home.freshnessTitle')}
-            </h2>
-            {budget.balanceSetAt && (
-              <p>
-                {t('home.freshnessText', { when: fmt.timestamp(budget.balanceSetAt) })}{' '}
-                {budget.balanceAgeDays !== null && <span className="muted">({tn('home.freshnessAge', budget.balanceAgeDays)})</span>}
-              </p>
-            )}
-            <ul className="bullets" data-testid="verification">
-              <li>
-                {verification.lastMovementDate
-                  ? t('home.verify.lastMovement', { date: fmt.date(verification.lastMovementDate, { compact: true, today }) })
-                  : t('home.verify.noMovements')}
-              </li>
-              {verification.oldestVerifiedDate ? (
-                <li>
-                  {t('home.verify.verified', {
-                    date: fmt.date(verification.oldestVerifiedDate, { compact: true, today }),
-                    age: tn('home.freshnessAge', verification.daysSinceVerified ?? 0),
-                  })}
-                </li>
-              ) : (
-                <li>{tn('home.verify.unverified', verification.unverifiedAccounts.length)}</li>
-              )}
-              {verification.needsAttention.length > 0 && (
-                <li>
-                  <Badge tone="warning" icon="alert">
-                    {tn('home.verify.attention', verification.needsAttention.length)}
-                  </Badge>
-                </li>
-              )}
-            </ul>
-            <p className="note">{t('home.freshnessNote')}</p>
-            <div className="button-row">
-              <a className="btn btn--primary" href={href('/conciliar')}>
-                <Icon name="scale" />
-                {t('home.verify.action')}
-              </a>
-              <button type="button" className="btn btn--secondary" onClick={() => setBalanceOpen(true)}>
-                {t('home.updateBalance')}
-              </button>
-            </div>
-          </Card>
-
-          {/* Metas */}
-          <Card labelledBy="goals-title">
-            <h2 id="goals-title" className="card__title">
-              <Icon name="target" />
-              {t('home.goalsTitle')}
-            </h2>
-            {goalsForHome.length === 0 ? (
-              <EmptyState
-                icon="target"
-                title={t('goals.empty')}
-                action={
-                  <a className="btn btn--secondary" href={href('/plan/metas/nueva')}>
-                    {t('goals.new')}
-                  </a>
-                }
-              />
-            ) : (
-              <ul className="goal-mini-list">
-                {goalsForHome.map((g) => {
-                  const p = goalProgress(g)
-                  const valueText = t('goals.progressText', { saved: fmt.money(p.savedMinor), target: fmt.money(p.targetMinor), pct: fmt.percent(p.fraction) })
-                  return (
-                    <li key={g.id}>
-                      <div className="goal-mini__row">
-                        <span className="goal-mini__name">{g.name}</span>
-                        <span className="goal-mini__pct">{fmt.percent(p.fraction)}</span>
-                      </div>
-                      <Meter fraction={p.fraction} label={g.name} valueText={valueText} />
-                      <p className="item__meta">{valueText}</p>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-            <a className="link-more" href={href('/plan/metas')}>
-              {t('home.seeGoals')}
-              <Icon name="chevronRight" size={16} />
-            </a>
-          </Card>
-        </div>
+        {!essential && (
+          <div className="stack" data-testid="home-sections">
+            {prefs.sections
+              .filter((x) => x.visible && !(x.id === 'weekly' && !week) && !(x.id === 'reminders' && otherReminders.length === 0 && cardReminders.length === 0))
+              .map((x) => (
+                <div key={x.id} className="home-section" data-section={x.id}>
+                  {sectionNodes[x.id]}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       {payItem && <MarkPaidDialog key={payItem.key} item={payItem} onClose={() => setPayItem(null)} />}

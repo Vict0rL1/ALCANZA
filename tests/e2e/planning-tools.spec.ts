@@ -124,7 +124,7 @@ test('revisión semanal: tarjeta en Inicio, semanas anteriores, observaciones y 
 
   // Ocultar en Inicio, con deshacer; y volver a mostrar desde Ajustes.
   await go(page, '/')
-  await page.getByRole('button', { name: 'Ocultar' }).click()
+  await page.getByRole('button', { name: 'Ocultar', exact: true }).click()
   await expect(page.getByTestId('week-home')).toHaveCount(0)
   await go(page, '/ajustes')
   await page.getByLabel('Mostrar la revisión semanal en Inicio').check()

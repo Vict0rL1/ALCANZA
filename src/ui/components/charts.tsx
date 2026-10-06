@@ -8,12 +8,27 @@ import type { ProjectionResult } from '../../domain/projection'
 import { useT } from '../../i18n'
 import type { Formatter } from '../format'
 import { planItemName } from '../labels'
+import { Icon } from './Icon'
 
 /* ------------------------------------------------------------------ */
 /* Barra de composición: ¿en qué se va tu saldo?                        */
 /* ------------------------------------------------------------------ */
 
-export function CompositionBar({
+/** En modo privado los gráficos no se dibujan: sus proporciones también revelan importes. */
+function HiddenChart() {
+  const { t } = useT()
+  return (
+    <p className="note note--icon chart-hidden" data-testid="chart-hidden">
+      <Icon name="lock" size={16} /> {t('privacy.chartHidden')}
+    </p>
+  )
+}
+
+export function CompositionBar(props: Parameters<typeof CompositionBarInner>[0]) {
+  return props.fmt.privacy ? <HiddenChart /> : <CompositionBarInner {...props} />
+}
+
+function CompositionBarInner({
   spendableMinor,
   reservedMinor,
   goalsMinor,
@@ -117,7 +132,11 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks
 }
 
-export function ProjectionChart({ projection, fmt, today }: { projection: ProjectionResult; fmt: Formatter; today: string }) {
+export function ProjectionChart(props: { projection: ProjectionResult; fmt: Formatter; today: string }) {
+  return props.fmt.privacy ? <HiddenChart /> : <ProjectionChartInner {...props} />
+}
+
+function ProjectionChartInner({ projection, fmt, today }: { projection: ProjectionResult; fmt: Formatter; today: string }) {
   const { t } = useT()
   const { ref, width } = useElementWidth<HTMLDivElement>()
   const [active, setActive] = useState<number | null>(null)

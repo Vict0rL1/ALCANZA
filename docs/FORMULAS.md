@@ -859,3 +859,27 @@ Los apartados para metas no cambian el saldo proyectado, y se dice.
 - Nunca cambia movimientos realizados.
 
 Pruebas con cifras a mano en `shortfall.test.ts`; e2e `shortfall.spec.ts`.
+
+## 30. Personalización y modo privado
+
+Código: `src/ui/preferences.ts`. Ajustes: `Ajustes › Inicio y privacidad`. Son preferencias de
+**presentación de este dispositivo**: no cambian ninguna cifra, no se guardan con los datos
+ni viajan en las copias.
+
+- **Vista completa o esencial.** La esencial muestra el disponible, «¿Cómo se calculó?»,
+  «Agregar movimiento» y todos los avisos importantes. El resto queda en «Más herramientas».
+- **Secciones secundarias de Inicio.** Se ocultan con casillas y se ordenan con botones
+  Subir/Bajar (sin arrastrar ni gestos ocultos). Siempre se ven: el disponible y su
+  explicación, registrar un movimiento y los avisos críticos (ingresos sin confirmar, pagos
+  vencidos, copia de seguridad, saldo antiguo, apartados que superan el dinero).
+  La revisión semanal mantiene su ajuste de siempre, guardado con los datos.
+- **Accesos rápidos.** Hasta 3 junto a «Agregar movimiento», que siempre está.
+- **Restaurar diseño predeterminado.** Solo restablece estas preferencias y vuelve a mostrar la
+  revisión semanal. Se puede deshacer. No toca datos financieros.
+- **Modo privado.** `fmt.money` devuelve `•••` en tarjetas, listas, avisos, textos accesibles
+  y descripciones de gráficos. Los gráficos se sustituyen por una nota, porque sus
+  proporciones revelarían importes. Los campos donde se escribe un importe lo siguen
+  mostrando. **No** es autenticación ni cifrado: no cambia lo guardado ni lo exportado. El
+  porcentaje de avance de una meta sigue visible porque no es un importe.
+
+Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.

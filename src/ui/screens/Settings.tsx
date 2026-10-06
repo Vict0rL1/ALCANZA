@@ -30,6 +30,7 @@ import { useThemePreference } from '../theme'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { CategoriesSection } from './CategoriesSection'
 import { RulesSection } from './RulesSection'
+import { PersonalizeSection } from './PersonalizeSection'
 
 const COMMON_TIME_ZONES = [
   'America/Toronto',
@@ -138,6 +139,26 @@ export function Settings() {
   return (
     <div className="stack">
       <PageHeader title={t('settings.title')} />
+      <nav className="settings-toc card" aria-label={t('settings.toc')}>
+        {(
+          [
+            ['settings.group.general', [['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
+            ['settings.group.data', [['cuentas', 'settings.toc.accounts'], ['copia', 'settings.toc.backup'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
+            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['about-title', 'settings.toc.about']]],
+          ] as const
+        ).map(([group, links]) => (
+          <div key={group}>
+            <p className="settings-toc__group">{t(group)}</p>
+            <ul>
+              {links.map(([id, label]) => (
+                <li key={id}>
+                  <a href={href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
 
       <Card labelledBy="format-title">
         <h2 id="format-title" className="card__title">
@@ -188,13 +209,9 @@ export function Settings() {
           options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
           hint={t('settings.language.hint')}
         />
-        <CheckboxField
-          checked={data.settings.weeklyReview !== false}
-          onChange={(v) => void setSetting({ weeklyReview: v })}
-          label={t('weekly.settingLabel')}
-          hint={t('weekly.settingHint')}
-        />
       </Card>
+
+      <PersonalizeSection />
 
       <Card labelledBy="accounts-title">
         <h2 id="cuentas" className="card__title">
