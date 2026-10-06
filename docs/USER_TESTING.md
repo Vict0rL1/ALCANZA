@@ -45,12 +45,33 @@ Lee solo el texto entre comillas.
 | T3 | «Acabas de pagar $38.40 en el supermercado con tu tarjeta de débito. Regístralo.» | Hay un gasto de 38.40 en la cuenta correcta. |
 | T4 | «Esa compra incluía $10.00 de artículos de limpieza para la casa. Déjalo reflejado.» | La compra queda dividida: 28.40 + 10.00 en dos categorías. |
 | T5 | «Quieres comprar unos audífonos de $120.00 la próxima semana. ¿Te alcanza? No los compres todavía.» | Usa la simulación y no queda ningún movimiento nuevo. |
-| T6 | «Te llegó el cobro de $900.00. Regístralo y aparta $100.00 para un viaje.» | Ingreso registrado y $100 apartados en una meta (sin movimiento extra). |
+| T6 | «Hoy te pagaron $300.00 por un trabajo extra. Regístralo y aparta $100.00 para un viaje.» | Ingreso de 300 registrado y $100 apartados en una meta «viaje» (sin movimiento extra). |
 | T7 | «Te equivocaste: el supermercado fueron $34.80, no $38.40. Corrígelo.» | El mismo movimiento cambia a 34.80 (sin duplicarlo ni dejar uno de más). |
 | T8 | «Guarda una copia de tus datos y luego restáurala.» | Exporta un archivo y lo vuelve a importar con confirmación. |
 | T9 | «Pon la app en inglés y luego vuelve al español.» | Cambia el idioma dos veces. |
 
 Opcional si sobra tiempo: «Borraste un movimiento por error; recupéralo.»
+
+> Por qué T6 no usa el cobro de $900: en el escenario ese cobro llega dentro de 9 días. Pedir
+> que «llegó hoy» obligaría a registrarlo antes de su fecha y mezclaría dos dudas distintas.
+
+### Cifras de referencia para el moderador (solo para comparar, no se muestran)
+
+Calculadas a mano y comprobadas con `tests/e2e/user-testing-script.spec.ts` (si la prueba es
+otro día, las fechas cambian; recalcula con la misma lógica):
+
+| Tras… | «Puedes gastar» | Por qué |
+|---|---|---|
+| T1 | **$440.00** (≈ $48.88 por día, 9 días) | 1,240 − 650 de renta (antes del próximo cobro) − 150 apartados. El teléfono (día 15) es después del cobro y no se reserva. El cobro de 900 **no** se suma. |
+| T3 | $401.60 | − 38.40 |
+| T4 | $401.60 | Dividir no cambia el importe. |
+| T5 | $401.60 | La simulación muestra que quedarían $281.60; no guarda nada. |
+| T6 | $601.60 | + 300 del ingreso − 100 apartados para el viaje. Si no existe la meta, se crea desde «Distribuir este ingreso» › «Crear una meta» o desde Plan › Metas. |
+| T7 | $605.20 | El movimiento pasa de 38.40 a 34.80 (+3.60). Al estar dividido, la app pide ajustar las líneas (sobran $3.60): **fricción esperada, observa cómo la resuelve**. |
+| T8 | $605.20 | Restaurar la copia recién exportada no cambia nada. |
+
+Interpretaciones a anotar como gravedad 4: creer que el cobro de 900 ya está incluido, que el
+límite de una tarjeta es dinero disponible o que lo apartado ya se gastó.
 
 ## 5. Preguntas finales (3 minutos)
 

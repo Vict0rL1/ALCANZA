@@ -34,6 +34,7 @@ export async function available(page: Page) {
 /** Número de movimientos según el resumen de la lista. */
 export async function movementCount(page: Page): Promise<number> {
   await go(page, '/movimientos')
+  if ((await page.getByText('Todavía no hay movimientos').count()) > 0) return 0
   const text = (await page.locator('.summary-line').textContent()) ?? ''
   return Number(/(\d+) movimiento/.exec(text)?.[1] ?? NaN)
 }

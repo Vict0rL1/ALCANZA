@@ -162,10 +162,12 @@ export function GoalForm({ route }: { route: Route }) {
   const editId = route.segments[2] === 'editar' ? route.segments[3] : undefined
   const existing = editId ? data.goals.find((g) => g.id === editId) : undefined
   if (existing?.kind === 'expense' || (!editId && route.query.get('tipo') === 'gasto')) return <PlannedExpenseForm existing={existing} />
-  return <RegularGoalForm existing={existing} editId={editId} />
+  // Desde otra pantalla (p. ej. «Distribuir este ingreso») se vuelve a ella al guardar.
+  const returnTo = route.query.get('returnTo')?.startsWith('/') ? route.query.get('returnTo')! : '/plan/metas'
+  return <RegularGoalForm existing={existing} editId={editId} returnTo={returnTo} />
 }
 
-function RegularGoalForm({ existing, editId }: { existing: Goal | undefined; editId: string | undefined }) {
+function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | undefined; editId: string | undefined; returnTo: string }) {
   const { t } = useT()
   const fmt = useFormat()
   const run = useRun()
@@ -183,7 +185,7 @@ function RegularGoalForm({ existing, editId }: { existing: Goal | undefined; edi
   if (editId && !existing) {
     return (
       <div className="stack">
-        <PageHeader title={t('goalForm.notFound')} back={{ href: href('/plan/metas'), label: t('plan.goals') }} />
+        <PageHeader title={t('goalForm.notFound')} back={{ href: href(returnTo), label: returnTo === '/plan/metas' ? t('plan.goals') : t('common.back') }} />
       </div>
     )
   }
@@ -200,7 +202,7 @@ function RegularGoalForm({ existing, editId }: { existing: Goal | undefined; edi
       return
     }
     toast({ message: saved ? t('goalForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate('/plan/metas')
+    navigate(returnTo)
   }
 
   const remove = async () => {
@@ -213,13 +215,13 @@ function RegularGoalForm({ existing, editId }: { existing: Goal | undefined; edi
       tone: saved ? 'good' : 'critical',
       action: { label: t('common.undo'), onClick: () => void run((d, c) => restoreGoal(d, removed, c)) },
     })
-    navigate('/plan/metas')
+    navigate(returnTo)
   }
 
   const unknown = otherIssues(issues, ['name', 'targetMinor', 'targetDate'])
   return (
     <div className="stack">
-      <PageHeader title={existing ? t('goalForm.editTitle') : t('goalForm.newTitle')} back={{ href: href('/plan/metas'), label: t('plan.goals') }} />
+      <PageHeader title={existing ? t('goalForm.editTitle') : t('goalForm.newTitle')} back={{ href: href(returnTo), label: returnTo === '/plan/metas' ? t('plan.goals') : t('common.back') }} />
       <form
         className="form card"
         noValidate

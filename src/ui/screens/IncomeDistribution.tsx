@@ -188,6 +188,10 @@ export function IncomeDistributionScreen({ route }: { route: Route }) {
               <fieldset className="stack-sm">
                 <legend className="field__label">{t('distribution.goals')}</legend>
                 {context.goals.length === 0 && <p className="note">{t('distribution.noGoals')}</p>}
+                <a className="btn btn--secondary btn--small" href={href(withQuery('/plan/metas/nueva', { returnTo: `/movimientos/distribuir/${txId}` }))}>
+                  <Icon name="plus" size={16} />
+                  {t('distribution.newGoal')}
+                </a>
                 {context.goals.map((g) => {
                   const key = lineKey({ kind: 'goal', goalId: g.goal.id })
                   return (
