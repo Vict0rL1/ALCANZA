@@ -1963,4 +1963,5 @@ export const es = {
   'settings.backup.importValidating': 'Comprobando toda la copia antes de ofrecer reemplazar tus datos…',
   'settings.backup.importProgress': 'Progreso de la importación',
   'settings.backup.importCancelled': 'Importación cancelada. Tus datos no cambiaron.',
+  'shortfall.lever.remove': 'Quitar la compra prevista «{name}» ({amount}); va a la papelera y se puede restaurar',
 } as const

@@ -18,7 +18,7 @@
  */
 import { addDays, daysBetween } from './dates'
 import { ceilDiv } from './money'
-import { saveSchedule, saveTransaction, type OpContext, type OpResult } from './operations'
+import { deleteTransaction, saveSchedule, saveTransaction, type OpContext, type OpResult } from './operations'
 import type { PlanItem } from './planItems'
 import { projectBalance, type ProjectionResult } from './projection'
 import type { AppData, IncomeScenario, LocalDate, Transaction } from './types'
@@ -246,7 +246,13 @@ export function applyShortfallPlan(data: AppData, changes: PlannedChange[], ctx:
     let r: OpResult<unknown>
     if (lever.kind === 'postponePlanned' || lever.kind === 'reducePlanned') {
       const tx = next.transactions.find((t) => t.id === lever.txId)!
-      if (lever.kind === 'reducePlanned' && lever.toMinor <= 0) return { ok: false, issues: [{ path: `changes[${i}]`, code: 'invalidAmount' }] }
+      // Reducir a 0 = quitar la compra prevista: va a la papelera (recuperable y en el historial).
+      if (lever.kind === 'reducePlanned' && lever.toMinor <= 0) {
+        const removed = deleteTransaction(next, tx.id, ctx)
+        if (!removed.ok) return { ok: false, issues: removed.issues.map((x) => ({ ...x, path: `changes[${i}].${x.path}` })) }
+        next = removed.data
+        continue
+      }
       const { createdAt: _c, updatedAt: _u, currency: _cur, realizedAt: _r, ...draft } = tx
       r = saveTransaction(next, { ...draft, ...(lever.kind === 'postponePlanned' ? { date: lever.toDate } : { amountMinor: lever.toMinor }) }, ctx)
     } else if (lever.kind === 'incomeAmount') {

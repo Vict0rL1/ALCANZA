@@ -49,6 +49,7 @@ function leverText(l: ShortfallLever, data: AppData, t: T, fmt: Formatter): stri
     case 'postponePlanned':
       return t('shortfall.lever.postpone', { name: txName(l.txId), from: fmt.date(l.fromDate), to: fmt.date(l.toDate) })
     case 'reducePlanned':
+      if (l.toMinor === 0) return t('shortfall.lever.remove', { name: txName(l.txId), amount: fmt.money(l.fromMinor) })
       return t('shortfall.lever.reduce', { name: txName(l.txId), from: fmt.money(l.fromMinor), to: fmt.money(l.toMinor) })
     case 'incomeAmount':
       return t('shortfall.lever.incomeAmount', { name: sName(l.scheduleId), date: fmt.date(l.occurrenceDate), from: fmt.money(l.fromMinor), to: fmt.money(l.toMinor) })

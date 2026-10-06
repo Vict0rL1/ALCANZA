@@ -1964,4 +1964,5 @@ export const en: Record<keyof typeof es, string> = {
   'settings.backup.importValidating': 'Checking the whole backup before offering to replace your data…',
   'settings.backup.importProgress': 'Import progress',
   'settings.backup.importCancelled': 'Import cancelled. Your data didn\'t change.',
+  'shortfall.lever.remove': 'Remove the planned purchase “{name}” ({amount}); it goes to the trash and can be restored',
 }

@@ -58,6 +58,12 @@ describe('plan ante un faltante', () => {
     const stale = leverBasis(data, lever)
     const edited = { ...data, transactions: data.transactions.map((t) => (t.id === 'laptop' ? { ...t, amountMinor: 45000, updatedAt: '2026-09-28T17:00:00.000Z' } : t)) }
     expect(applyShortfallPlan(edited, [{ lever, basis: stale }], ctx)).toMatchObject({ ok: false, issues: [{ code: 'revertConflict' }] })
+    // Reducir a 0 = quitar la compra prevista: va a la papelera, nunca un importe 0.
+    const remove: ShortfallLever = { kind: 'reducePlanned', txId: 'laptop', fromMinor: 40000, toMinor: 0 }
+    const removed = applyShortfallPlan(data, [{ lever: remove, basis: leverBasis(data, remove) }], ctx)
+    if (!removed.ok) throw new Error(JSON.stringify(removed.issues))
+    expect(removed.data.transactions.some((t) => t.id === 'laptop')).toBe(false)
+    expect(removed.data.trash.map((e) => e.id)).toEqual(['laptop'])
     // Un supuesto de fecha de ingreso no se aplica.
     const dateLever: ShortfallLever = { kind: 'incomeDate', scheduleId: 'pay', fromDate: '2026-10-10', toDate: '2026-10-03' }
     expect(applyShortfallPlan(data, [{ lever: dateLever, basis: null }], ctx).ok).toBe(false)

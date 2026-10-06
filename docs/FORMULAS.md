@@ -837,7 +837,7 @@ Los apartados para metas no cambian el saldo proyectado, y se dice.
 | Palanca | Se puede aplicar | Propuesta por defecto |
 |---|---|---|
 | Mover una compra prevista | Sí | Al próximo ingreso tras el peor día |
-| Reducir una compra prevista | Sí | Importe − lo que falta en el peor día (mínimo 0) |
+| Reducir una compra prevista | Sí (a 0 = quitarla: va a la papelera) | Importe − lo que falta en el peor día (mínimo 0) |
 | Importe de un ingreso estimado (sin rango) | Sí (cambia el programado) | El que escriba la persona |
 | Importe esperado de un ingreso variable | No (es un escenario) | El esperado en lugar del mínimo |
 | Fecha de un ingreso | No (solo supuesto) | El primer día negativo |
