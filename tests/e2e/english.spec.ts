@@ -50,3 +50,23 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
   await page.reload()
   await expect(page.getByRole('link', { name: 'Movimientos' }).first()).toBeVisible()
 })
+
+test('las pantallas nuevas no dejan texto en español al usar inglés', async ({ page }) => {
+  await openApp(page)
+  await page.getByRole('radio', { name: 'English' }).check()
+  await page.getByRole('button', { name: 'Explore with demo data' }).click()
+  await expect(page.getByTestId('available')).toBeVisible()
+  // Un cambio para que el historial y «¿Qué cambió?» tengan contenido.
+  await go(page, '/movimientos/nuevo')
+  await page.getByLabel('Amount', { exact: true }).fill('5')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  // Palabras de interfaz en español que no deberían aparecer (los nombres de la demo están traducidos).
+  const spanish = /\b(Guardar|Cancelar|Importe|Disponible|Historial|Plantilla|Borrador|Revertir|Supuesto|Registrado|faltante|Comparar|Ajustes|Movimiento|Inicio)\b|¿|¡/
+  for (const route of ['/', '/movimientos/nuevo', '/cambios', '/ajustes/historial', '/movimientos/plantillas', '/movimientos/plantillas/nueva?tipo=distribution', '/alcanza/faltante', '/ajustes']) {
+    await go(page, route)
+    if (route === '/cambios') await page.getByLabel('Compare with').selectOption('historyStart')
+    await page.waitForTimeout(200)
+    const text = await page.locator('#main').innerText()
+    expect(text.match(spanish)?.[0] ?? null, route).toBeNull()
+  }
+})

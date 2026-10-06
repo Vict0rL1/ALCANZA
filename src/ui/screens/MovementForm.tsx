@@ -204,16 +204,19 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   // Borrador persistente (solo movimientos nuevos sin datos de partida).
   const plainNew = !existing && !favorite && !duplicateOf && !['kind', 'amount', 'category', 'note', 'date', 'account', 'otro', 'status'].some((k) => q.get(k))
   const [pendingDraft, setPendingDraft] = useState(() => (plainNew ? readDraft<MovementDraft>(DRAFT_NAME, data.budgetId) : null))
+  // Abierto con datos de partida (favorito, duplicar, acceso rápido…) y con un borrador anterior
+  // sin recuperar: no se pisa; seguirá ofreciéndose la próxima vez.
+  const [keepsOldDraft] = useState(() => !existing && !plainNew && readDraft<MovementDraft>(DRAFT_NAME, data.budgetId) !== null)
   const finished = useRef(false)
   useEffect(() => {
-    if (existing || pendingDraft || finished.current) return
+    if (existing || pendingDraft || keepsOldDraft || finished.current) return
     const hasContent = amountText.trim() !== '' || note.trim() !== '' || !!splitDrafts
     if (!hasContent) return void clearDraft(DRAFT_NAME)
     const timer = window.setTimeout(() => {
       if (!finished.current) writeDraft<MovementDraft>(DRAFT_NAME, data.budgetId, { id, kind, status, amountText, date, accountId, toAccountId, categoryId, note, splitDrafts })
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [existing, pendingDraft, id, kind, status, amountText, date, accountId, toAccountId, categoryId, note, splitDrafts, data.budgetId])
+  }, [existing, pendingDraft, keepsOldDraft, id, kind, status, amountText, date, accountId, toAccountId, categoryId, note, splitDrafts, data.budgetId])
 
   const recoverDraft = () => {
     if (!pendingDraft) return
@@ -354,7 +357,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     const savedTx = result.value
     if (saved) {
       finished.current = true
-      clearDraft(DRAFT_NAME)
+      if (!keepsOldDraft) clearDraft(DRAFT_NAME)
     }
     const canDistribute = saved && !existing && savedTx.kind === 'income' && savedTx.status === 'realized'
     if (saved && another && !existing) {

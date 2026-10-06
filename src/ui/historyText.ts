@@ -72,7 +72,18 @@ export function describeChange(change: HistoryChange, entry: HistoryEntry, data:
       return { text: t(`history.period.${verb}` as MessageKey, { name: b.name }), details: [] }
     }
     case 'settings':
-      return { text: t('history.settings'), details: Object.keys(change.after as object).filter((k) => (change.before as Record<string, unknown>)[k] !== (change.after as Record<string, unknown>)[k]).map((k) => t('history.field', { field: k, before: String((change.before as Record<string, unknown>)[k]), after: String((change.after as Record<string, unknown>)[k]) })) }
+    {
+      const before = change.before as Record<string, unknown>
+      const after = change.after as Record<string, unknown>
+      const label: Record<string, MessageKey> = { currency: 'settings.currency.label', timeZone: 'settings.format.timeZone', fallbackHorizonDays: 'history.horizonDays' }
+      const show = (k: string, v: unknown) => (v === null || v === undefined ? '—' : k === 'fallbackHorizonDays' ? t('horizon.option', { days: Number(v) }) : String(v))
+      return {
+        text: t('history.settings'),
+        details: Object.keys(after)
+          .filter((k) => before[k] !== after[k])
+          .map((k) => t('history.field', { field: label[k] ? t(label[k]) : k, before: show(k, before[k]), after: show(k, after[k]) })),
+      }
+    }
   }
 }
 

@@ -84,3 +84,20 @@ test('plantilla de división: porcentajes con redondeo explícito, vista previa 
   expect(await movementCount(page)).toBe(before + 1)
   await expect(await available(page)).toHaveText('$86.79')
 })
+
+test('un borrador sin recuperar no se pierde al registrar otro movimiento desde un acceso con datos', async ({ page }) => {
+  await startDemo(page)
+  await go(page, '/movimientos/nuevo')
+  await page.getByLabel('Importe').fill('33.33')
+  await page.waitForTimeout(500)
+  // Otro movimiento desde un acceso rápido (formulario con datos de partida): se guarda aparte.
+  await go(page, '/movimientos/nuevo?kind=income&returnTo=/')
+  await page.getByLabel('Importe').fill('10')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(await available(page)).toHaveText('$146.78')
+  // El borrador anterior sigue ofreciéndose.
+  await go(page, '/movimientos/nuevo')
+  await expect(page.getByText('Tienes un movimiento sin guardar')).toBeVisible()
+  await page.getByRole('button', { name: 'Recuperar borrador' }).click()
+  await expect(page.getByLabel('Importe')).toHaveValue('33.33')
+})

@@ -1964,4 +1964,5 @@ export const es = {
   'settings.backup.importProgress': 'Progreso de la importación',
   'settings.backup.importCancelled': 'Importación cancelada. Tus datos no cambiaron.',
   'shortfall.lever.remove': 'Quitar la compra prevista «{name}» ({amount}); va a la papelera y se puede restaurar',
+  'history.horizonDays': 'Horizonte sin ingreso programado',
 } as const
