@@ -1,20 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, showAllNotices, START, startDemo } from './helpers'
-
-const KEY = 'margen.data.v1'
+import { available, go, showAllNotices, START, startDemo, storedData, storedRecord, seedLegacyLocalStorage } from './helpers'
 
 /** Convierte los datos guardados en una copia v4 real (sin los campos nuevos), no demo y creada hace 10 días. */
 async function storeAsOldV4(page: Page) {
-  await page.evaluate((key) => {
-    const data = JSON.parse(localStorage.getItem(key)!)
-    data.schemaVersion = 4
-    data.isDemo = false
-    data.createdAt = '2026-09-18T12:00:00.000Z'
-    for (const field of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup', 'periodBudgets', 'scenarios', 'inbox', 'incomeDistributions']) delete data[field]
-    delete data.settings.weeklyReview
-    localStorage.setItem(key, JSON.stringify(data))
-  }, KEY)
+  const data = JSON.parse((await storedData(page))!)
+  data.schemaVersion = 4
+  data.isDemo = false
+  data.createdAt = '2026-09-18T12:00:00.000Z'
+  for (const field of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup', 'periodBudgets', 'scenarios', 'inbox', 'incomeDistributions']) delete data[field]
+  delete data.settings.weeklyReview
+  // Una v4 venía de una versión que guardaba en localStorage.
+  await seedLegacyLocalStorage(page, data)
 }
 
 test('copia de seguridad: nunca exportada, exportación solicitada, verificación y datos nuevos sin respaldar', async ({ page }) => {
@@ -71,8 +68,8 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
 
   // Migración: mismos importes, copia previa guardada y nada eliminado.
   await expect(page.getByTestId('available')).toHaveText('$136.78')
-  const preserved = await page.evaluate(() => localStorage.getItem('margen.data.before-v7'))
-  expect(JSON.parse(preserved!).fromVersion).toBe(4)
+  const preserved = (await storedRecord(page, 'margen.data.before-v8')) as { fromVersion: number }
+  expect(preserved.fromVersion).toBe(4)
   await showAllNotices(page)
   await expect(page.getByText('Haz una copia de seguridad')).toBeVisible()
   await expect(page.getByText('Nunca has exportado tus datos.')).toBeVisible()

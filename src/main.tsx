@@ -3,18 +3,21 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { registerServiceWorker } from './pwa/register'
 import { AppStore, setStore } from './state/store'
-import { LocalStorageRepository } from './storage/localStorageRepository'
+import { createRepository } from './storage/indexedDbRepository'
 import './styles.css'
 import { watchThemeChanges } from './ui/theme'
 
-const store = new AppStore(new LocalStorageRepository())
-setStore(store)
-void store.init()
 registerServiceWorker()
 watchThemeChanges()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// IndexedDB si el navegador lo permite; si no, localStorage (ver docs/STORAGE.md).
+void createRepository().then((repo) => {
+  const store = new AppStore(repo)
+  setStore(store)
+  void store.init()
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

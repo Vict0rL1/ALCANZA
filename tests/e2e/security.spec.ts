@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { go, startDemo, storedData } from './helpers'
 
 const PAYLOAD = '<img src=x onerror="window.__xss=1"><script>window.__xss=2</script>'
 
@@ -36,7 +36,7 @@ test('notas, nombres y descripciones importadas con HTML se muestran como texto 
 
 test('un archivo de copia mal formado o enorme no bloquea la app ni cambia nada', async ({ page }) => {
   await startDemo(page)
-  const before = await page.evaluate(() => localStorage.getItem('margen.data.v1'))
+  const before = await storedData(page)
   await go(page, '/ajustes')
   const deep = '['.repeat(100000) + ']'.repeat(100000)
   for (const [name, text] of [
@@ -46,7 +46,7 @@ test('un archivo de copia mal formado o enorme no bloquea la app ni cambia nada'
   ] as const) {
     await page.getByTestId('import-file').setInputFiles({ name, mimeType: 'application/json', buffer: Buffer.from(text) })
     await expect(page.getByRole('alert').first()).toBeVisible()
-    expect(await page.evaluate(() => localStorage.getItem('margen.data.v1'))).toBe(before)
+    expect(await storedData(page)).toBe(before)
   }
   await go(page, '/')
   await expect(page.getByTestId('available')).toBeVisible()

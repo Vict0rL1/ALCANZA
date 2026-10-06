@@ -15,11 +15,12 @@ import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, frequencyLabel, issueMessage, otherIssues, withCurrent } from '../labels'
-import { href, navigate, type Route } from '../router'
+import { href, type Route, useNavigateIfStillHere } from '../router'
 
 const REMINDER_OPTIONS = [0, 1, 2, 3, 7, 14]
 
 export function ScheduleForm({ route }: { route: Route }) {
+  const leave = useNavigateIfStillHere()
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -105,7 +106,7 @@ export function ScheduleForm({ route }: { route: Route }) {
       return
     }
     toast({ message: saved ? t('scheduleForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate('/plan/calendario')
+    leave('/plan/calendario')
   }
 
   const remove = async () => {
@@ -118,7 +119,7 @@ export function ScheduleForm({ route }: { route: Route }) {
       tone: saved ? 'good' : 'critical',
       action: { label: t('common.undo'), onClick: () => void run((d, c) => restoreSchedule(d, removed, c)) },
     })
-    navigate('/plan/calendario')
+    leave('/plan/calendario')
   }
 
   const day = startDate ? parseLocalDate(startDate).day : 0

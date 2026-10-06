@@ -6,6 +6,7 @@ import { backupStatus } from '../domain/backupReminder'
 import { createDemoData } from '../demo/demoData'
 import { baseData, bill, ctx, NOW, TODAY, tx, TZ } from '../test/fixtures'
 import { createBackup, parseBackup, validateAppData } from './backup'
+import { SCHEMA_VERSION } from '../domain/types'
 import { LocalStorageRepository, MemoryRepository, PRE_MIGRATION_KEY_PREFIX, STORAGE_KEY } from './localStorageRepository'
 
 const backupText = (data = baseData({ transactions: [tx({ id: 't1' })] })) => JSON.stringify(createBackup(data, new Date(NOW), '0.1.0'))
@@ -175,7 +176,7 @@ describe('migraciones', () => {
     const r = validateAppData(v1)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.data.schemaVersion).toBe(7)
+      expect(r.data.schemaVersion).toBe(SCHEMA_VERSION)
       expect(r.data.categoryRules).toEqual([])
       expect(r.data.categories).toEqual([])
       expect(r.data.categoryLimits).toEqual([])
@@ -195,7 +196,7 @@ describe('migraciones', () => {
     for (const key of ['trash', 'purgedImportRefs', 'favorites', 'reconciliations', 'backup']) delete v4[key]
     const r = validateAppData(v4)
     if (!r.ok) throw new Error(JSON.stringify(r.issues))
-    expect(r.data).toMatchObject({ schemaVersion: 7, inbox: { snoozed: [], dismissed: [] }, incomeDistributions: [], periodBudgets: [], scenarios: [], trash: [], purgedImportRefs: [], favorites: [], reconciliations: [], backup: { reminder: 'weekly' } })
+    expect(r.data).toMatchObject({ schemaVersion: SCHEMA_VERSION, templates: [], history: [], inbox: { snoozed: [], dismissed: [] }, incomeDistributions: [], periodBudgets: [], scenarios: [], trash: [], purgedImportRefs: [], favorites: [], reconciliations: [], backup: { reminder: 'weekly' } })
     expect(r.data.transactions).toEqual((v4.transactions as unknown[]))
     expect(r.data.schedules).toEqual((v4.schedules as unknown[]))
     expect(backupStatus(r.data, TODAY).neverExported).toBe(true)
@@ -216,7 +217,7 @@ describe('migraciones', () => {
     delete (v5.settings as Record<string, unknown>).weeklyReview
     const r = validateAppData(v5)
     if (!r.ok) throw new Error(JSON.stringify(r.issues))
-    expect(r.data).toMatchObject({ schemaVersion: 7, periodBudgets: [], scenarios: [], settings: { weeklyReview: true } })
+    expect(r.data).toMatchObject({ schemaVersion: SCHEMA_VERSION, periodBudgets: [], scenarios: [], settings: { weeklyReview: true } })
     expect(r.data.goals).toEqual(v5.goals)
     expect(r.data.transactions).toEqual(v5.transactions)
   })
@@ -263,7 +264,7 @@ describe('migraciones', () => {
       expect(loaded.status).toBe('ok')
       // Los datos originales no se sobrescriben al cargar; la copia previa conserva el texto exacto.
       expect(store.get(STORAGE_KEY)).toBe(raw)
-      expect(JSON.parse(store.get(`${PRE_MIGRATION_KEY_PREFIX}7`)!)).toEqual({ fromVersion: 4, raw })
+      expect(JSON.parse(store.get(`${PRE_MIGRATION_KEY_PREFIX}${SCHEMA_VERSION}`)!)).toEqual({ fromVersion: 4, raw })
       // Datos de una versión futura: se informan como no legibles y no se tocan.
       const future = JSON.stringify({ ...v4, schemaVersion: 99 })
       store.set(STORAGE_KEY, future)
@@ -317,5 +318,30 @@ describe('migraciones', () => {
   it('rechaza datos de tarjeta en cuentas que no son tarjeta', () => {
     const data = baseData({ accounts: [{ ...baseData().accounts[0]!, card: { limitMinor: 1 } }] })
     expect(validateAppData(data).ok).toBe(false)
+  })
+})
+
+describe('migración v7 → v8', () => {
+  it('añade plantillas e historial vacíos y fija desde cuándo hay historial; no cambia nada más', () => {
+    const v7: Record<string, unknown> = JSON.parse(JSON.stringify(baseData({ transactions: [tx({ id: 't1' })] })))
+    v7.schemaVersion = 7
+    delete v7.templates
+    delete v7.history
+    delete v7.historyStartedAt
+    v7.updatedAt = '2026-09-27T10:00:00.000Z'
+    const r = validateAppData(v7)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data).toMatchObject({ schemaVersion: 8, templates: [], history: [], historyStartedAt: '2026-09-27T10:00:00.000Z' })
+    expect(r.data.transactions).toEqual(baseData({ transactions: [tx({ id: 't1' })] }).transactions)
+  })
+
+  it('un historial o una plantilla mal formados se rechazan (no se borran)', () => {
+    const bad = JSON.parse(JSON.stringify(baseData()))
+    bad.history = [{ id: 'h', at: 'ayer', source: 'app', changes: [] }]
+    expect(validateAppData(bad)).toMatchObject({ ok: false, issues: [{ path: 'history[0].at' }] })
+    const badTpl = JSON.parse(JSON.stringify(baseData()))
+    badTpl.templates = [{ id: 't', name: 'X', kind: 'split', lines: [{ categoryId: 'dining', amount: { mode: 'percent', bps: 12000 } }], createdAt: NOW, updatedAt: NOW }]
+    expect(validateAppData(badTpl).ok).toBe(false)
   })
 })

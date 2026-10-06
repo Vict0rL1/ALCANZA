@@ -29,7 +29,7 @@ import { useToast } from '../components/toastContext'
 import { useFormat, type Formatter } from '../format'
 import { fieldError, issueMessage, otherIssues } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
-import { href, navigate, withQuery, type Route } from '../router'
+import { href, withQuery, type Route, useNavigateIfStillHere } from '../router'
 
 const HORIZONS = [30, 60, 90] as const
 const LIST = '/alcanza/escenarios'
@@ -301,6 +301,7 @@ function toDraft(c: ScenarioChange, fmt: Formatter): ChangeDraft {
 }
 
 export function ScenarioForm({ route }: { route: Route }) {
+  const leave = useNavigateIfStillHere()
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -345,7 +346,7 @@ export function ScenarioForm({ route }: { route: Route }) {
       return
     }
     toast({ message: saved ? t('scenario.savedToast') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate(LIST)
+    leave(LIST)
   }
 
   const unknown = otherIssues(

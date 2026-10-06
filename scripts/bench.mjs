@@ -74,10 +74,32 @@ for (const size of sizes) {
     }, text)
     row.seed = seeded
     if (seeded !== 'ok') {
-      row.note = `localStorage rechazó ${row.mb} MB (${seeded})`
-      results.push(row)
-      await context.close()
-      continue
+      // No cabe en localStorage: con la versión con IndexedDB se siembra directamente allí.
+      const idb = await page.evaluate(
+        (t) =>
+          new Promise((resolve) => {
+            if (!('indexedDB' in window)) return resolve('sin IndexedDB')
+            const req = indexedDB.open('clara', 1)
+            req.onupgradeneeded = () => req.result.createObjectStore('kv')
+            req.onsuccess = () => {
+              const d = JSON.parse(t)
+              const tx = req.result.transaction('kv', 'readwrite')
+              tx.objectStore('kv').put(d, 'data')
+              tx.objectStore('kv').put({ revision: d.revision, savedAt: new Date().toISOString() }, 'meta')
+              tx.oncomplete = () => resolve('ok')
+              tx.onerror = () => resolve(String(tx.error))
+            }
+            req.onerror = () => resolve(String(req.error))
+          }),
+        text,
+      )
+      row.seed = `localStorage: ${seeded}; IndexedDB: ${idb}`
+      if (idb !== 'ok') {
+        row.note = `localStorage rechazó ${row.mb} MB (${seeded})`
+        results.push(row)
+        await context.close()
+        continue
+      }
     }
     // Primera apertura (incluye una posible migración de almacenamiento).
     row.firstOpen = ms(await time(async () => {
@@ -148,6 +170,7 @@ for (const size of sizes) {
     }))
   } catch (e) {
     row.error = String(e.message ?? e).split('\n')[0]
+    await page.screenshot({ path: `${dir}/error-${label}-${size}.png` }).catch(() => undefined)
   }
   results.push(row)
   console.log(JSON.stringify(row))

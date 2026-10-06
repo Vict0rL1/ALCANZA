@@ -17,7 +17,7 @@ import { useToast } from '../components/toastContext'
 import { AllocateDialog } from '../dialogs'
 import { useFormat } from '../format'
 import { fieldError, issueMessage, otherIssues } from '../labels'
-import { href, navigate, type Route } from '../router'
+import { href, type Route, useNavigateIfStillHere } from '../router'
 import { PlannedExpenseCard, PlannedExpenseForm } from './PlannedExpenses'
 
 export function Goals() {
@@ -168,6 +168,7 @@ export function GoalForm({ route }: { route: Route }) {
 }
 
 function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | undefined; editId: string | undefined; returnTo: string }) {
+  const leave = useNavigateIfStillHere()
   const { t } = useT()
   const fmt = useFormat()
   const run = useRun()
@@ -202,7 +203,7 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
       return
     }
     toast({ message: saved ? t('goalForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate(returnTo)
+    leave(returnTo)
   }
 
   const remove = async () => {
@@ -215,7 +216,7 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
       tone: saved ? 'good' : 'critical',
       action: { label: t('common.undo'), onClick: () => void run((d, c) => restoreGoal(d, removed, c)) },
     })
-    navigate(returnTo)
+    leave(returnTo)
   }
 
   const unknown = otherIssues(issues, ['name', 'targetMinor', 'targetDate'])

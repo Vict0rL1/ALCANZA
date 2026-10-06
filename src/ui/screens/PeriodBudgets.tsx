@@ -35,7 +35,7 @@ import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
-import { href, navigate, type Route } from '../router'
+import { href, type Route, useNavigateIfStillHere } from '../router'
 
 const STATUS: Record<PeriodStatus, { tone: Tone; icon: IconName }> = {
   upcoming: { tone: 'info', icon: 'clock' },
@@ -135,6 +135,7 @@ export function PeriodBudgets() {
 }
 
 export function PeriodBudgetForm({ route }: { route: Route }) {
+  const leave = useNavigateIfStillHere()
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -181,7 +182,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
       return
     }
     toast({ message: saved ? t('period.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate(`/plan/periodos/${id}`)
+    leave(`/plan/periodos/${id}`)
   }
 
   const back = existing ? `/plan/periodos/${existing.id}` : '/plan/periodos'
@@ -254,6 +255,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
 }
 
 export function PeriodBudgetDetail({ route }: { route: Route }) {
+  const leave = useNavigateIfStillHere()
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -316,7 +318,7 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
       tone: saved ? 'good' : 'critical',
       action: { label: t('common.undo'), onClick: () => void run((d, c) => restorePeriodBudget(d, removed, c)) },
     })
-    navigate('/plan/periodos')
+    leave('/plan/periodos')
   }
 
   return (

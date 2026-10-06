@@ -27,7 +27,7 @@ import { SplitEditor } from '../splitEditor'
 import { draftsFromLines, newSplitDraft, parseDrafts, type SplitDraft } from '../splitDrafts'
 import { useFormat } from '../format'
 import { accountName, categoryLabel, fieldError, issueMessage, otherIssues, planItemName, transactionTitle, withCurrent } from '../labels'
-import { href, navigate, withQuery, type Route } from '../router'
+import { href, navigate, withQuery, type Route, navigateIfStillAt, useNavigateIfStillHere } from '../router'
 
 type FormKind = Exclude<TxKind, 'adjustment'>
 
@@ -78,7 +78,8 @@ function AdjustmentView({ tx, returnTo }: { tx: Transaction; returnTo: string })
             type="button"
             className="btn btn--danger-ghost"
             onClick={async () => {
-              if (await deleteTx(tx.id)) navigate(returnTo)
+              const from = window.location.hash
+              if (await deleteTx(tx.id)) navigateIfStillAt(from, returnTo)
             }}
           >
             <Icon name="trash" />
@@ -92,6 +93,7 @@ function AdjustmentView({ tx, returnTo }: { tx: Transaction; returnTo: string })
 }
 
 function MovementEditor({ route, existing, returnTo }: { route: Route; existing: Transaction | undefined; returnTo: string }) {
+  const leave = useNavigateIfStillHere()
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -262,7 +264,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
       // Tras registrar un ingreso recibido se ofrece repartirlo (nunca se hace solo).
       ...(canDistribute ? { action: { label: t('distribution.offer'), onClick: () => navigate(`/movimientos/distribuir/${savedTx.id}`) } } : {}),
     })
-    navigate(returnTo)
+    leave(returnTo)
   }
 
   /** Guarda el movimiento (o liquida la ocurrencia vinculada). */
@@ -637,7 +639,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
               type="button"
               className="btn btn--danger-ghost"
               onClick={async () => {
-                if (await deleteTx(existing.id)) navigate(returnTo)
+                const from = window.location.hash
+                if (await deleteTx(existing.id)) navigateIfStillAt(from, returnTo)
               }}
             >
               <Icon name="trash" />

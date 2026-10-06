@@ -32,6 +32,7 @@ const ScenarioForm = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ 
 const Search = lazy(() => import('./ui/screens/Search').then((m) => ({ default: m.Search })))
 const Inbox = lazy(() => import('./ui/screens/Inbox').then((m) => ({ default: m.Inbox })))
 const IncomeDistributionScreen = lazy(() => import('./ui/screens/IncomeDistribution').then((m) => ({ default: m.IncomeDistributionScreen })))
+const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
 export function App() {
@@ -457,6 +458,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'plan' && b === 'periodos' && (c === 'nuevo' || c === 'editar')) return <PeriodBudgetForm key={key} route={route} />
   if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
+  if (a === 'ajustes' && b === 'historial') return <History key={key} />
   if (a === 'ajustes') return <Settings key={key} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (

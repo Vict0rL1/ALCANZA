@@ -24,7 +24,7 @@ import { BalanceInclusionControl } from '../dialogs'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, issueMessage, otherIssues, planItemName } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
-import { href, navigate } from '../router'
+import { href, useNavigateIfStillHere } from '../router'
 
 const STATE: Record<PlannedExpenseState, { tone: Tone; icon: IconName }> = {
   paid: { tone: 'good', icon: 'check' },
@@ -264,6 +264,7 @@ function PayPlannedDialog({ goal, onClose }: { goal: Goal; onClose: () => void }
 }
 
 export function PlannedExpenseForm({ existing }: { existing: Goal | undefined }) {
+  const leave = useNavigateIfStillHere()
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -326,7 +327,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
       return
     }
     toast({ message: saved ? t('goalForm.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
-    navigate('/plan/metas')
+    leave('/plan/metas')
   }
 
   const remove = async () => {
@@ -339,7 +340,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
       tone: saved ? 'good' : 'critical',
       action: { label: t('common.undo'), onClick: () => void run((d, c) => restoreGoal(d, removed, c)) },
     })
-    navigate('/plan/metas')
+    leave('/plan/metas')
   }
 
   const unknown = otherIssues(issues, ['name', 'targetMinor', 'targetDate', 'initialReservedMinor'])

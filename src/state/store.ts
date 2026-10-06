@@ -3,6 +3,7 @@
  * No contiene reglas financieras: solo aplica los resultados de `domain/operations`.
  */
 import { useSyncExternalStore } from 'react'
+import { recordHistory, type HistoryMeta } from '../domain/history'
 import type { AppData } from '../domain/types'
 import type { ImportIssue } from '../storage/backup'
 import { MemoryRepository } from '../storage/localStorageRepository'
@@ -92,15 +93,24 @@ export class AppStore {
     await this.init()
   }
 
+  /** Dónde se guardan los datos ahora mismo. */
+  get backend(): NonNullable<DataRepository['backend']> {
+    return this.repo.backend ?? (this.repo.kind === 'memory' ? 'memory' : 'localStorage')
+  }
+
   get data(): AppData | null {
     return this.state.phase === 'ready' ? this.state.data : null
   }
 
-  /** Guarda un nuevo estado completo. Devuelve si se pudo persistir. */
-  async commit(next: AppData): Promise<boolean> {
+  /**
+   * Guarda un nuevo estado completo y registra en el historial lo que cambió (`meta.source`:
+   * 'replace' para importar una copia o reiniciar). Devuelve si se pudo persistir.
+   */
+  async commit(next: AppData, meta: HistoryMeta = {}): Promise<boolean> {
     if (this.state.phase !== 'ready') return false
     const previousRevision = this.state.data?.revision ?? 0
-    const data: AppData = { ...next, revision: Math.max(previousRevision, next.revision) + 1 }
+    const withHistory = recordHistory(this.state.data, next, new Date().toISOString(), meta)
+    const data: AppData = { ...withHistory, revision: Math.max(previousRevision, next.revision) + 1 }
     this.set({ ...this.state, data, save: { state: 'saving' } })
     const result = await this.repo.save(data)
     if (this.state.phase !== 'ready') return result.ok

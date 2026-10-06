@@ -47,6 +47,7 @@ function getStorage(): Storage | null {
 
 export class LocalStorageRepository implements DataRepository {
   readonly kind = 'local' as const
+  readonly backend = 'localStorage' as const
   /**
    * Texto guardado tal como lo leyó o escribió ESTA pestaña (`null` = no había datos;
    * `undefined` = todavía no se leyó). Si al guardar el almacenamiento tiene otra cosa,
@@ -118,6 +119,7 @@ export class LocalStorageRepository implements DataRepository {
 /** Solo en memoria: se usa si el navegador bloquea el almacenamiento (y en pruebas). */
 export class MemoryRepository implements DataRepository {
   readonly kind = 'memory' as const
+  readonly backend = 'memory' as const
   private stored: string | null = null
 
   async load(): Promise<LoadResult> {

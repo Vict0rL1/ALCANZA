@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 7 as const
+export const SCHEMA_VERSION = 8 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -474,8 +474,67 @@ export interface AppData {
   scenarios: SavedScenario[]
   inbox: InboxState
   incomeDistributions: IncomeDistribution[]
+  /** Plantillas con nombre (compras divididas y distribución de ingresos). Nunca registran nada solas. */
+  templates: Template[]
+  /** Historial local de cambios financieros (ver domain/history.ts). No es un registro inviolable. */
+  history: HistoryEntry[]
+  /** Desde cuándo hay historial (inicio de su captura o la entrada más antigua conservada). */
+  historyStartedAt: Timestamp
   createdAt: Timestamp
   updatedAt: Timestamp
   /** Aumenta en cada guardado. Sirve para detectar cambios en otra pestaña. */
   revision: number
 }
+
+/* ------------------------------------------------------------------ */
+/* Historial local (v8)                                                */
+/* ------------------------------------------------------------------ */
+
+/** Colecciones con efecto financiero que se registran en el historial. */
+export type HistoryCollection = 'accounts' | 'transactions' | 'schedules' | 'goals' | 'trash' | 'reconciliations' | 'incomeDistributions' | 'periodBudgets' | 'settings'
+
+/** Un registro cambiado: valor anterior y nuevo (`null` = no existía / dejó de existir). */
+export interface HistoryChange {
+  collection: HistoryCollection
+  id: string
+  before: unknown
+  after: unknown
+}
+
+/**
+ * app = una operación normal; revert = deshacer otra entrada; plan = cambios aplicados desde el
+ * plan ante faltantes; replace = se reemplazaron todos los datos (importar una copia, demo):
+ * es un corte, el historial anterior no se puede revertir ni reconstruir más allá.
+ */
+export type HistorySource = 'app' | 'revert' | 'plan' | 'replace'
+
+export interface HistoryEntry {
+  id: string
+  at: Timestamp
+  source: HistorySource
+  changes: HistoryChange[]
+  /** Entrada que esta deshace (solo `revert`). */
+  revertOf?: string
+}
+
+/* ------------------------------------------------------------------ */
+/* Plantillas con nombre (v8)                                          */
+/* ------------------------------------------------------------------ */
+
+/** Importe fijo (unidades menores) o porcentaje en puntos básicos (10000 = 100 %). */
+export type TemplateAmount = { mode: 'fixed'; amountMinor: number } | { mode: 'percent'; bps: number }
+
+export interface SplitTemplateLine {
+  categoryId: string
+  amount: TemplateAmount
+}
+
+export interface DistributionTemplateLine {
+  /** Meta (apartado) o pago programado (se resuelve a su próxima ocurrencia abierta). */
+  target: { kind: 'goal'; goalId: string } | { kind: 'payment'; scheduleId: string }
+  amount: TemplateAmount
+}
+
+export type Template =
+  | { id: string; name: string; kind: 'split'; lines: SplitTemplateLine[]; createdAt: Timestamp; updatedAt: Timestamp }
+  | { id: string; name: string; kind: 'distribution'; lines: DistributionTemplateLine[]; createdAt: Timestamp; updatedAt: Timestamp }

@@ -23,6 +23,8 @@ export type SaveResult = { ok: true } | { ok: false; error: SaveErrorCode }
 export interface DataRepository {
   /** Descripción para la interfaz, por ejemplo "este navegador". */
   readonly kind: 'local' | 'memory'
+  /** Dónde se guarda (para explicarlo en Ajustes). */
+  readonly backend?: 'indexeddb' | 'localStorage' | 'memory'
   load(): Promise<LoadResult>
   save(data: AppData): Promise<SaveResult>
   clear(): Promise<void>

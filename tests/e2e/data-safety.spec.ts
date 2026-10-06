@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { go, movementCount, START, startDemo } from './helpers'
-
-const KEY = 'margen.data.v1'
+import { failStorageWrites, go, movementCount, restoreStorageWrites, START, startDemo, storedData, writeStoredData } from './helpers'
 
 async function addExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
@@ -10,29 +8,15 @@ async function addExpense(page: Page, amount: string, note: string) {
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 }
 
-/** Hace que el navegador rechace escrituras (como con el almacenamiento lleno). */
-async function failWrites(page: Page, name: 'QuotaExceededError' | 'SecurityError') {
-  await page.evaluate((n) => {
-    const w = window as unknown as { __realSetItem?: typeof Storage.prototype.setItem }
-    w.__realSetItem ??= Storage.prototype.setItem
-    Storage.prototype.setItem = function () {
-      throw new DOMException('simulado', n)
-    }
-  }, name)
-}
-async function restoreWrites(page: Page) {
-  await page.evaluate(() => {
-    const w = window as unknown as { __realSetItem?: typeof Storage.prototype.setItem }
-    if (w.__realSetItem) Storage.prototype.setItem = w.__realSetItem
-  })
-}
-const stored = (page: Page) => page.evaluate((k) => localStorage.getItem(k), KEY)
+const stored = storedData
+const failWrites = (page: Page) => failStorageWrites(page, 'QuotaExceededError')
+const restoreWrites = restoreStorageWrites
 
 test('almacenamiento lleno: nunca dice «Guardado», conserva lo guardado y permite descargar y reintentar', async ({ page }) => {
   await startDemo(page)
   const before = await stored(page)
   const count = await movementCount(page)
-  await failWrites(page, 'QuotaExceededError')
+  await failWrites(page)
   await addExpense(page, '12.34', 'Prueba sin espacio')
   const banner = page.getByTestId('save-problem')
   await expect(banner).toContainText('Tus últimos cambios no se guardaron')
@@ -56,6 +40,9 @@ test('abrir con el almacenamiento lleno muestra los datos (no la bienvenida ni u
   await startDemo(page)
   const count = await movementCount(page)
   await page.addInitScript(() => {
+    IDBObjectStore.prototype.put = function () {
+      throw new DOMException('simulado', 'QuotaExceededError')
+    }
     Storage.prototype.setItem = function () {
       throw new DOMException('simulado', 'QuotaExceededError')
     }
@@ -95,13 +82,10 @@ test('dos pestañas: la segunda no sobrescribe en silencio lo que guardó la pri
 
 test('datos de una versión más nueva: se explican, no se tocan y empezar de nuevo pide confirmación', async ({ page }) => {
   await startDemo(page)
-  const future = await page.evaluate((k) => {
-    const d = JSON.parse(localStorage.getItem(k)!)
-    d.schemaVersion = 99
-    const text = JSON.stringify(d)
-    localStorage.setItem(k, text)
-    return text
-  }, KEY)
+  const d = JSON.parse((await stored(page))!)
+  d.schemaVersion = 99
+  await writeStoredData(page, d)
+  const future = await stored(page)
   await page.reload()
   await expect(page.getByRole('alert')).toContainText('Estos datos son de una versión más nueva de Clara')
   expect(await stored(page)).toBe(future)
@@ -126,4 +110,33 @@ test('restaurar una copia se puede deshacer en el momento', async ({ page }) => 
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByText('Importación deshecha')).toBeVisible()
   expect(await movementCount(page)).toBe(count)
+})
+
+test('usuario de una versión anterior: sus datos de localStorage pasan a IndexedDB sin perder nada y el origen se conserva', async ({ page }) => {
+  await startDemo(page)
+  const count = await movementCount(page)
+  const data = JSON.parse((await stored(page))!)
+  // Simula la versión anterior: datos solo en localStorage, IndexedDB vacía.
+  await page.evaluate(
+    (text) =>
+      new Promise<void>((resolve) => {
+        localStorage.setItem('margen.data.v1', text)
+        localStorage.removeItem('margen.data.pre-idb')
+        const req = indexedDB.deleteDatabase('clara')
+        req.onsuccess = () => resolve()
+        req.onblocked = () => resolve()
+      }),
+    JSON.stringify(data),
+  )
+  await page.reload()
+  await go(page, '/')
+  await expect(page.getByTestId('available')).toBeVisible()
+  expect(await movementCount(page)).toBe(count)
+  expect(JSON.parse((await stored(page))!).transactions).toEqual(data.transactions)
+  const origin = await page.evaluate(() => ({ copy: localStorage.getItem('margen.data.pre-idb'), main: localStorage.getItem('margen.data.v1') }))
+  expect(JSON.parse(origin.copy!).transactions).toEqual(data.transactions)
+  expect(JSON.parse(origin.main!).movedTo).toBe('indexeddb')
+  // Ajustes muestra dónde están los datos y la copia del origen.
+  await go(page, '/ajustes')
+  await expect(page.getByText(/IndexedDB/).first()).toBeVisible()
 })

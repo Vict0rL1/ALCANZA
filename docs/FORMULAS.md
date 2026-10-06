@@ -714,3 +714,28 @@ pago>`, `dup:<a>:<b>`, `bal:<cuenta>:<motivo>`, `int:…`), así nunca aparecen 
   quita la meta que la distribución creó si no tuvo otros movimientos. Si algún apartado
   ya se usó para pagar o la meta ya no tiene ese dinero, **no se revierte nada** y se
   explica el conflicto (`distributionConflict`).
+
+## 26. Historial local de cambios (v8)
+
+Código: `src/domain/history.ts`. Pantalla: `Ajustes › Historial de cambios`.
+
+- **Qué se registra.** En cada guardado se compara el estado anterior con el nuevo, por id, en
+  las colecciones financieras (cuentas, movimientos, programados, metas, papelera,
+  conciliaciones, distribuciones, presupuestos por periodo) y en los ajustes que cambian
+  cifras (`currency`, `timeZone`, `fallbackHorizonDays`). Se guarda cada registro cambiado con
+  su valor **anterior y nuevo completos**. Sin cambios financieros no se añade entrada (cambiar
+  el idioma no aparece).
+- **Origen.** `app` (uso normal), `revert` (con `revertOf`), `plan` (aplicado desde un plan) y
+  `replace` (importar una copia o reiniciar la demo). `replace` es un **corte**: no se puede
+  revertir ni reconstruir el estado anterior a él.
+- **Revertir.** Solo si cada registro de la entrada sigue *exactamente* como la entrada lo
+  dejó; si no, se muestra cuántos registros cambiaron después y no se toca nada. El resultado
+  se valida completo (`validateAppData`) antes de guardar: nunca quedan una ocurrencia pagada
+  dos veces ni una devolución sin su compra. La reversión es otra entrada (también reversible);
+  una entrada ya revertida no se ofrece de nuevo.
+- **Estado anterior** (`stateBefore`): deshaciendo en orden inverso las entradas posteriores
+  a un punto se obtiene el estado en ese momento, base de «¿Qué cambió?». Devuelve `null` si
+  hay un corte por medio.
+- **Límites.** Como mucho 1000 entradas (`HISTORY_MAX_ENTRIES`); al superarlas sale la más
+  antigua y `historyStartedAt` avanza. El historial es local, viaja en las copias y se puede
+  editar: **no es una auditoría inviolable**.

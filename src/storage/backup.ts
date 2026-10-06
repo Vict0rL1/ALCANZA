@@ -4,8 +4,11 @@
  * Una importación NUNCA se aplica a medias: o todo el archivo es válido, o no
  * se cambia nada. Se copian solo los campos conocidos (se descarta lo demás).
  */
+import { isValidTimestamp } from '../domain/dates'
 import { isValidId } from '../domain/ids'
 import type {
+  HistoryEntry,
+  Template,
   Account,
   AppData,
   BackupState,
@@ -49,6 +52,9 @@ import {
   validateTransaction,
   validateTrashEntry,
   type Issue,
+  validateTemplate,
+  validateHistory,
+  TEMPLATES_MAX,
 } from '../domain/validation'
 import { migrate } from './migrations'
 
@@ -56,8 +62,11 @@ import { migrate } from './migrations'
 // copias anteriores sigan siendo válidas.
 export const BACKUP_FORMAT = 'margen-backup'
 export const BACKUP_FORMAT_VERSION = 1
-export const MAX_BACKUP_BYTES = 5 * 1024 * 1024
-export const MAX_RECORDS = 50_000
+// Límites de seguridad contra archivos absurdos. Deben admitir la copia completa más grande que
+// la app puede generar: con IndexedDB, 50.000 movimientos ocupan ~15 MB (antes el límite de 5 MB
+// hacía que una copia exportada por la propia app no se pudiera restaurar).
+export const MAX_BACKUP_BYTES = 100 * 1024 * 1024
+export const MAX_RECORDS = 500_000
 
 export interface BackupFile {
   format: typeof BACKUP_FORMAT
@@ -336,6 +345,15 @@ export function validateAppData(raw: unknown): ImportResult {
   incomeDistributions.forEach((d, i) => issues.push(...validateIncomeDistribution(d, `incomeDistributions[${i}].`)))
   checkDuplicates(incomeDistributions, 'incomeDistributions', issues)
   issues.push(...validateBackupState(backup, 'backup.'))
+  // v8: plantillas e historial (estructura; ver domain/validation.ts).
+  const rawTemplates = Array.isArray(migrated.templates) ? migrated.templates : null
+  if (!rawTemplates || rawTemplates.length > TEMPLATES_MAX || !rawTemplates.every(isObj)) issues.push({ path: 'templates', code: 'invalidValue' })
+  const templates = (rawTemplates ?? []).filter(isObj) as unknown as Template[]
+  templates.forEach((tpl, i) => issues.push(...validateTemplate(tpl, `templates[${i}].`)))
+  checkDuplicates(templates, 'templates', issues)
+  const history = (Array.isArray(migrated.history) ? migrated.history : null) as HistoryEntry[] | null
+  if (!history) issues.push({ path: 'history', code: 'invalidValue' })
+  else issues.push(...validateHistory(history))
   if (issues.length) return { ok: false, issues: issues.slice(0, 50) }
 
   const data: AppData = {
@@ -359,6 +377,9 @@ export function validateAppData(raw: unknown): ImportResult {
     scenarios,
     inbox,
     incomeDistributions,
+    templates,
+    history: history ?? [],
+    historyStartedAt: typeof migrated.historyStartedAt === 'string' && isValidTimestamp(migrated.historyStartedAt) ? migrated.historyStartedAt : (typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString()),
     createdAt: typeof migrated.createdAt === 'string' ? migrated.createdAt : new Date().toISOString(),
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,

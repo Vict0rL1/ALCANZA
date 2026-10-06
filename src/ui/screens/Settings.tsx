@@ -10,7 +10,8 @@ import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
 import { MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
-import { APP_VERSION, useExportBackup, useVerifyBackup } from '../backupActions'
+import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
+import { IndexedDbRepository } from '../../storage/indexedDbRepository'
 import { usePwaState } from '../../pwa/register'
 import { useRun, useToday } from '../../state/hooks'
 import { getStore, useAppState, useData } from '../../state/store'
@@ -19,6 +20,7 @@ import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '..
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { ConfirmDialog, Dialog } from '../components/Dialog'
 import { Icon } from '../components/Icon'
+import { href } from '../router'
 import { useToast } from '../components/toastContext'
 import { UpdateBalanceDialog } from '../dialogs'
 import { createFormatter, useFormat } from '../format'
@@ -101,7 +103,7 @@ export function Settings() {
     if (!importState || !('data' in importState)) return
     // Se conserva en memoria lo que había para poder deshacer la importación.
     const previous = getStore().data
-    const ok = await getStore().commit(importState.data)
+    const ok = await getStore().commit(importState.data, { source: 'replace' })
     setImportState(null)
     toast({
       message: ok ? t('settings.backup.imported') : t('save.error.generic'),
@@ -111,7 +113,7 @@ export function Settings() {
             action: {
               label: t('common.undo'),
               onClick: async () => {
-                const undone = await getStore().commit(previous)
+                const undone = await getStore().commit(previous, { source: 'replace' })
                 toast({ message: undone ? t('settings.backup.importUndone') : t('save.error.generic'), tone: undone ? 'good' : 'critical' })
               },
             },
@@ -122,7 +124,7 @@ export function Settings() {
 
   const resetDemo = async () => {
     const demo = createDemoData({ now: new Date(), timeZone: data.settings.timeZone, currency: 'CAD', language: data.settings.language })
-    const ok = await getStore().commit(demo)
+    const ok = await getStore().commit(demo, { source: 'replace' })
     setConfirm(null)
     toast({ message: ok ? t('settings.demo.resetDone') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
   }
@@ -338,6 +340,7 @@ export function Settings() {
         {state.phase === 'ready' && state.storage === 'memory' && <Alert tone="critical" title={t('shell.memoryTitle')}>{t('shell.memoryText')}</Alert>}
         <ul className="bullets">
           <li>{t('settings.storage.local')}</li>
+          {getStore().backend !== 'memory' && <li data-testid="storage-backend">{t(getStore().backend === 'indexeddb' ? 'settings.storage.backend.indexeddb' : 'settings.storage.backend.localStorage')}</li>}
           <li>{t('settings.storage.lost')}</li>
           <li>{t('settings.storage.noSync')}</li>
           <li>{t('settings.storage.eviction')}</li>
@@ -348,6 +351,12 @@ export function Settings() {
           <li>{t('settings.storage.noAi')}</li>
         </ul>
         <PersistentStorage />
+        <OriginCopy />
+        <p className="note">{t('history.openHint')}</p>
+        <a className="btn btn--secondary" href={href('/ajustes/historial')}>
+          <Icon name="clock" size={18} />
+          {t('history.open')}
+        </a>
       </Card>
 
       <Card labelledBy="notifications-title">
@@ -603,6 +612,49 @@ function PersistentStorage() {
           {t('settings.storage.persist.request')}
         </button>
       )}
+    </div>
+  )
+}
+
+/**
+ * Copia de los datos tal como estaban en localStorage antes de pasar a IndexedDB. Se conserva
+ * hasta que la persona decida eliminarla (no se borra sola).
+ */
+function OriginCopy() {
+  const { t } = useT()
+  const toast = useToast()
+  const [copy, setCopy] = useState(() => IndexedDbRepository.readOriginCopy())
+  const [confirming, setConfirming] = useState(false)
+  if (!copy) return null
+  return (
+    <div className="stack-sm" data-testid="origin-copy">
+      <p>
+        <Icon name="info" size={16} /> {t('settings.storage.originCopy', { size: (copy.length / 1024 / 1024).toFixed(2) })}
+      </p>
+      <div className="button-row">
+        <button type="button" className="btn btn--secondary btn--small" onClick={() => downloadText('clara-datos-anteriores-a-indexeddb.json', copy)}>
+          <Icon name="download" size={16} />
+          {t('settings.storage.originDownload')}
+        </button>
+        <button type="button" className="btn btn--danger-ghost btn--small" onClick={() => setConfirming(true)}>
+          {t('settings.storage.originDelete')}
+        </button>
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        title={t('settings.storage.originDeleteTitle')}
+        confirmLabel={t('settings.storage.originDelete')}
+        destructive
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          IndexedDbRepository.deleteOriginCopy()
+          setCopy(null)
+          setConfirming(false)
+          toast({ message: t('settings.storage.originDeleted'), tone: 'good' })
+        }}
+      >
+        <p>{t('settings.storage.originDeleteText')}</p>
+      </ConfirmDialog>
     </div>
   )
 }

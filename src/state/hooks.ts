@@ -3,6 +3,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { todayInTimeZone } from '../domain/dates'
+import type { HistoryMeta } from '../domain/history'
 import type { OpContext, OpResult } from '../domain/operations'
 import type { AppData, LocalDate } from '../domain/types'
 import { getStore, useData } from './store'
@@ -45,14 +46,14 @@ export interface RunOutcome<T> {
  * Si la operación no cambia nada (por ejemplo, un doble clic), no se guarda otra vez.
  */
 export function useRun() {
-  return useCallback(async <T,>(op: Operation<T>): Promise<RunOutcome<T>> => {
+  return useCallback(async <T,>(op: Operation<T>, meta?: HistoryMeta): Promise<RunOutcome<T>> => {
     const store = getStore()
     const data = store.data
     if (!data) return { result: { ok: false, issues: [{ path: '', code: 'notFound' }] }, saved: false }
     const result = op(data, makeContext(data.settings.timeZone))
     if (!result.ok) return { result, saved: false }
     if (result.unchanged) return { result, saved: true }
-    const saved = await store.commit(result.data)
+    const saved = await store.commit(result.data, meta)
     return { result, saved }
   }, [])
 }

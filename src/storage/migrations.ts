@@ -59,6 +59,17 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
     inbox: raw.inbox ?? { snoozed: [], dismissed: [] },
     incomeDistributions: raw.incomeDistributions ?? [],
   }),
+  /**
+   * v7 → v8: plantillas con nombre e historial local. No hay historial anterior: se empieza a
+   * capturar desde esta versión (`historyStartedAt` = último guardado conocido).
+   */
+  7: (raw) => ({
+    ...raw,
+    schemaVersion: 8,
+    templates: raw.templates ?? [],
+    history: raw.history ?? [],
+    historyStartedAt: raw.historyStartedAt ?? (typeof raw.updatedAt === 'string' ? raw.updatedAt : raw.createdAt),
+  }),
 }
 
 export function migrate(raw: Raw): Raw {

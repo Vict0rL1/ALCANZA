@@ -10,6 +10,10 @@ import { MAX_AMOUNT_MINOR, isMinorAmount, isSupportedCurrency, sumMinor } from '
 import { normalizeText, RULE_PATTERN_MAX, RULE_PATTERN_MIN } from './rules'
 import { MAX_SPLIT_LINES, refundableByCategory, splitDifference } from './splits'
 import type {
+  HistoryCollection,
+  HistoryEntry,
+  HistorySource,
+  Template,
   Account,
   AppData,
   BackupState,
@@ -80,6 +84,12 @@ export type IssueCode =
   | 'notABackupOfThisBudget'
   | 'tooMany'
   | 'dateInPast'
+  | 'percentOver100'
+  | 'templateExceedsTotal'
+  | 'templateUnavailable'
+  | 'revertConflict'
+  | 'alreadyReverted'
+  | 'notRevertible'
 
 export interface Issue {
   /** Campo afectado, por ejemplo 'amountMinor' o 'transactions[3].date'. */
@@ -712,5 +722,94 @@ export function validateScenario(sc: SavedScenario, prefix = ''): Issue[] {
     issues.push({ path: `${prefix}baseFingerprint`, code: 'invalidValue' })
   }
   checkTimestamps(sc, prefix, issues)
+  return issues
+}
+
+/* ------------------------------------------------------------------ */
+/* Plantillas e historial (v8)                                         */
+/* ------------------------------------------------------------------ */
+
+export const TEMPLATE_MAX_LINES = 20
+export const TEMPLATES_MAX = 200
+
+function checkTemplateAmount(a: unknown, path: string, issues: Issue[]) {
+  const v = a as { mode?: unknown; amountMinor?: unknown; bps?: unknown } | null
+  if (!v || typeof v !== 'object') return void issues.push({ path, code: 'invalidValue' })
+  if (v.mode === 'fixed') checkPositiveAmount(v.amountMinor, `${path}.amountMinor`, issues)
+  else if (v.mode === 'percent') {
+    if (typeof v.bps !== 'number' || !Number.isSafeInteger(v.bps) || v.bps <= 0 || v.bps > 10000) issues.push({ path: `${path}.bps`, code: 'invalidValue' })
+  } else issues.push({ path: `${path}.mode`, code: 'invalidValue' })
+}
+
+/**
+ * Plantilla con nombre. Solo se valida la ESTRUCTURA: las categorías o metas a las que apunta
+ * pueden archivarse o borrarse después; eso se detecta (y se explica) al usarla, nunca invalida
+ * los datos guardados.
+ */
+export function validateTemplate(tpl: Template, prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(tpl.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  if (typeof tpl.name !== 'string' || tpl.name.trim().length === 0) issues.push({ path: `${prefix}name`, code: 'required' })
+  else if (tpl.name.length > LIMITS.nameMax) issues.push({ path: `${prefix}name`, code: 'textTooLong', params: { max: LIMITS.nameMax } })
+  if (tpl.kind !== 'split' && tpl.kind !== 'distribution') issues.push({ path: `${prefix}kind`, code: 'invalidValue' })
+  if (!Array.isArray(tpl.lines) || tpl.lines.length === 0 || tpl.lines.length > TEMPLATE_MAX_LINES) {
+    issues.push({ path: `${prefix}lines`, code: 'invalidValue' })
+  } else {
+    let percent = 0
+    tpl.lines.forEach((l, i) => {
+      const lp = `${prefix}lines[${i}]`
+      if (!l || typeof l !== 'object') return void issues.push({ path: lp, code: 'invalidValue' })
+      checkTemplateAmount(l.amount, `${lp}.amount`, issues)
+      if (l.amount?.mode === 'percent' && typeof l.amount.bps === 'number') percent += l.amount.bps
+      if (tpl.kind === 'split') {
+        const c = (l as { categoryId?: unknown }).categoryId
+        if (typeof c !== 'string' || c.length === 0 || c.length > 64) issues.push({ path: `${lp}.categoryId`, code: 'invalidCategory' })
+      } else {
+        const t = (l as { target?: { kind?: unknown; goalId?: unknown; scheduleId?: unknown } }).target
+        const ok = t && ((t.kind === 'goal' && isValidId(t.goalId)) || (t.kind === 'payment' && isValidId(t.scheduleId)))
+        if (!ok) issues.push({ path: `${lp}.target`, code: 'invalidValue' })
+      }
+    })
+    if (percent > 10000) issues.push({ path: `${prefix}lines`, code: 'percentOver100' })
+  }
+  if (!isValidTimestamp(tpl.createdAt)) issues.push({ path: `${prefix}createdAt`, code: 'invalidTimestamp' })
+  if (!isValidTimestamp(tpl.updatedAt)) issues.push({ path: `${prefix}updatedAt`, code: 'invalidTimestamp' })
+  return issues
+}
+
+export const HISTORY_COLLECTIONS: readonly HistoryCollection[] = ['accounts', 'transactions', 'schedules', 'goals', 'trash', 'reconciliations', 'incomeDistributions', 'periodBudgets', 'settings']
+const HISTORY_SOURCES: readonly HistorySource[] = ['app', 'revert', 'plan', 'replace']
+/** Margen de seguridad al importar (la app conserva como mucho HISTORY_MAX_ENTRIES). */
+const HISTORY_IMPORT_MAX = 5000
+
+/**
+ * Entrada del historial. Las instantáneas (antes/después) no se validan a fondo: son valores
+ * pasados. Revertir siempre vuelve a validar los datos completos antes de guardar.
+ */
+export function validateHistory(history: HistoryEntry[], prefix = 'history'): Issue[] {
+  if (!Array.isArray(history)) return [{ path: prefix, code: 'invalidValue' }]
+  if (history.length > HISTORY_IMPORT_MAX) return [{ path: prefix, code: 'tooMany', params: { max: HISTORY_IMPORT_MAX } }]
+  const issues: Issue[] = []
+  history.forEach((e, i) => {
+    const p = `${prefix}[${i}].`
+    if (!e || typeof e !== 'object') return void issues.push({ path: `${prefix}[${i}]`, code: 'invalidValue' })
+    if (!isValidId(e.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
+    if (!isValidTimestamp(e.at)) issues.push({ path: `${p}at`, code: 'invalidTimestamp' })
+    if (!HISTORY_SOURCES.includes(e.source)) issues.push({ path: `${p}source`, code: 'invalidValue' })
+    if (e.revertOf !== undefined && !isValidId(e.revertOf)) issues.push({ path: `${p}revertOf`, code: 'invalidId' })
+    if (!Array.isArray(e.changes)) return void issues.push({ path: `${p}changes`, code: 'invalidValue' })
+    e.changes.forEach((c, j) => {
+      const ok =
+        c &&
+        typeof c === 'object' &&
+        HISTORY_COLLECTIONS.includes(c.collection) &&
+        typeof c.id === 'string' &&
+        c.id.length > 0 &&
+        c.id.length <= 64 &&
+        (c.before === null || typeof c.before === 'object') &&
+        (c.after === null || typeof c.after === 'object')
+      if (!ok) issues.push({ path: `${p}changes[${j}]`, code: 'invalidValue' })
+    })
+  })
   return issues
 }

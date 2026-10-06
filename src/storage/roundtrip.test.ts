@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createDemoData } from '../demo/demoData'
+import { createSyntheticData } from '../test/synthetic'
 import { snoozeInboxItem, dismissInboxItem, inboxView } from '../domain/inbox'
 import { applyDistribution } from '../domain/incomeDistribution'
 import { deleteTransaction, saveTransaction, type OpContext } from '../domain/operations'
@@ -119,4 +120,15 @@ describe('copias de versiones anteriores', () => {
       expect(r.data.favorites).toEqual(v >= 5 ? d.favorites : [])
     })
   }
+})
+
+describe('copias grandes', () => {
+  it('una copia exportada con 50.000 movimientos se puede restaurar íntegra (antes superaba el límite de 5 MB)', () => {
+    const big = createSyntheticData({ movements: 50000, today: '2026-09-28' })
+    const text = JSON.stringify(createBackup(big, NOW, '0.1.0'), null, 2)
+    expect(text.length).toBeGreaterThan(5 * 1024 * 1024)
+    const r = parseBackup(text)
+    expect(r.ok, JSON.stringify(!r.ok && r.issues.slice(0, 3))).toBe(true)
+    if (r.ok) expect(r.data.transactions).toHaveLength(big.transactions.length)
+  }, 60_000)
 })

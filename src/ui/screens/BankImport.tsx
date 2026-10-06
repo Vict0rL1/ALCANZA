@@ -27,7 +27,7 @@ import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, issueMessage } from '../labels'
-import { href, navigate } from '../router'
+import { href, useNavigateIfStillHere } from '../router'
 import { RuleDialog } from './RulesSection'
 
 const PAGE = 100
@@ -48,6 +48,7 @@ async function readText(file: File): Promise<string> {
 }
 
 export function BankImport() {
+  const leave = useNavigateIfStillHere()
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -171,7 +172,7 @@ export function BankImport() {
       tone: saved ? 'good' : 'critical',
       action: created.length ? { label: t('common.undo'), onClick: () => void run((d, c) => removeTransactions(d, created, c)) } : undefined,
     })
-    if (saved) navigate('/movimientos')
+    if (saved) leave('/movimientos')
   }
 
   const rowBadges = (row: ImportRow) => {
