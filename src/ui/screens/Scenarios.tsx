@@ -101,6 +101,17 @@ export function Scenarios() {
       <Alert tone="info" icon="lock" title={t('scenario.isolatedTitle')}>
         {t('scenario.isolatedText')}
       </Alert>
+      {result.base.firstNegativeDate && (
+        <Alert
+          tone="warning"
+          title={t('shortfall.baseAlert', { date: fmt.date(result.base.firstNegativeDate), amount: fmt.money(result.base.shortfallMinor) })}
+          actions={
+            <a className="btn btn--secondary btn--small" href={href(withQuery('/alcanza/faltante', { dias: days, gasto: useSpend ? undefined : '0' }))}>
+              {t('shortfall.open')}
+            </a>
+          }
+        />
+      )}
 
       {data.scenarios.length === 0 ? (
         <EmptyState icon="scale" title={t('scenario.empty')} action={<a className="btn btn--primary" href={href(`${LIST}/nuevo`)}>{t('scenario.new')}</a>}>

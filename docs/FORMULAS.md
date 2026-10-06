@@ -813,3 +813,49 @@ Regla de importes:
    ocurrencia abierta: no se aplican, se avisan y su parte queda sin asignar.
 
 Pruebas: `templates.test.ts`, `quickEntry.test.ts` y e2e `quick-entry.spec.ts`.
+
+## 29. Plan ante un faltante
+
+Código: `src/domain/shortfall.ts`. Pantalla: `¿Me alcanza? › Escenarios › Ver plan ante el
+faltante` (`/alcanza/faltante`). También se llega desde el aviso de disponible negativo en
+Inicio.
+
+**Diagnóstico.** Usa la misma proyección y las mismas hipótesis que el comparador:
+horizonte, gasto diario estimado y escenario de ingresos variables (mínimo por defecto).
+Muestra:
+
+- el primer día con saldo proyectado negativo y lo que falta al terminar ese día;
+- el peor día;
+- las salidas previstas hasta ese día, marcadas como pago programado (obligación), compra
+  prevista o transferencia, y si son estimadas;
+- los ingresos que se suponen y los retrasados que no se cuentan.
+
+Los apartados para metas no cambian el saldo proyectado, y se dice.
+
+**Palancas.** Cada una se simula sobre una copia. Se pueden combinar y editar.
+
+| Palanca | Se puede aplicar | Propuesta por defecto |
+|---|---|---|
+| Mover una compra prevista | Sí | Al próximo ingreso tras el peor día |
+| Reducir una compra prevista | Sí | Importe − lo que falta en el peor día (mínimo 0) |
+| Importe de un ingreso estimado (sin rango) | Sí (cambia el programado) | El que escriba la persona |
+| Importe esperado de un ingreso variable | No (es un escenario) | El esperado en lugar del mínimo |
+| Fecha de un ingreso | No (solo supuesto) | El primer día negativo |
+| Gasto diario variable | No (es una estimación) | `ceil(faltante del peor día ÷ días hasta él)` menos al día |
+
+- Los **pagos programados nunca** son palanca: si con lo elegido sigue faltando, se listan
+  como restricciones sin resolver (hasta el primer día negativo de la simulación combinada).
+- No se sugieren préstamos, tarjetas ni deuda nueva.
+- Un ingreso hipotético o adelantado nunca entra en el disponible.
+
+**Aplicar.**
+
+- Solo palancas aplicables, mostrando cada cambio y con confirmación en la app.
+- Una operación, todo o nada.
+- Si un registro cambió desde que se calculó la propuesta (huella `leverBasis`), no se aplica
+  nada y se explica.
+- Se guarda en el historial como `plan`, y se deshace con el aviso «Deshacer» o desde el
+  historial (con su detección de conflictos).
+- Nunca cambia movimientos realizados.
+
+Pruebas con cifras a mano en `shortfall.test.ts`; e2e `shortfall.spec.ts`.

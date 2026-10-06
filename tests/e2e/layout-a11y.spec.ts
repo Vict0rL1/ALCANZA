@@ -25,6 +25,7 @@ const ROUTES = [
   '/movimientos/plantillas',
   '/movimientos/plantillas/nueva?tipo=distribution',
   '/alcanza/escenarios',
+  '/alcanza/faltante',
   '/alcanza/escenarios/nuevo',
   '/buscar?q=cafe',
   '/pendientes',
@@ -66,6 +67,8 @@ test('navegación con teclado: saltar al contenido y llegar a «¿Me alcanza?»'
 })
 
 test('sin problemas de accesibilidad detectables automáticamente', async ({ page }) => {
+  // Una auditoría axe por pantalla (≈1 s cada una): el tiempo crece con la lista de rutas.
+  test.setTimeout(ROUTES.length * 4_000)
   await startDemo(page)
   for (const route of ROUTES) {
     await go(page, route)

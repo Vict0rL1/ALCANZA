@@ -194,7 +194,8 @@ export function Home() {
             </p>
             {budget.status === 'ok' && budget.availableMinor < 0 && (
               <Alert tone="critical" title={t('home.negativeTitle', { amount: fmt.money(-budget.availableMinor) })}>
-                {t('home.negativeText')}
+                {t('home.negativeText')}{' '}
+                <a href={href('/alcanza/faltante')}>{t('shortfall.open')}</a>
               </Alert>
             )}
             {budget.status === 'needsHorizon' && <HorizonPicker />}

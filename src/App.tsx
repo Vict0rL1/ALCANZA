@@ -36,6 +36,7 @@ const IncomeDistributionScreen = lazy(() => import('./ui/screens/IncomeDistribut
 const WhatChanged = lazy(() => import('./ui/screens/WhatChanged').then((m) => ({ default: m.WhatChanged })))
 const Templates = lazy(() => import('./ui/screens/Templates').then((m) => ({ default: m.Templates })))
 const TemplateForm = lazy(() => import('./ui/screens/Templates').then((m) => ({ default: m.TemplateForm })))
+const ShortfallPlan = lazy(() => import('./ui/screens/ShortfallPlan').then((m) => ({ default: m.ShortfallPlan })))
 const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
@@ -448,6 +449,7 @@ function Screen({ route }: { route: Route }) {
   const key = route.path
   if (!a) return <Home key={key} />
   if (a === 'alcanza' && b === 'escenarios' && (c === 'nuevo' || c === 'editar')) return <ScenarioForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'alcanza' && b === 'faltante') return <ShortfallPlan key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'alcanza' && b === 'escenarios') return <Scenarios key={key} />
   if (a === 'alcanza') return <Afford key={key} />
   if (a === 'cambios') return <WhatChanged key={`${key}?${route.query.toString()}`} route={route} />
