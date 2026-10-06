@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, START, startDemo } from './helpers'
+import { available, go, START, startDemo, openDetails } from './helpers'
 
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
 
@@ -18,6 +18,7 @@ test.describe('importes con formatos regionales', () => {
       const amount = page.getByLabel('Importe', { exact: true })
       await expect(amount).toHaveAttribute('inputmode', 'decimal') // teclado numérico en el celular
       await amount.fill(typed)
+      await openDetails(page)
       await page.getByLabel('Nota (opcional)').fill('Formato regional')
       await page.getByRole('button', { name: 'Guardar', exact: true }).click()
       await go(page, '/movimientos')
@@ -50,7 +51,7 @@ test.describe('celular en horizontal', () => {
     await page.getByRole('button', { name: 'Agregar cuenta' }).click()
     const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
     await expect(dialog).toBeVisible()
-    const save = dialog.getByRole('button', { name: 'Guardar' })
+    const save = dialog.getByRole('button', { name: 'Guardar', exact: true })
     await save.scrollIntoViewIfNeeded()
     await expect(save).toBeInViewport()
     await dialog.getByRole('button', { name: 'Cancelar' }).click()
@@ -98,7 +99,7 @@ test('diálogos con texto al 200 % en 320 px: sin desplazamiento horizontal y co
   expect(await overflow(page)).toBeLessThanOrEqual(0)
   const box = await dialog.boundingBox()
   expect(box!.width).toBeLessThanOrEqual(320)
-  const save = dialog.getByRole('button', { name: 'Guardar' })
+  const save = dialog.getByRole('button', { name: 'Guardar', exact: true })
   await save.scrollIntoViewIfNeeded()
   await expect(save).toBeInViewport()
   await context.close()

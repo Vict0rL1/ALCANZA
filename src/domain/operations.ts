@@ -61,7 +61,7 @@ function fail(issues: Issue[]): { ok: false; issues: Issue[] } {
   return { ok: false, issues }
 }
 
-function touch(data: AppData, now: Timestamp): AppData {
+export function touch(data: AppData, now: Timestamp): AppData {
   return { ...data, updatedAt: now }
 }
 

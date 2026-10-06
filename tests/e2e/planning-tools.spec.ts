@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, startDemo, openDetails } from './helpers'
 
 test('gasto planificado: vinculado al calendario, aporte confirmado y pago distinto de lo apartado', async ({ page }) => {
   await startDemo(page)
@@ -12,7 +12,7 @@ test('gasto planificado: vinculado al calendario, aporte confirmado y pago disti
   await expect(page.getByLabel('Nombre')).toHaveValue('Cuota de matrícula')
   await expect(page.getByLabel('Importe estimado')).toHaveValue('400.00')
   await page.getByLabel('Ya apartado (opcional)').fill('50')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   // Lo confirmado sí se descuenta; el plan sugerido no.
   const card = page.locator('article', { hasText: 'Cuota de matrícula' })
@@ -50,7 +50,7 @@ test('presupuesto por periodo: asignar no cambia el disponible; gastos asociados
   await page.getByLabel('Desde').fill('2026-09-28')
   await page.getByLabel('Hasta (incluido)').fill('2026-10-02')
   await page.getByLabel('Asignado').fill('100')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Viaje a Montreal' })).toBeVisible()
   await expect(page.getByTestId('period-spent')).toHaveText('$0.00')
   await expect(await available(page)).toHaveText('$136.78')
@@ -61,6 +61,7 @@ test('presupuesto por periodo: asignar no cambia el disponible; gastos asociados
   await page.getByRole('link', { name: /Viaje a Montreal/ }).click()
   await page.getByRole('link', { name: 'Registrar un gasto del periodo' }).click()
   await page.getByLabel('Importe').fill('12.50')
+  await openDetails(page)
   await expect(page.getByRole('checkbox', { name: /Viaje a Montreal/ })).toBeChecked()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByTestId('period-spent')).toHaveText('$12.50')
@@ -84,7 +85,7 @@ test('presupuesto por periodo: asignar no cambia el disponible; gastos asociados
   await page.getByLabel('Desde').fill('2026-09-01')
   await page.getByLabel('Hasta (incluido)').fill('2026-12-20')
   await page.getByLabel('Asignado').fill('900')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await page.locator('.check', { hasText: '$12.50' }).getByRole('checkbox').check()
   await expect(page.getByTestId('period-spent')).toHaveText('$12.50')
   await go(page, '/plan/periodos')
@@ -169,6 +170,7 @@ test('escenarios: se guardan sin tocar datos reales, se comparan y avisan si cam
 
   // Crear un gasto previsto solo con acción explícita; luego se detecta el parecido.
   await page.getByRole('link', { name: 'Crear gasto previsto…' }).click()
+  await openDetails(page)
   await expect(page.getByRole('radio', { name: 'Previsto' })).toBeChecked()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText(/Ya hay un gasto previsto parecido/)).toBeVisible()
@@ -247,11 +249,11 @@ test('pantallas nuevas con datos: sin desplazamiento horizontal ni problemas de 
   await page.getByLabel('Importe estimado').fill('600')
   await page.getByLabel('Fecha de vencimiento').fill('2027-03-01')
   await page.getByLabel('¿Se repite?').selectOption('12')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await go(page, '/plan/periodos/nuevo')
   await page.getByLabel('Nombre').fill('Semestre')
   await page.getByLabel('Asignado').fill('1500')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByTestId('period-spent')).toBeVisible()
   const periodUrl = new URL(page.url()).hash.slice(1)
   await go(page, '/alcanza/escenarios/nuevo?amount=4500')
@@ -293,7 +295,7 @@ test('periodo: sugerencias por fecha con deshacer; movimientos filtrados por ran
   await page.getByLabel('Desde').fill('2026-09-01')
   await page.getByLabel('Hasta (incluido)').fill('2026-09-30')
   await page.getByLabel('Asignado').fill('2000')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   const box = page.getByTestId('period-suggestions')
   await expect(box).toContainText(/Hay \d+ gastos en estas fechas/)
   await box.getByRole('button', { name: /Asociar \d+ gastos sugeridos/ }).click()
@@ -318,11 +320,12 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   await page.getByLabel('Asignado').fill('80')
   await page.locator('summary', { hasText: 'Proponer gastos automáticamente' }).click()
   await page.getByLabel('Comida fuera y café').check()
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText(/Regla: Comida fuera y café/)).toBeVisible()
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('6')
+  await openDetails(page)
   const period = page.getByRole('checkbox', { name: /Semana de exámenes/ })
   await expect(period).not.toBeChecked() // categoría por defecto: Otros gastos
   await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
@@ -337,6 +340,7 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('3')
   await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await openDetails(page)
   await page.getByRole('checkbox', { name: /Semana de exámenes/ }).uncheck()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await go(page, '/plan/periodos')

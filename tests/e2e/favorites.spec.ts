@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, startDemo, openDetails } from './helpers'
 
 test('favoritos: desde Inicio abren el formulario con hoy, no registran nada solos y guardar dos veces no duplica', async ({ page }) => {
   await startDemo(page)
@@ -9,6 +9,7 @@ test('favoritos: desde Inicio abren el formulario con hoy, no registran nada sol
   await expect(page.getByRole('heading', { name: 'Nuevo movimiento' })).toBeVisible()
   await expect(page.getByText('Usando el favorito «Café»')).toBeVisible()
   await expect(page.getByLabel('Importe')).toHaveValue('4.25')
+  await openDetails(page)
   await expect(page.getByLabel('Fecha')).toHaveValue('2026-09-28')
   await expect(page.getByLabel('Categoría')).toHaveValue('dining')
 
@@ -30,11 +31,12 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   // Crear desde el formulario de un movimiento.
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('12')
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Lavandería')
   await page.getByRole('button', { name: 'Añadir a favoritos' }).click()
   let dialog = page.getByRole('dialog', { name: 'Nuevo favorito' })
   await expect(dialog.getByLabel('Nombre')).toHaveValue('Lavandería')
-  await dialog.getByRole('button', { name: 'Guardar' }).dblclick()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).dblclick()
   await expect(page.getByText('Favorito guardado').first()).toBeVisible()
 
   // Cuenta nueva sin movimientos para poder eliminarla después.
@@ -43,7 +45,7 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   const accountDialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await accountDialog.getByLabel('Nombre').fill('Tarjeta regalo')
   await accountDialog.getByLabel('Tipo de cuenta').selectOption('other')
-  await accountDialog.getByRole('button', { name: 'Guardar' }).click()
+  await accountDialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   await go(page, '/movimientos/favoritos')
   await expect(page.locator('.item')).toHaveCount(3) // Café, Pasaje de autobús y Lavandería (sin duplicados)
@@ -52,7 +54,7 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   await dialog.getByLabel('Nombre').fill('Regalo')
   await dialog.getByLabel('Cuenta').selectOption({ label: 'Tarjeta regalo' })
   await dialog.getByLabel('Categoría').selectOption({ label: 'Regalos' })
-  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   // Ordenar: «Regalo» sube al tercer lugar.
   await page.getByRole('button', { name: /Subir.*Regalo/ }).click()

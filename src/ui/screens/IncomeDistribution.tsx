@@ -15,12 +15,13 @@ import {
   type DistributionLineInput,
   type DistributionPriority,
 } from '../../domain/incomeDistribution'
+import { resolveDistributionTemplate } from '../../domain/templates'
 import type { Issue } from '../../domain/validation'
-import { useT } from '../../i18n'
+import { useT, type MessageKey } from '../../i18n'
 import { makeContext, useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, Badge, CalcRow, Card, EmptyState, Explain, PageHeader } from '../components/common'
-import { MoneyField, Segmented } from '../components/fields'
+import { MoneyField, Segmented, SelectField } from '../components/fields'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
@@ -49,6 +50,7 @@ export function IncomeDistributionScreen({ route }: { route: Route }) {
   })
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
+  const [templateNote, setTemplateNote] = useState<{ tone: 'info' | 'warning' | 'critical'; title: string; lines: string[] } | null>(null)
 
   const back = withQuery(`/movimientos/editar/${txId}`, { returnTo: '/movimientos' })
   if (!income || income.kind !== 'income') {
@@ -85,6 +87,33 @@ export function IncomeDistributionScreen({ route }: { route: Route }) {
     }
   }
   const assigned = parsedLines.reduce((s, l) => s + l.amountMinor, 0)
+  const distributionTemplates = data.templates.filter((x): x is Extract<typeof x, { kind: 'distribution' }> => x.kind === 'distribution')
+
+  /** Rellena los importes con una plantilla. Nada se aparta hasta pulsar «Aplicar». */
+  const fillFromTemplate = (templateId: string) => {
+    const tpl = distributionTemplates.find((x) => x.id === templateId)
+    if (!tpl || !context) return
+    const r = resolveDistributionTemplate(data, tpl, context)
+    if ('exceeds' in r) return setTemplateNote({ tone: 'critical', title: t('issue.templateExceedsTotal'), lines: [] })
+    const nameOf = (l: (typeof r.lines)[number]) =>
+      l.line.target.kind === 'goal' ? (data.goals.find((g) => g.id === (l.line.target as { goalId: string }).goalId)?.name ?? '') : (data.schedules.find((x) => x.id === (l.line.target as { scheduleId: string }).scheduleId)?.name ?? '')
+    const lines = [
+      ...r.lines.filter((l) => l.problem).map((l) => t(`quick.problem.${l.problem}` as MessageKey, { name: nameOf(l), amount: fmt.money(l.amountMinor) })),
+      ...r.lines.filter((l) => l.cappedFromMinor !== undefined).map((l) => t('distribution.templateCapped', { name: nameOf(l), from: fmt.money(l.cappedFromMinor!), to: fmt.money(l.amountMinor) })),
+    ]
+    setPriority('manual')
+    setAmounts(Object.fromEntries(r.apply.map((l) => [lineKey(l), fmt.moneyInput(l.amountMinor)])))
+    setIssues([])
+    setTemplateNote({ tone: lines.length ? 'warning' : 'info', title: t('quick.templateApplied', { name: tpl.name }), lines })
+  }
+  const asTemplate =
+    parsedLines.length > 0
+      ? withQuery('/movimientos/plantillas/nueva', {
+          tipo: 'distribution',
+          lineas: parsedLines.map((l) => (l.kind === 'goal' ? `g:${l.goalId}:${l.amountMinor}` : `p:${l.scheduleId}:${l.amountMinor}`)).join(','),
+          returnTo: `/movimientos/distribuir/${txId}`,
+        })
+      : null
   const input = { distributionId, incomeTxId: txId, lines: parsedLines }
   const preview = context && parsedLines.length > 0 && !invalid ? previewDistribution(data, input, makeContext(data.settings.timeZone)) : null
 
@@ -160,6 +189,26 @@ export function IncomeDistributionScreen({ route }: { route: Route }) {
                 ]}
                 hint={t('distribution.priorityHint')}
               />
+              {distributionTemplates.length > 0 && (
+                <SelectField
+                  label={t('templates.use')}
+                  value=""
+                  onChange={(e) => fillFromTemplate(e.target.value)}
+                  options={[{ value: '', label: t('quick.chooseTemplate') }, ...distributionTemplates.map((x) => ({ value: x.id, label: x.name }))]}
+                  hint={t('distribution.templateHint')}
+                />
+              )}
+              {templateNote && (
+                <Alert tone={templateNote.tone} title={templateNote.title} role={templateNote.tone === 'critical' ? 'alert' : undefined}>
+                  {templateNote.lines.length > 0 && (
+                    <ul className="bullets">
+                      {templateNote.lines.map((l, i) => (
+                        <li key={i}>{l}</li>
+                      ))}
+                    </ul>
+                  )}
+                </Alert>
+              )}
 
               <fieldset className="stack-sm">
                 <legend className="field__label">{t('distribution.payments')}</legend>
@@ -261,6 +310,12 @@ export function IncomeDistributionScreen({ route }: { route: Route }) {
                   <Icon name="check" />
                   {t('distribution.apply')}
                 </button>
+                {asTemplate && (
+                  <a className="btn btn--ghost" href={href(asTemplate)}>
+                    <Icon name="star" />
+                    {t('templates.saveFromDistribution')}
+                  </a>
+                )}
               </div>
             </form>
           )}

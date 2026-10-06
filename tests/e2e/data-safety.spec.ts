@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import { failStorageWrites, go, movementCount, restoreStorageWrites, START, startDemo, storedData, writeStoredData } from './helpers'
+import { failStorageWrites, go, movementCount, restoreStorageWrites, START, startDemo, storedData, writeStoredData, openDetails } from './helpers'
 
 async function addExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe', { exact: true }).fill(amount)
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill(note)
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 }

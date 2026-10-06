@@ -1,10 +1,11 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function newExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe', { exact: true }).fill(amount)
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill(note)
 }
 
@@ -180,7 +181,7 @@ test('bandeja: límite de categoría superado lleva a los movimientos filtrados,
   const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
   await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
   await dialog.getByLabel('Límite por mes').fill('30')
-  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   await go(page, '/pendientes')
   const item = page.locator('article', { hasText: '«Comida fuera y café» superó su límite de este mes' })

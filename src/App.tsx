@@ -1,3 +1,4 @@
+import { useGlobalShortcuts } from './ui/shortcuts'
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Language } from './domain/types'
 import { I18nContext, createTranslator, useT } from './i18n'
@@ -33,6 +34,8 @@ const Search = lazy(() => import('./ui/screens/Search').then((m) => ({ default: 
 const Inbox = lazy(() => import('./ui/screens/Inbox').then((m) => ({ default: m.Inbox })))
 const IncomeDistributionScreen = lazy(() => import('./ui/screens/IncomeDistribution').then((m) => ({ default: m.IncomeDistributionScreen })))
 const WhatChanged = lazy(() => import('./ui/screens/WhatChanged').then((m) => ({ default: m.WhatChanged })))
+const Templates = lazy(() => import('./ui/screens/Templates').then((m) => ({ default: m.Templates })))
+const TemplateForm = lazy(() => import('./ui/screens/Templates').then((m) => ({ default: m.TemplateForm })))
 const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
@@ -281,6 +284,7 @@ function Shell() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [unsaved])
   const route = useRoute()
+  useGlobalShortcuts(state.phase === 'ready' && !!state.data)
   const mainRef = useRef<HTMLElement>(null)
   const first = useRef(true)
 
@@ -386,6 +390,7 @@ function Shell() {
                 className={`nav__item${item.add ? ' nav__item--add' : ''}${active ? ' is-active' : ''}`}
                 href={href(item.path)}
                 aria-current={active ? 'page' : undefined}
+                aria-keyshortcuts={item.add ? 'N' : undefined}
               >
                 <span className="nav__icon">
                   <Icon name={item.icon} size={22} />
@@ -453,6 +458,8 @@ function Screen({ route }: { route: Route }) {
   if (a === 'movimientos' && b === 'distribuir' && c) return <IncomeDistributionScreen key={key} route={route} />
   if (a === 'movimientos' && b === 'papelera') return <Trash key={key} />
   if (a === 'movimientos' && b === 'favoritos') return <Favorites key={key} />
+  if (a === 'movimientos' && b === 'plantillas' && (c === 'nueva' || c === 'editar')) return <TemplateForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'movimientos' && b === 'plantillas') return <Templates key={key} />
   if (a === 'conciliar') return <Reconcile key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos') return <Movements key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'programado' && (c === 'nuevo' || c === 'editar')) return <ScheduleForm key={`${key}?${route.query.toString()}`} route={route} />

@@ -96,6 +96,11 @@ export function Movements({ route }: { route?: Route }) {
           {t('favorites.title')}
           {data.favorites.length > 0 ? ` (${data.favorites.length})` : ''}
         </a>
+        <a href={href('/movimientos/plantillas')}>
+          <Icon name="list" size={16} />
+          {t('templates.title')}
+          {data.templates.length > 0 ? ` (${data.templates.length})` : ''}
+        </a>
         <a href={href('/movimientos/papelera')}>
           <Icon name="trash" size={16} />
           {t('trash.link')}

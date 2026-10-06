@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, startDemo, openDetails } from './helpers'
 
 // Fechas mes/día/año (el 27 obliga a reconocerlo). El saldo de referencia de la demo es del 26-sep.
 const CSV = [
@@ -30,8 +30,11 @@ test('importar CSV: vista previa, posibles duplicados, importar y no duplicar al
   await expect(page.getByText('1 posible duplicado')).toBeVisible()
   await expect(page.getByText('1 con error')).toBeVisible()
   // El café ya estaba registrado a mano: queda desmarcado.
+  await openDetails(page)
   await expect(page.getByRole('checkbox', { name: /Coffee shop/ })).not.toBeChecked()
+  await openDetails(page)
   await expect(page.getByRole('checkbox', { name: /Grocery store, downtown/ })).toBeChecked()
+  await openDetails(page)
   await expect(page.getByRole('checkbox', { name: /Broken row/ })).toBeDisabled()
   await expect(page.getByText('no cambia el saldo')).toBeVisible()
 

@@ -82,7 +82,7 @@ test('conciliación de tarjeta: se compara la deuda (saldo negativo), nunca el c
   await accountDialog.getByLabel('Deuda actual de la tarjeta').fill('300')
   await accountDialog.getByLabel('Límite de crédito (opcional)').fill('1000')
   await accountDialog.getByLabel('Contar esta cuenta para lo que puedo gastar').uncheck()
-  await accountDialog.getByRole('button', { name: 'Guardar' }).click()
+  await accountDialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   await go(page, '/conciliar')
   await page.getByLabel('Cuenta').selectOption({ label: 'Visa' })

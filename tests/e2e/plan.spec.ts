@@ -27,7 +27,7 @@ test('¿Me alcanza?: simula sin guardar y registra solo con acción explícita',
   await page.getByRole('link', { name: 'Registrar esta compra' }).click()
   await expect(page.getByRole('heading', { name: 'Nuevo movimiento' })).toBeVisible()
   await expect(page.getByLabel('Importe')).toHaveValue('20.00')
-  await page.getByRole('button', { name: 'Guardar' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByTestId('available')).toHaveText('$116.78')
   expect(await movementCount(page)).toBe(before + 1)
 })

@@ -22,6 +22,8 @@ const ROUTES = [
   '/revision',
   '/cambios',
   '/ajustes/historial',
+  '/movimientos/plantillas',
+  '/movimientos/plantillas/nueva?tipo=distribution',
   '/alcanza/escenarios',
   '/alcanza/escenarios/nuevo',
   '/buscar?q=cafe',

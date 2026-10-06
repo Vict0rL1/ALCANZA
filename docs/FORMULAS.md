@@ -771,3 +771,45 @@ Ambas cifras usan las reglas actuales. Pruebas con cifras calculadas a mano en
 - el supuesto del horizonte (cuándo debería llegar el próximo ingreso);
 - la información pendiente: ingresos vencidos o de hoy sin marcar (no se cuentan), pagos
   vencidos (se siguen reservando) y saldos sin verificar.
+
+## 28. Registro rápido, borradores y plantillas
+
+**Registro rápido** (`MovementForm`, `domain/quickEntry.ts`):
+
+- **Formulario corto.** Tipo, importe, cuenta y categoría a la vista. Fecha, estado, nota,
+  presupuestos por periodo y «ya incluido en el saldo» van en «Más detalles», con un resumen
+  visible. Se abre solo si hay un error en esos campos.
+- **Categorías recientes.** Las últimas distintas de ese tipo, incluidas las de compras
+  divididas. Las archivadas no aparecen.
+- **Última cuenta usada** para ese tipo. Para transferencias, si no hay ninguna, se propone una
+  cuenta que no sea tarjeta. Cambia con el tipo hasta que la persona elige una cuenta.
+- **«Guardar y agregar otro»** guarda y abre un formulario nuevo (id nuevo) con el mismo tipo,
+  cuenta, categoría y fecha.
+- **«Duplicar como borrador»** copia los campos con la fecha de hoy y un id nuevo. No copia el
+  vínculo con un pago programado ni con la compra devuelta.
+- **Doble envío.** El id se genera al abrir y hay un bloqueo mientras se guarda: pulsar dos
+  veces actualiza el mismo registro.
+- **Borradores** (`storage/drafts.ts`). Es el texto del formulario, guardado en este
+  dispositivo y ligado al presupuesto. No cuenta en ningún cálculo, no viaja en las copias y
+  no entra en el historial. Al volver se ofrece **recuperar** o **descartar**. Se borra al
+  guardar, al descartarlo y con «Borrar todos los datos».
+
+**Plantillas** (`domain/templates.ts`, `Movimientos › Plantillas`). Una plantilla **nunca**
+registra movimientos ni aparta dinero: solo rellena un formulario que se revisa y se guarda
+aparte.
+
+Regla de importes:
+
+1. Importe fijo: tal cual.
+2. Porcentaje: del total de la compra (o del ingreso recibido), redondeado **hacia abajo** al
+   céntimo.
+3. Si solo hay porcentajes y suman 100 %, los céntimos del redondeo van a la línea con el
+   porcentaje más alto (la primera si empatan). Así la división cuadra exacta.
+4. En otro caso, lo que sobra queda **sin asignar** y se muestra. En una compra hay que
+   repartirlo antes de guardar.
+5. Si la suma supera el total, o lo que queda por repartir del ingreso, **no se aplica nada**.
+6. Distribución: cada línea se limita a lo que le falta a su meta o pago, y se avisa.
+7. Líneas con categoría archivada o eliminada, meta eliminada o no disponible, o pago sin
+   ocurrencia abierta: no se aplican, se avisan y su parte queda sin asignar.
+
+Pruebas: `templates.test.ts`, `quickEntry.test.ts` y e2e `quick-entry.spec.ts`.

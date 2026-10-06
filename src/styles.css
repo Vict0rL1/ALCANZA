@@ -2598,3 +2598,75 @@ fieldset.bill-row {
   font-size: var(--text-sm);
   font-weight: 700;
 }
+
+/* Registro rápido */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chips__label {
+  width: 100%;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.chip--selected {
+  border: 2px solid var(--primary);
+  background: var(--surface-2);
+}
+
+.chip--selected::before {
+  content: '✓';
+  font-weight: 800;
+}
+
+.form-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  padding: 0 var(--space-3, 12px);
+}
+
+.form-details > summary {
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-details__summary {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.form-details__body {
+  display: grid;
+  gap: var(--space-4, 16px);
+  padding-bottom: var(--space-3, 12px);
+}
+
+.kbd-list {
+  display: grid;
+  gap: 6px;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: var(--surface-2);
+}
+
+.template-line {
+  display: grid;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+}

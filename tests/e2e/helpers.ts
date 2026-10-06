@@ -147,3 +147,10 @@ export async function seedLegacyLocalStorage(page: Page, data: unknown) {
     JSON.stringify(data),
   )
 }
+
+/** Abre «Más detalles» del formulario de movimiento (fecha, estado, nota…) si está plegado. */
+export async function openDetails(page: Page) {
+  const details = page.getByTestId('movement-details')
+  if ((await details.count()) === 0) return
+  if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) await details.locator('summary').click()
+}

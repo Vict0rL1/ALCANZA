@@ -411,6 +411,27 @@ export function Settings() {
         </button>
       </Card>
 
+      <Card labelledBy="shortcuts-title">
+        <h2 id="shortcuts-title" className="card__title">
+          {t('settings.shortcuts.title')}
+        </h2>
+        <ul className="bullets kbd-list">
+          <li>
+            <kbd>N</kbd> {t('settings.shortcuts.new')}
+          </li>
+          <li>
+            <kbd>/</kbd> {t('settings.shortcuts.search')}
+          </li>
+          <li>
+            <kbd>Ctrl</kbd> + <kbd>Enter</kbd> {t('settings.shortcuts.save')}
+          </li>
+          <li>
+            <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> {t('settings.shortcuts.saveNew')}
+          </li>
+        </ul>
+        <p className="note">{t('settings.shortcuts.note')}</p>
+      </Card>
+
       <Card labelledBy="about-title">
         <h2 id="about-title" className="card__title">
           {t('settings.about.title')}

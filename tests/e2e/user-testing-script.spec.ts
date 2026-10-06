@@ -8,7 +8,7 @@
  * 150.00 apartados para emergencias.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, openApp } from './helpers'
+import { available, go, movementCount, openApp, openDetails } from './helpers'
 
 async function setUp(page: Page) {
   await openApp(page)
@@ -51,6 +51,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   const before = await movementCount(page)
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe', { exact: true }).fill('38.40')
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Supermercado')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$401.60')
@@ -78,6 +79,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await go(page, '/movimientos/nuevo')
   await page.getByRole('radio', { name: 'Ingreso' }).check()
   await page.getByLabel('Importe', { exact: true }).fill('300')
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Trabajo extra')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$701.60')

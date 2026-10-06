@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo, storedData } from './helpers'
+import { go, startDemo, storedData, openDetails } from './helpers'
 
 const PAYLOAD = '<img src=x onerror="window.__xss=1"><script>window.__xss=2</script>'
 
@@ -18,6 +18,7 @@ test('notas, nombres y descripciones importadas con HTML se muestran como texto 
   // Nota de un movimiento.
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe', { exact: true }).fill('1')
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill(PAYLOAD)
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   // Descripción de un CSV del banco.

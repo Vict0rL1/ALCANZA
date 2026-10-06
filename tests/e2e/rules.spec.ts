@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { go, startDemo, openDetails } from './helpers'
 
 test('reglas de categoría en Ajustes: crear, evitar duplicados, eliminar y deshacer', async ({ page }) => {
   await startDemo(page)
@@ -11,14 +11,14 @@ test('reglas de categoría en Ajustes: crear, evitar duplicados, eliminar y desh
   let dialog = page.getByRole('dialog', { name: 'Nueva regla de categoría' })
   await dialog.getByLabel('Si la descripción contiene').fill('Uber')
   await dialog.getByLabel('Categoría').selectOption({ label: 'Transporte' })
-  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(section.getByText('«Uber» → Transporte')).toBeVisible()
 
   // Mismo texto (sin importar acentos ni mayúsculas) para gastos: no se permite.
   await section.getByRole('button', { name: 'Nueva regla' }).click()
   dialog = page.getByRole('dialog', { name: 'Nueva regla de categoría' })
   await dialog.getByLabel('Si la descripción contiene').fill('CAFE')
-  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(dialog.getByText('Ya hay una regla con ese texto para este tipo.')).toBeVisible()
   await dialog.getByRole('button', { name: 'Cancelar' }).click()
 
@@ -32,13 +32,16 @@ test('nuevo movimiento: la nota propone la categoría hasta que la eliges a mano
   await startDemo(page)
   await go(page, '/movimientos/nuevo')
   const category = page.getByLabel('Categoría')
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Café con Ana')
   await expect(category).toHaveValue('dining')
   await expect(page.getByText('Propuesta por la regla «café». Puedes cambiarla.')).toBeVisible()
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Libros')
   await expect(category).toHaveValue('other_expense')
 
   await category.selectOption({ label: 'Regalos' })
+  await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Farmacia')
   await expect(category).toHaveValue('gifts')
 })
@@ -59,7 +62,7 @@ test('importar CSV: las reglas proponen la categoría y se puede crear una regla
   const dialog = page.getByRole('dialog', { name: 'Nueva regla de categoría' })
   await expect(dialog.getByLabel('Si la descripción contiene')).toHaveValue('Tienda de mascotas')
   await dialog.getByLabel('Si la descripción contiene').fill('mascotas')
-  await dialog.getByRole('button', { name: 'Guardar' }).click()
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   // La nueva regla se aplica también a la otra fila.
   await expect(page.getByLabel('Categoría: Tienda de mascotas norte')).toHaveValue('gifts')
 

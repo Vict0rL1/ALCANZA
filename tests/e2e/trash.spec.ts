@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo } from './helpers'
+import { available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function openCoffee(page: Page) {
   await go(page, '/movimientos')
@@ -118,6 +118,7 @@ test('papelera: reimportar un CSV no restaura en silencio lo que está en la pap
   await load()
   await expect(page.getByText('1 en la papelera')).toBeVisible()
   await expect(page.getByText('1 ya importado')).toBeVisible()
+  await openDetails(page)
   await expect(page.getByRole('checkbox', { name: /Librería/ })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Importar 0 movimientos' })).toBeDisabled()
 })

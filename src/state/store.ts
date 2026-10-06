@@ -2,6 +2,7 @@
  * Estado de la app en memoria + persistencia a través de un `DataRepository`.
  * No contiene reglas financieras: solo aplica los resultados de `domain/operations`.
  */
+import { clearAllDrafts } from '../storage/drafts'
 import { useSyncExternalStore } from 'react'
 import { recordHistory, type HistoryMeta } from '../domain/history'
 import type { AppData } from '../domain/types'
@@ -132,6 +133,8 @@ export class AppStore {
 
   async clearAll(): Promise<void> {
     await this.repo.clear()
+    // Los borradores de formularios también son datos de esta persona.
+    clearAllDrafts()
     this.set({ phase: 'ready', data: null, save: { state: 'idle' }, storage: this.repo.kind, externalChange: false, unsaved: false })
   }
 
