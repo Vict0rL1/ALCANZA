@@ -1,5 +1,5 @@
 /**
- * Modelo de datos de Margen.
+ * Modelo de datos de Clara.
  *
  * Reglas clave (ver docs/FORMULAS.md):
  * - Todo importe se guarda como ENTERO en unidades menores (centavos para CAD).

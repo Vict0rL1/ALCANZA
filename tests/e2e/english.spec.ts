@@ -5,7 +5,7 @@ import { go, openApp } from './helpers'
 test('la app funciona en inglés y se puede volver a español', async ({ page }) => {
   await openApp(page)
   await page.getByRole('radio', { name: 'English' }).check()
-  await expect(page.getByRole('heading', { name: 'Hi, this is Margen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hi, this is Clara' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.getByRole('button', { name: 'Explore with demo data' }).click()
 

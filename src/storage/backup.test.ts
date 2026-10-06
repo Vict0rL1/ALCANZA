@@ -21,7 +21,7 @@ describe('copias de seguridad', () => {
     }
   })
 
-  it('rechaza archivos que no son JSON o no son copias de Margen', () => {
+  it('rechaza archivos que no son JSON o no son copias de la app', () => {
     expect(parseBackup('esto no es json')).toMatchObject({ ok: false, issues: [{ code: 'invalidJson' }] })
     expect(parseBackup('{"hola":1}')).toMatchObject({ ok: false, issues: [{ code: 'notABackup' }] })
     expect(parseBackup('[]')).toMatchObject({ ok: false, issues: [{ code: 'notABackup' }] })

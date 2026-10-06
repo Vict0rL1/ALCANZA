@@ -29,7 +29,7 @@ test('reiniciar y salir de la demostración piden confirmación', async ({ page 
 
   await page.getByRole('main').getByRole('button', { name: 'Empezar con mis datos' }).click()
   await page.getByRole('dialog', { name: '¿Salir de la demostración?' }).getByRole('button', { name: 'Empezar con mis datos' }).click()
-  await expect(page.getByRole('heading', { name: 'Hola, esto es Margen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
 })
 
 test('el cambio de día (y de mes) actualiza el periodo sin recargar', async ({ page }) => {

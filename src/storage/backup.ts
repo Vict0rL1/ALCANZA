@@ -52,6 +52,8 @@ import {
 } from '../domain/validation'
 import { migrate } from './migrations'
 
+// Identificador interno del formato (la app se llamaba «Margen»): no cambia, para que las
+// copias anteriores sigan siendo válidas.
 export const BACKUP_FORMAT = 'margen-backup'
 export const BACKUP_FORMAT_VERSION = 1
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024
@@ -61,7 +63,8 @@ export interface BackupFile {
   format: typeof BACKUP_FORMAT
   formatVersion: number
   exportedAt: string
-  app: 'Margen'
+  /** Nombre de la app que generó el archivo («Margen» en copias anteriores). No se valida. */
+  app: string
   appVersion: string
   data: AppData
 }
@@ -77,7 +80,7 @@ export function createBackup(data: AppData, now: Date, appVersion: string): Back
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: now.toISOString(),
-    app: 'Margen',
+    app: 'Clara',
     appVersion,
     data,
   }
@@ -105,7 +108,7 @@ export function performExport(
 
 export function backupFileName(now: Date, isDemo: boolean): string {
   const stamp = now.toISOString().slice(0, 16).replace(/[:T]/g, '-')
-  return `margen-${isDemo ? 'demo-' : ''}copia-${stamp}.json`
+  return `clara-${isDemo ? 'demo-' : ''}copia-${stamp}.json`
 }
 
 type Obj = Record<string, unknown>

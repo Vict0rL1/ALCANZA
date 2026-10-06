@@ -33,7 +33,7 @@ async function setUp(page: Page) {
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Cantidad reservada').fill('150')
   await page.getByRole('button', { name: 'Ver resumen' }).click()
-  await page.getByRole('button', { name: 'Empezar a usar Margen' }).click()
+  await page.getByRole('button', { name: 'Empezar a usar Clara' }).click()
 }
 
 test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las cifras de referencia son correctas', async ({ page }) => {

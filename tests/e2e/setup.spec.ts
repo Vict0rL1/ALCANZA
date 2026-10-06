@@ -3,7 +3,7 @@ import { openApp } from './helpers'
 
 test('configuración inicial con mis datos y recuperación tras recargar', async ({ page }) => {
   await openApp(page)
-  await expect(page.getByRole('heading', { name: 'Hola, esto es Margen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
 
   // Paso 1: sin saldo muestra un error claro.
@@ -31,7 +31,7 @@ test('configuración inicial con mis datos y recuperación tras recargar', async
   // 1200 − 600 − 200 = 400
   await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
   await expect(page.locator('.hero__value')).toHaveText('$400.00')
-  await page.getByRole('button', { name: 'Empezar a usar Margen' }).click()
+  await page.getByRole('button', { name: 'Empezar a usar Clara' }).click()
 
   await expect(page.getByTestId('available')).toHaveText('$400.00')
   await expect(page.locator('.hero__sub')).toContainText('11 días')
@@ -52,7 +52,7 @@ test('sin fecha de ingreso pide un horizonte y no divide entre cero', async ({ p
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: 'Ver resumen' }).click()
-  await page.getByRole('button', { name: 'Empezar a usar Margen' }).click()
+  await page.getByRole('button', { name: 'Empezar a usar Clara' }).click()
   // Saldo negativo aceptado; horizonte de 14 días elegido por defecto.
   await expect(page.getByTestId('available')).toHaveText('-$25.50')
   await expect(page.getByText('Te faltan $25.50 para cubrir pagos y apartados')).toBeVisible()
@@ -73,7 +73,7 @@ test('camino corto: saldo + próximo ingreso → resultado provisional sin pasos
   await expect(page.locator('.hero__value')).toHaveText('$500.00') // el ingreso futuro no se suma
   await expect(page.getByText('Cálculo provisional')).toBeVisible()
   await expect(page.getByText(/No agregaste pagos próximos/)).toBeVisible()
-  await page.getByRole('button', { name: 'Empezar a usar Margen' }).click()
+  await page.getByRole('button', { name: 'Empezar a usar Clara' }).click()
   await expect(page.getByTestId('available')).toHaveText('$500.00')
   await expect(page.getByText('Modo demostración')).toHaveCount(0)
 })

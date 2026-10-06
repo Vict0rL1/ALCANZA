@@ -1,4 +1,4 @@
-# Prueba con usuarios de Margen (prototipo local)
+# Prueba con usuarios de Clara (prototipo local)
 
 Guía para una prueba **controlada y moderada** con pocas personas (5–8 suele bastar para
 encontrar los problemas principales). No contiene resultados: se completa durante la prueba.

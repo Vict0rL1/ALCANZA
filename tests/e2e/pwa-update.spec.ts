@@ -77,7 +77,7 @@ test('versión nueva: se ofrece sin forzar, no interrumpe un formulario de otra 
 
   // Inicio ofrece actualizar; la pestaña del formulario solo avisa (sin botón).
   const homeBanner = home.getByTestId('update-banner')
-  await expect(homeBanner).toContainText('Hay una versión nueva de Margen')
+  await expect(homeBanner).toContainText('Hay una versión nueva de Clara')
   const formBanner = form.getByTestId('update-banner')
   await expect(formBanner).toContainText('termina o cancela este formulario')
   await expect(formBanner.getByRole('button')).toHaveCount(0)
@@ -97,7 +97,7 @@ test('versión nueva: se ofrece sin forzar, no interrumpe un formulario de otra 
 
   // La otra pestaña sigue con su formulario intacto y un aviso para recargar después.
   expect(await marked(form)).toBe(true)
-  await expect(formBanner).toContainText('Se activó una versión nueva de Margen en otra pestaña')
+  await expect(formBanner).toContainText('Se activó una versión nueva de Clara en otra pestaña')
   await expect(form.getByLabel('Importe', { exact: true })).toHaveValue('12.34')
   await form.getByRole('button', { name: 'Guardar', exact: true }).click()
   // Fuera del formulario ya se puede recargar; lo guardado sigue ahí.
@@ -118,6 +118,6 @@ test('versión nueva descubierta al recargar (sin pedir nada): se ofrece igual',
   version = 'B'
   // Al navegar, el navegador compara sw.js y empieza a instalar la versión B en segundo plano.
   await page.reload()
-  await expect(page.getByTestId('update-banner')).toContainText('Hay una versión nueva de Margen', { timeout: 15_000 })
+  await expect(page.getByTestId('update-banner')).toContainText('Hay una versión nueva de Clara', { timeout: 15_000 })
   await expect(page.getByTestId('update-banner').getByRole('button', { name: 'Actualizar ahora' })).toBeVisible()
 })

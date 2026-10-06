@@ -7,7 +7,7 @@ test('exportar, rechazar copias inválidas sin tocar datos e importar una válid
   await go(page, '/ajustes')
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar copia' }).click()])
-  expect(download.suggestedFilename()).toMatch(/^margen-demo-copia-.*\.json$/)
+  expect(download.suggestedFilename()).toMatch(/^clara-demo-copia-.*\.json$/)
   const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'))
   expect(backup.format).toBe('margen-backup')
   expect(backup.data.transactions.length).toBeGreaterThan(20)

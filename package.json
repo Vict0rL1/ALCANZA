@@ -1,8 +1,8 @@
 {
-  "name": "margen",
+  "name": "clara",
   "private": true,
   "version": "0.1.0",
-  "description": "Margen: prototipo local de finanzas personales (sin backend, sin conexión bancaria).",
+  "description": "Clara: prototipo local de finanzas personales (sin backend, sin conexión bancaria).",
   "type": "module",
   "engines": {
     "node": "^22.12.0 || >=24.0.0"

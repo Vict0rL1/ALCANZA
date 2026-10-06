@@ -190,8 +190,8 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   return (
     <main className="setup" id="main">
       <div className="setup__brand">
-        <span className="brand__mark" aria-hidden="true">M</span>
-        <span className="brand__name">Margen</span>
+        <span className="brand__mark" aria-hidden="true">C</span>
+        <span className="brand__name">Clara</span>
         <span className="badge badge--neutral">{t('shell.prototype')}</span>
       </div>
 

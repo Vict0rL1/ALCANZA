@@ -1,8 +1,9 @@
-# CLAUDE.md — reglas esenciales de Margen
+# CLAUDE.md — reglas esenciales de Clara
 
-Margen es un **prototipo local** de finanzas personales (React + TypeScript + Vite).
+Clara es un **prototipo local** de finanzas personales (React + TypeScript + Vite).
 Sin backend, sin cuentas de usuario, sin conexión bancaria y sin IA dentro del producto.
-Interfaz en español e inglés (`src/i18n/es.ts` y `en.ts`).
+Interfaz en español e inglés (`src/i18n/es.ts` y `en.ts`). Antes se llamaba «Margen»: las
+claves internas (`margen.data.v1`, `margen-backup`, cachés `margen-`) NO se renombran.
 
 ## Comandos (ejecutar antes de cada commit)
 

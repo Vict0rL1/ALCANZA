@@ -1,4 +1,4 @@
-# Fórmulas y decisiones financieras de Margen
+# Fórmulas y decisiones financieras de Clara
 
 Este documento explica **cómo se calcula cada cifra** y qué decisiones tomamos para
 evitar errores y dobles conteos. El código que implementa cada regla está en

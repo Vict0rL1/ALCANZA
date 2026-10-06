@@ -1,6 +1,11 @@
-# Margen · prototipo local de finanzas personales
+# Clara · prototipo local de finanzas personales
 
-Margen ayuda a responder, con tus propios números:
+> **Nombre:** la app se llamaba «Margen». El nombre visible ahora es **Clara** (igual en
+> español e inglés). Los identificadores internos conservan el nombre anterior
+> (`margen.data.v1` en el navegador, formato de copia `margen-backup`, cachés `margen-…`) para
+> que los datos guardados y las copias exportadas antes del cambio sigan funcionando.
+
+Clara ayuda a responder, con tus propios números:
 
 - ¿Cuánto puedo gastar después de reservar mis pagos y ahorros?
 - ¿Cómo afecta una compra a mi presupuesto?
@@ -160,7 +165,7 @@ npm run preview
    cambiar tu disponible ni tus movimientos. Si recibes solo una parte, eliges si esperas
    el resto o das la previsión por terminada.
 6. **Verificar saldo** (botón en Inicio): escribe el saldo que ves en tu banco o en tu
-   efectivo y su fecha; Margen lo compara con su cálculo para esa fecha. Si hay
+   efectivo y su fecha; Clara lo compara con su cálculo para esa fecha. Si hay
    diferencia, revisa los movimientos cercanos, añade el que falta o crea un **ajuste**
    explícito con motivo (corrige el saldo, pero no cuenta como ingreso ni gasto). Queda
    un historial, y si cambias movimientos de un periodo ya verificado se marca

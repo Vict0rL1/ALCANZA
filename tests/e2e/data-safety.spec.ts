@@ -42,7 +42,7 @@ test('almacenamiento lleno: nunca dice «Guardado», conserva lo guardado y perm
   // Descargar una copia de lo que se ve (incluye el cambio no guardado).
   const download = page.waitForEvent('download')
   await banner.getByRole('button', { name: 'Descargar copia de lo que ves' }).click()
-  expect((await download).suggestedFilename()).toMatch(/^margen-demo-copia-.*\.json$/)
+  expect((await download).suggestedFilename()).toMatch(/^clara-demo-copia-.*\.json$/)
   // Al liberar espacio, reintentar guarda todo.
   await restoreWrites(page)
   await banner.getByRole('button', { name: 'Volver a intentar' }).click()
@@ -103,7 +103,7 @@ test('datos de una versión más nueva: se explican, no se tocan y empezar de nu
     return text
   }, KEY)
   await page.reload()
-  await expect(page.getByRole('alert')).toContainText('Estos datos son de una versión más nueva de Margen')
+  await expect(page.getByRole('alert')).toContainText('Estos datos son de una versión más nueva de Clara')
   expect(await stored(page)).toBe(future)
   await page.getByRole('button', { name: 'Empezar de nuevo' }).click()
   const dialog = page.getByRole('dialog', { name: '¿Empezar de nuevo?' })

@@ -1,4 +1,4 @@
-# Hoja de ruta de Margen
+# Hoja de ruta de Clara
 
 Estado actual: **Fase 1 — prototipo local** (sin servidor, sin cuentas, sin banco, sin IA).
 Nada de lo que aparece en las fases siguientes está implementado; la app no muestra

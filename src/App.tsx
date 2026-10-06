@@ -113,13 +113,13 @@ function Loading() {
 /**
  * Los datos guardados no se pueden leer. Nunca se reemplazan sin preguntar: primero se
  * ofrece descargarlos y empezar de nuevo pide confirmación (y guarda una copia interna).
- * Si los guardó una versión más nueva de Margen, lo que hace falta es actualizar la app.
+ * Si los guardó una versión más nueva de Clara, lo que hace falta es actualizar la app.
  */
 function Corrupt({ raw, newerVersion }: { raw: string; newerVersion: boolean }) {
   const { t } = useT()
   const { update } = usePwaState()
   const [confirming, setConfirming] = useState(false)
-  const downloadRaw = () => downloadText(newerVersion ? 'margen-datos-version-nueva.json' : 'margen-datos-danados.json', raw)
+  const downloadRaw = () => downloadText(newerVersion ? 'clara-datos-version-nueva.json' : 'clara-datos-danados.json', raw)
   return (
     <main className="center-screen" id="main">
       <div className="card setup__card">
@@ -357,9 +357,9 @@ function Shell() {
       <header className="topbar">
         <a className="brand" href={href('/')}>
           <span className="brand__mark" aria-hidden="true">
-            M
+            C
           </span>
-          <span className="brand__name">Margen</span>
+          <span className="brand__name">Clara</span>
         </a>
         <span className="badge badge--neutral topbar__proto">{t('shell.prototype')}</span>
         <SaveIndicator save={state.save} />

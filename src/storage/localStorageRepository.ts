@@ -11,6 +11,8 @@ import { SCHEMA_VERSION } from '../domain/types'
 import { validateAppData } from './backup'
 import type { DataRepository, LoadResult, SaveResult } from './repository'
 
+// Claves internas con el nombre anterior de la app («Margen»): no se cambian para que los
+// datos ya guardados en el navegador se sigan encontrando.
 export const STORAGE_KEY = 'margen.data.v1'
 const CORRUPT_KEY_PREFIX = 'margen.data.corrupt.'
 /** Copia exacta de los datos anteriores a una migración: `margen.data.before-v<versión nueva>`. */
