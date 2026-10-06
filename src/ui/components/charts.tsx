@@ -46,7 +46,7 @@ export function CompositionBar({
 
   return (
     <figure className="composition">
-      <figcaption className="composition__title">{t('home.composition.title')}</figcaption>
+      <figcaption className="composition__title">{t('home.composition.titleWithBalance', { balance: fmt.money(spendableMinor) })}</figcaption>
       {total > 0 ? (
         <div className="composition__bar" role="img" aria-label={summary}>
           {segments

@@ -6,19 +6,22 @@
 
 :root {
   color-scheme: light;
-  --bg: #f5f6f4;
+  --bg: #f6f5f1;
   --surface: #ffffff;
-  --surface-2: #eff2f0;
+  --surface-2: #f0eee8;
   --ink: #111816;
   --ink-2: #414b48;
   --muted: #5d6865;
-  --border: #d5dbd8;
-  --grid: #e3e6e3;
+  --border: #dcd8cf;
+  --border-strong: #bdb8ad;
+  --grid: #e8e5de;
   --axis: #a9b1ae;
   --primary: #0f5c59;
   --primary-hover: #0b4744;
   --primary-ink: #ffffff;
-  --primary-soft: #e2f0ee;
+  --primary-soft: #e1efec;
+  /* Fondo de la cifra principal: distingue «disponible» del resto de tarjetas. */
+  --hero-bg: #eef6f3;
   --focus: #1d5fd1;
   --good-text: #146c14;
   --good-bg: #e9f5e9;
@@ -32,36 +35,67 @@
   --info-text: #174f94;
   --info-bg: #e7f0fb;
   --info-mark: #2a78d6;
-  --neutral-bg: #eef1ef;
+  --neutral-bg: #efede7;
   /* Paleta de gráficos validada (guía de visualización, modo claro) */
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
-  --shadow: 0 1px 2px rgba(17, 24, 22, 0.06), 0 4px 16px rgba(17, 24, 22, 0.05);
+  --shadow: 0 1px 2px rgba(40, 33, 20, 0.05);
+  --shadow-raised: 0 2px 10px rgba(40, 33, 20, 0.1);
+  /* Radios */
   --radius: 16px;
+  --radius-md: 12px;
   --radius-sm: 10px;
+  --radius-pill: 999px;
+  /* Espaciado (múltiplos de 4 px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  /* Tipografía (rem: respeta el tamaño de texto elegido) */
+  --text-xs: 0.78rem;
+  --text-sm: 0.9rem;
+  --text-md: 1rem;
+  --text-lg: 1.12rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.6rem;
+  --weight-strong: 650;
+  /* Interacción */
+  --tap: 44px;
+  --dur: 140ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --pressed: color-mix(in srgb, var(--ink) 8%, transparent);
+  /* Anchos máximos */
+  --maxw-content: 1120px;
+  --maxw-form: 640px;
+  --maxw-text: 68ch;
   --nav-h: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Tema oscuro: sigue al sistema salvo que se elija «Claro» en Ajustes… */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #0c1011;
-    --surface: #161b1d;
-    --surface-2: #1e2528;
+    --bg: #111517;
+    --surface: #182022;
+    --surface-2: #212a2d;
     --ink: #eef3f1;
     --ink-2: #c6cfcc;
     --muted: #9ba6a2;
-    --border: #2e393c;
+    --border: #313d40;
+    --border-strong: #4a585c;
     --grid: #263033;
     --axis: #4b575a;
     --primary: #5fc9bf;
     --primary-hover: #7fd8cf;
     --primary-ink: #04201e;
-    --primary-soft: #133633;
+    --primary-soft: #143835;
+    --hero-bg: #16302d;
     --focus: #8ab4ff;
     --good-text: #6fd66f;
     --good-bg: #11261a;
@@ -75,12 +109,54 @@
     --info-text: #8dbcf5;
     --info-bg: #10223a;
     --info-mark: #3987e5;
-    --neutral-bg: #1e2528;
+    --neutral-bg: #212a2d;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
     --shadow: none;
+    --shadow-raised: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --pressed: color-mix(in srgb, #ffffff 10%, transparent);
   }
+}
+
+/* …o se fuerza al elegir «Oscuro». (Mismos valores: mantener ambos bloques iguales.) */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #111517;
+  --surface: #182022;
+  --surface-2: #212a2d;
+  --ink: #eef3f1;
+  --ink-2: #c6cfcc;
+  --muted: #9ba6a2;
+  --border: #313d40;
+  --border-strong: #4a585c;
+  --grid: #263033;
+  --axis: #4b575a;
+  --primary: #5fc9bf;
+  --primary-hover: #7fd8cf;
+  --primary-ink: #04201e;
+  --primary-soft: #143835;
+  --hero-bg: #16302d;
+  --focus: #8ab4ff;
+  --good-text: #6fd66f;
+  --good-bg: #11261a;
+  --good-mark: #0ca30c;
+  --warning-text: #f3c35a;
+  --warning-bg: #2a2210;
+  --warning-mark: #fab219;
+  --critical-text: #ff9a90;
+  --critical-bg: #301617;
+  --critical-mark: #e66767;
+  --info-text: #8dbcf5;
+  --info-bg: #10223a;
+  --info-mark: #3987e5;
+  --neutral-bg: #212a2d;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --shadow: none;
+  --shadow-raised: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --pressed: color-mix(in srgb, #ffffff 10%, transparent);
 }
 
 *,
@@ -328,13 +404,14 @@ html {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 4px max(4px, env(safe-area-inset-right)) calc(4px + var(--safe-bottom)) max(4px, env(safe-area-inset-left));
 }
 
 .nav__item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -342,26 +419,71 @@ html {
   gap: 2px;
   min-height: 56px;
   padding: 4px 2px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-align: center;
   overflow-wrap: normal;
   hyphens: auto;
   max-width: 100%;
+  transition:
+    background-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 
-.nav__item span {
+.nav__item:active {
+  background: var(--pressed);
+}
+
+.nav__label {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.nav__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+}
+
+/* Sección activa: color, fondo, texto en negrita y una barra (no depende solo del color). */
 .nav__item.is-active {
   color: var(--primary);
   background: var(--primary-soft);
+  font-weight: 800;
+}
+
+.nav__item.is-active::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 25%;
+  right: 25%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--primary);
+}
+
+/* «Agregar»: acción principal, con su propio círculo de color. */
+.nav__item--add {
+  color: var(--ink-2);
+}
+
+.nav__item--add .nav__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.nav__item--add.is-active .nav__icon {
+  box-shadow: 0 0 0 3px var(--primary-soft), 0 0 0 5px var(--primary);
 }
 
 .banner {
@@ -457,19 +579,25 @@ html {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: var(--space-4);
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: var(--space-5);
+  }
 }
 
 .card__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1.1rem;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
   line-height: 1.3;
 }
 
@@ -481,6 +609,11 @@ html {
 .section-title {
   font-size: 1.05rem;
   color: var(--ink-2);
+}
+
+.card.hero {
+  background: var(--hero-bg);
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
 }
 
 .hero__label {
@@ -496,6 +629,24 @@ html {
   overflow-wrap: anywhere;
 }
 
+/* Disponible negativo: se muestra tal cual (nunca como cero), con icono y texto. */
+.hero__value--negative {
+  color: var(--critical-text);
+}
+
+/* Importes: cifras de ancho uniforme para comparar columnas. */
+.hero__value,
+.stat__value,
+.item__amount,
+.calc-row__value,
+.num,
+.composition__value,
+table td,
+.goal__progress,
+.meter__label {
+  font-variant-numeric: tabular-nums;
+}
+
 .hero__sub {
   color: var(--ink-2);
 }
@@ -507,9 +658,10 @@ html {
 }
 
 .stat {
-  background: var(--surface-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 12px;
+  padding: var(--space-3);
   min-width: 0;
 }
 
@@ -545,10 +697,15 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 16px;
-  border-radius: 12px;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
   border: 1px solid transparent;
   font: inherit;
   font-weight: 650;
@@ -560,9 +717,17 @@ html {
   color: var(--ink);
 }
 
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 0 0 100vmax var(--pressed);
+}
+
+/* Deshabilitado: borde punteado además de la opacidad (no solo color). */
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: not-allowed;
+  border-style: dashed;
+  border-color: var(--border-strong);
 }
 
 .btn--primary {
@@ -577,7 +742,7 @@ html {
 .btn--secondary {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .btn--secondary:hover:not(:disabled) {
@@ -1968,6 +2133,45 @@ fieldset.bill-row {
     text-align: left;
   }
 
+  /* En escritorio la barra activa va a la izquierda. */
+  .nav__item.is-active::before {
+    top: 10px;
+    bottom: 10px;
+    left: -12px;
+    right: auto;
+    width: 4px;
+    height: auto;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* «Agregar» primero en la columna lateral, como botón principal. */
+  .nav__item--add {
+    order: -1;
+    margin-bottom: 8px;
+    background: var(--primary);
+    color: var(--primary-ink);
+  }
+
+  .nav__item--add .nav__icon {
+    width: auto;
+    height: auto;
+    background: transparent;
+  }
+
+  .nav__item--add:hover,
+  .nav__item--add.is-active {
+    background: var(--primary-hover);
+    color: var(--primary-ink);
+  }
+
+  .nav__item--add.is-active::before {
+    display: none;
+  }
+
+  .nav__item--add.is-active .nav__icon {
+    box-shadow: none;
+  }
+
   .main {
     width: 100%;
     padding: 24px 32px 48px;
@@ -2305,4 +2509,40 @@ fieldset.bill-row {
 
 .note--icon .icon {
   vertical-align: -3px;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Movimiento reducido: sin transiciones ni desplazamientos animados.  */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Pantallas muy estrechas (≤ 359 px): cinco secciones y la barra superior caben sin cortarse. */
+@media (max-width: 359px) {
+  .nav {
+    padding-left: max(2px, env(safe-area-inset-left));
+    padding-right: max(2px, env(safe-area-inset-right));
+  }
+  .nav__item {
+    font-size: 0.64rem;
+    letter-spacing: -0.02em;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .topbar {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    column-gap: 6px;
+  }
 }

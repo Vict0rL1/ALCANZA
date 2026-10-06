@@ -1597,4 +1597,11 @@ export const es = {
   'explain.glossary.card': 'Tarjetas de crédito: si una tarjeta cuenta para el presupuesto, su deuda se resta. El crédito disponible de una tarjeta nunca es dinero tuyo y no se suma.',
   'shell.updateAfterForm': 'Hay una versión nueva de Clara. Para no perder lo que estás escribiendo, termina o cancela este formulario y podrás actualizar.',
   'distribution.newGoal': 'Crear una meta',
+  'settings.theme.label': 'Tema',
+  'settings.theme.system': 'Sistema',
+  'settings.theme.light': 'Claro',
+  'settings.theme.dark': 'Oscuro',
+  'settings.theme.hint': '«Sistema» sigue la configuración de tu dispositivo. Se recuerda en este navegador.',
+  'nav.add': 'Agregar',
+  'home.composition.titleWithBalance': 'Así se reparte tu saldo de {balance}',
 } as const

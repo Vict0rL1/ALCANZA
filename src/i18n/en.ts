@@ -1598,4 +1598,11 @@ export const en: Record<keyof typeof es, string> = {
   'explain.glossary.card': 'Credit cards: if a card counts for the budget, its debt is subtracted. A card\'s available credit is never your money and is never added.',
   'shell.updateAfterForm': 'A new version of Clara is ready. So you do not lose what you are typing, finish or cancel this form and you can update.',
   'distribution.newGoal': 'Create a goal',
+  'settings.theme.label': 'Theme',
+  'settings.theme.system': 'System',
+  'settings.theme.light': 'Light',
+  'settings.theme.dark': 'Dark',
+  'settings.theme.hint': '"System" follows your device setting. It is remembered in this browser.',
+  'nav.add': 'Add',
+  'home.composition.titleWithBalance': 'How your balance of {balance} is split',
 }

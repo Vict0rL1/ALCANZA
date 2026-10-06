@@ -167,9 +167,12 @@ function MemoryWarning() {
   )
 }
 
-const NAV: { path: string; match: string; key: 'nav.home' | 'nav.movements' | 'nav.plan' | 'nav.settings'; icon: IconName }[] = [
+type NavKey = 'nav.home' | 'nav.movements' | 'nav.add' | 'nav.plan' | 'nav.settings'
+const NAV: { path: string; match: string; key: NavKey; icon: IconName; add?: boolean }[] = [
   { path: '/', match: '', key: 'nav.home', icon: 'home' },
   { path: '/movimientos', match: 'movimientos', key: 'nav.movements', icon: 'list' },
+  // Registrar es la acción más frecuente: siempre a un toque, sin botón flotante que tape contenido.
+  { path: '/movimientos/nuevo', match: '', key: 'nav.add', icon: 'plus', add: true },
   { path: '/plan/calendario', match: 'plan', key: 'nav.plan', icon: 'calendar' },
   { path: '/ajustes', match: 'ajustes', key: 'nav.settings', icon: 'sliders' },
 ]
@@ -371,11 +374,21 @@ function Shell() {
       <div className="shell__body">
         <nav className="nav" aria-label={t('nav.aria')}>
           {NAV.map((item) => {
-            const active = item.match === top || (item.match === '' && (top === 'alcanza' || top === 'revision' || top === 'pendientes'))
+            const adding = route.segments[0] === 'movimientos' && route.segments[1] === 'nuevo'
+            const active = item.add
+              ? adding
+              : !adding && (item.match === top || (item.match === '' && (top === '' || top === 'alcanza' || top === 'revision' || top === 'pendientes')))
             return (
-              <a key={item.path} className={`nav__item${active ? ' is-active' : ''}`} href={href(item.path)} aria-current={active ? 'page' : undefined}>
-                <Icon name={item.icon} size={22} />
-                <span>{t(item.key)}</span>
+              <a
+                key={item.path}
+                className={`nav__item${item.add ? ' nav__item--add' : ''}${active ? ' is-active' : ''}`}
+                href={href(item.path)}
+                aria-current={active ? 'page' : undefined}
+              >
+                <span className="nav__icon">
+                  <Icon name={item.icon} size={22} />
+                </span>
+                <span className="nav__label">{t(item.key)}</span>
               </a>
             )
           })}

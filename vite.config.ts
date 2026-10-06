@@ -16,7 +16,7 @@ function serviceWorker(): Plugin {
       const files = Object.keys(bundle)
         .filter((f) => f !== 'index.html' && !f.endsWith('.map'))
         .sort()
-      const statics = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png']
+      const statics = ['manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'theme.js']
       const precache = ['/', ...files.map((f) => `/${f}`), ...statics.map((f) => `/${f}`)]
       const html = bundle['index.html']
       const htmlSource = html && html.type === 'asset' ? String(html.source) : ''

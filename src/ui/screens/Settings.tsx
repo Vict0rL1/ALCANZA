@@ -15,7 +15,7 @@ import { usePwaState } from '../../pwa/register'
 import { useRun, useToday } from '../../state/hooks'
 import { getStore, useAppState, useData } from '../../state/store'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
-import { CheckboxField, MoneyField, SelectField, TextField } from '../components/fields'
+import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { ConfirmDialog, Dialog } from '../components/Dialog'
 import { Icon } from '../components/Icon'
@@ -24,6 +24,7 @@ import { UpdateBalanceDialog } from '../dialogs'
 import { createFormatter, useFormat } from '../format'
 import { fieldError, issueMessage } from '../labels'
 import { CardFields, CardSummaryView } from '../cardUi'
+import { useThemePreference } from '../theme'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { CategoriesSection } from './CategoriesSection'
 import { RulesSection } from './RulesSection'
@@ -47,6 +48,7 @@ const COMMON_TIME_ZONES = [
 ]
 
 export function Settings() {
+  const [theme, setTheme] = useThemePreference()
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
@@ -139,6 +141,18 @@ export function Settings() {
         <h2 id="format-title" className="card__title">
           {t('settings.format.title')}
         </h2>
+        <Segmented
+          legend={t('settings.theme.label')}
+          name="theme"
+          value={theme}
+          onChange={setTheme}
+          options={[
+            { value: 'system', label: t('settings.theme.system') },
+            { value: 'light', label: t('settings.theme.light') },
+            { value: 'dark', label: t('settings.theme.dark') },
+          ]}
+          hint={t('settings.theme.hint')}
+        />
         <SelectField
           label={t('settings.format.number')}
           value={data.settings.numberLocale}
