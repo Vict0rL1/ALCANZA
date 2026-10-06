@@ -1596,4 +1596,6 @@ export const en: Record<keyof typeof es, string> = {
   'explain.glossary.reserved': 'Reserved payments: scheduled payments up to the day of your next income (included). They have not left your account yet, but they are already committed.',
   'explain.glossary.goals': 'Set aside: money you decided not to spend (goals). It is still in your account; it just no longer counts as available.',
   'explain.glossary.card': 'Credit cards: if a card counts for the budget, its debt is subtracted. A card\'s available credit is never your money and is never added.',
+  'shell.updateAfterForm': 'A new version of Margen is ready. So you do not lose what you are typing, finish or cancel this form and you can update.',
+  'distribution.newGoal': 'Create a goal',
 }

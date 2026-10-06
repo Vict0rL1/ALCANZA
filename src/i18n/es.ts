@@ -1595,4 +1595,6 @@ export const es = {
   'explain.glossary.reserved': 'Pagos reservados: pagos programados hasta el día de tu próximo ingreso (incluido). Aún no salieron de tu cuenta, pero ya están comprometidos.',
   'explain.glossary.goals': 'Apartados: dinero que decidiste no gastar (metas). Sigue en tu cuenta; solo deja de contar como disponible.',
   'explain.glossary.card': 'Tarjetas de crédito: si una tarjeta cuenta para el presupuesto, su deuda se resta. El crédito disponible de una tarjeta nunca es dinero tuyo y no se suma.',
+  'shell.updateAfterForm': 'Hay una versión nueva de Margen. Para no perder lo que estás escribiendo, termina o cancela este formulario y podrás actualizar.',
+  'distribution.newGoal': 'Crear una meta',
 } as const

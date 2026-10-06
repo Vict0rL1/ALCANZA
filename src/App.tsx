@@ -67,21 +67,31 @@ export function App() {
   )
 }
 
+/** Pantallas con un formulario que se perdería al recargar. */
+const FORM_SEGMENTS = new Set(['nuevo', 'nueva', 'editar', 'importar', 'distribuir'])
+function isFormRoute(route: Route): boolean {
+  return route.segments[0] === 'conciliar' || route.segments.some((s) => FORM_SEGMENTS.has(s))
+}
+
 /**
  * Aviso real de versión nueva (solo aparece si el service worker instaló una). Actualizar
- * recarga la app: si hay cambios sin guardar, primero hay que resolverlos.
+ * recarga la app, así que el botón no se ofrece con cambios sin guardar, con un formulario
+ * abierto ni durante la configuración inicial: se explica qué hacer antes.
  */
 function UpdateBanner() {
   const { t } = useT()
   const { update, reloadNeeded } = usePwaState()
   const state = useAppState()
-  const unsaved = state.phase === 'ready' && state.unsaved
+  const route = useRoute()
   if (!update && !reloadNeeded) return null
+  const unsaved = state.phase === 'ready' && state.unsaved
+  const busy = state.phase === 'ready' && (!state.data || isFormRoute(route))
+  const text = reloadNeeded ? 'shell.updateOtherTab' : unsaved ? 'shell.updateBlocked' : busy ? 'shell.updateAfterForm' : 'shell.updateText'
   return (
-    <div className="banner banner--info" role="status">
+    <div className="banner banner--info" role="status" data-testid="update-banner">
       <Icon name="info" size={18} />
-      <span>{t(reloadNeeded ? 'shell.updateOtherTab' : unsaved ? 'shell.updateBlocked' : 'shell.updateText')}</span>
-      {!unsaved && (
+      <span>{t(text)}</span>
+      {!unsaved && !busy && (
         <button type="button" className="btn btn--small btn--inverse" onClick={() => (update ? update() : window.location.reload())}>
           {t(reloadNeeded ? 'shell.updateReload' : 'shell.updateAction')}
         </button>

@@ -37,6 +37,9 @@ export function registerServiceWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator) || !window.isSecureContext) return
   window.addEventListener('load', async () => {
     try {
+      // ¿Esta pestaña ya estaba controlada por una versión anterior? En la primera visita
+      // la activación (clients.claim) también dispara «controllerchange» y no es una versión nueva.
+      const hadController = !!navigator.serviceWorker.controller
       const registration = await navigator.serviceWorker.register('/sw.js')
       let requested = false
       const offer = (worker: ServiceWorker) =>
@@ -46,15 +49,21 @@ export function registerServiceWorker() {
             worker.postMessage('skipWaiting')
           },
         })
-      if (registration.waiting && navigator.serviceWorker.controller) offer(registration.waiting)
-      registration.addEventListener('updatefound', () => {
-        const worker = registration.installing
-        worker?.addEventListener('statechange', () => {
+      /** Sigue a una versión que se está instalando hasta que quede lista (o falle). */
+      const track = (worker: ServiceWorker | null) => {
+        if (!worker) return
+        const check = () => {
           if (worker.state !== 'installed') return
           if (navigator.serviceWorker.controller) offer(worker)
           else set({ offlineReady: true })
-        })
-      })
+        }
+        worker.addEventListener('statechange', check)
+        check()
+      }
+      if (registration.waiting && navigator.serviceWorker.controller) offer(registration.waiting)
+      // La comprobación de versión empieza al navegar: puede estar instalándose ya.
+      track(registration.installing)
+      registration.addEventListener('updatefound', () => track(registration.installing))
       if (registration.active) set({ offlineReady: true })
       let reloading = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -62,7 +71,7 @@ export function registerServiceWorker() {
         if (requested) {
           reloading = true
           window.location.reload()
-        } else if (state.update) {
+        } else if (hadController || state.update) {
           set({ update: null, reloadNeeded: true })
         }
       })

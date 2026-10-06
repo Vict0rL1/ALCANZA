@@ -283,7 +283,10 @@ interfaz en español e inglés (se elige en la bienvenida o en Ajustes),
 modo oscuro y diseño desde 320 px hasta escritorio. En la versión compilada
 (`npm run build` + `npm run preview`, o publicada con https) la app se guarda en el
 dispositivo y **abre sin internet** tras la primera visita; cuando hay una versión nueva
-aparece el aviso «Actualizar ahora». En modo desarrollo (`npm run dev`) y al abrirla por
+aparece el aviso «Actualizar ahora». Nunca se recarga sola: solo se recarga la pestaña donde
+se pulsa, y el botón no aparece con un formulario abierto, durante la configuración ni con
+cambios sin guardar (las otras pestañas solo reciben un aviso para recargar después; probado
+con dos versiones reales en `tests/e2e/pwa-update.spec.ts`). En modo desarrollo (`npm run dev`) y al abrirla por
 IP en la red local no se activa el uso sin conexión (el navegador lo exige así).
 
 **Protección de los datos (lo que hay y lo que no):** los datos están solo en el

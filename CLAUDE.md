@@ -109,5 +109,5 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Datos de demostración siempre marcados con `isDemo: true`.
 - El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea
   archivos de la app, nunca datos. Solo se registra en producción y contexto seguro.
-  Actualizar solo recarga la pestaña que lo pidió. La versión compilada lleva una CSP
+  Actualizar solo recarga la pestaña que lo pidió y no se ofrece con un formulario abierto. La versión compilada lleva una CSP
   (`vite.config.ts`): sin scripts ni conexiones a otros sitios.
