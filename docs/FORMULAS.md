@@ -739,3 +739,35 @@ Código: `src/domain/history.ts`. Pantalla: `Ajustes › Historial de cambios`.
 - **Límites.** Como mucho 1000 entradas (`HISTORY_MAX_ENTRIES`); al superarlas sale la más
   antigua y `historyStartedAt` avanza. El historial es local, viaja en las copias y se puede
   editar: **no es una auditoría inviolable**.
+
+## 27. «¿Qué cambió?»
+
+Código: `src/domain/whatChanged.ts`. Pantalla: `Inicio › ¿Qué cambió desde ayer?` (`/cambios`).
+
+1. **Punto de comparación**: el inicio de un día (hoy, ayer, hace 7 o 30 días, otra fecha), el
+   inicio del historial o la última restauración. El estado de entonces (`S0`) se reconstruye
+   deshaciendo las entradas posteriores (§26). Si el historial empezó ese día o después
+   (`beforeHistory`) o hay un corte por medio (`cut`), **no se compara** y se dice por qué.
+2. **Pasos**: se rehacen las entradas una a una y se recalcula el disponible con la fecha de
+   entonces `t0`. La diferencia de cada paso es el efecto de esa entrada. Se clasifica por el
+   registro principal: ingresos, gastos, devoluciones, pagos de compromisos, transferencias,
+   apartados y metas, programados, ajustes de saldo, cuentas, ediciones y ajustes.
+3. **Paso del tiempo** = disponible(Sn, hoy) − disponible(Sn, t0). Se listan los pagos que
+   entraron o salieron del periodo y, aparte, cualquier resto (`otherMinor`).
+4. **Sin explicar** = disponible(datos actuales, hoy) − disponible(Sn, hoy). Es 0 cuando el
+   historial es coherente. Si no lo es, se muestra como importe sin causa.
+
+`total = Σ pasos + tiempo + sin explicar` se cumple siempre, al céntimo. El valor por día se
+descompone igual: cambios (a `t0`) + tiempo + sin explicar.
+
+Con más de 60 entradas se agrupan las consecutivas de la misma clase (el total no cambia).
+Ambas cifras usan las reglas actuales. Pruebas con cifras calculadas a mano en
+`whatChanged.test.ts`.
+
+**«¿Cómo se calculó?»** también muestra:
+
+- la deuda de las tarjetas que cuentan para el presupuesto;
+- qué pagos reservados son estimados;
+- el supuesto del horizonte (cuándo debería llegar el próximo ingreso);
+- la información pendiente: ingresos vencidos o de hoy sin marcar (no se cuentan), pagos
+  vencidos (se siguen reservando) y saldos sin verificar.

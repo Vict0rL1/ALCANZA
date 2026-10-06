@@ -20,6 +20,8 @@ const ROUTES = [
   '/plan/periodos/nuevo',
   '/plan/metas/nueva?tipo=gasto',
   '/revision',
+  '/cambios',
+  '/ajustes/historial',
   '/alcanza/escenarios',
   '/alcanza/escenarios/nuevo',
   '/buscar?q=cafe',

@@ -2565,3 +2565,36 @@ fieldset.bill-row {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+
+/* ¿Qué cambió? */
+.changes-total {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.changes-steps {
+  display: grid;
+  gap: var(--space-3, 12px);
+  padding: 0;
+  list-style: none;
+}
+
+.changes-step {
+  display: grid;
+  gap: 4px;
+  padding-bottom: var(--space-3, 12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.changes-step .item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.calc__subtitle {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}

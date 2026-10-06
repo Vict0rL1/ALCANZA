@@ -32,6 +32,7 @@ const ScenarioForm = lazy(() => import('./ui/screens/Scenarios').then((m) => ({ 
 const Search = lazy(() => import('./ui/screens/Search').then((m) => ({ default: m.Search })))
 const Inbox = lazy(() => import('./ui/screens/Inbox').then((m) => ({ default: m.Inbox })))
 const IncomeDistributionScreen = lazy(() => import('./ui/screens/IncomeDistribution').then((m) => ({ default: m.IncomeDistributionScreen })))
+const WhatChanged = lazy(() => import('./ui/screens/WhatChanged').then((m) => ({ default: m.WhatChanged })))
 const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
 
@@ -444,6 +445,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'alcanza' && b === 'escenarios' && (c === 'nuevo' || c === 'editar')) return <ScenarioForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'alcanza' && b === 'escenarios') return <Scenarios key={key} />
   if (a === 'alcanza') return <Afford key={key} />
+  if (a === 'cambios') return <WhatChanged key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'pendientes') return <Inbox key={key} />
   if (a === 'revision') return <WeeklyReview key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'movimientos' && (b === 'nuevo' || b === 'editar')) return <MovementForm key={`${key}?${route.query.toString()}`} route={route} />

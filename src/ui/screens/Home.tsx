@@ -231,6 +231,8 @@ export function Home() {
                       count: b.applied.length,
                       balance: fmt.money(b.balanceMinor),
                     })}
+                    {b.account.kind === 'credit' ? ` · ${t('explain.cardDebt')}` : ''}{' '}
+                    <a href={href(`/conciliar?cuenta=${b.account.id}`)}>{t('explain.verify')}</a>
                   </p>
                 ))}
                 <CalcRow op="−" label={tn('explain.reserved', budget.reservedItems.length)} value={fmt.money(budget.reservedTotalMinor)} />
@@ -238,6 +240,7 @@ export function Home() {
                   <p className="calc__detail" key={i.key}>
                     {planItemName(i, t)} · {fmt.date(i.date, { compact: true, today })}
                     {i.state === 'overdue' ? ` · ${t('state.overdue')}` : ''} · {fmt.money(-i.budgetEffectMinor)}
+                    {i.isEstimate ? ` · ${t('explain.estimate')}` : ''}
                     {budget.coveredByGoals.get(i.key) ? ` · ${t('explain.coveredByGoal', { amount: fmt.money(budget.coveredByGoals.get(i.key)!) })}` : ''}
                   </p>
                 ))}
@@ -266,6 +269,23 @@ export function Home() {
                   </>
                 )}
                 <p className="calc__detail">{t('explain.futureIncomeNotCounted')}</p>
+                {budget.horizon?.source === 'income' && budget.horizon.income && (
+                  <p className="calc__detail">
+                    <Badge icon="calendar">{t('changes.kind.assumption')}</Badge> {t('explain.horizonAssumption', { name: planItemName(budget.horizon.income, t), date: fmt.date(budget.horizon.endDate) })}
+                  </p>
+                )}
+                <h3 className="calc__subtitle">{t('explain.pendingTitle')}</h3>
+                <ul className="bullets" data-testid="explain-pending">
+                  {budget.overdueIncomes.map((i) => (
+                    <li key={i.key}>{t('explain.pending.overdueIncome', { name: planItemName(i, t), date: fmt.date(i.date), amount: fmt.money(i.amountMinor) })}</li>
+                  ))}
+                  {budget.incomeDueToday.map((i) => (
+                    <li key={i.key}>{t('explain.pending.incomeToday', { name: planItemName(i, t), amount: fmt.money(i.amountMinor) })}</li>
+                  ))}
+                  {budget.overdueBills.length > 0 && <li>{tn('explain.pending.overdueBills', budget.overdueBills.length)}</li>}
+                  {budget.isBalanceStale && budget.balanceAgeDays !== null && <li>{tn('explain.pending.stale', budget.balanceAgeDays)}</li>}
+                  {budget.overdueIncomes.length + budget.incomeDueToday.length + budget.overdueBills.length === 0 && !budget.isBalanceStale && <li>{t('explain.pending.none')}</li>}
+                </ul>
                 <ul className="bullets calc__glossary" aria-label={t('explain.glossary.title')}>
                   <li>{t('explain.glossary.balance')}</li>
                   <li>{t('explain.glossary.reserved')}</li>
@@ -277,6 +297,12 @@ export function Home() {
                 </p>
               </div>
             </Explain>
+
+            <p className="link-row">
+              <a href={href('/cambios')} data-testid="what-changed-link">
+                <Icon name="clock" size={16} /> {t('changes.link')}
+              </a>
+            </p>
 
             <div className="button-row button-row--main">
               <a className="btn btn--primary btn--large" href={href('/movimientos/nuevo')}>

@@ -93,7 +93,7 @@ function currentValue(data: AppData, collection: HistoryCollection, id: string):
   return (data[collection] as WithId[]).find((x) => x.id === id) ?? null
 }
 
-function setValue(data: AppData, collection: HistoryCollection, id: string, value: unknown): AppData {
+export function setValue(data: AppData, collection: HistoryCollection, id: string, value: unknown): AppData {
   if (collection === 'settings') return { ...data, settings: { ...data.settings, ...(value as Partial<Settings>) } }
   const list = data[collection] as WithId[]
   const index = list.findIndex((x) => x.id === id)
@@ -144,5 +144,12 @@ export function stateBefore(data: AppData, entryIndex: number): AppData | null {
     if (e.source === 'replace') return null
     for (const change of [...e.changes].reverse()) state = setValue(state, change.collection, change.id, change.before)
   }
+  return state
+}
+
+/** Aplica los cambios de una entrada hacia delante (valor nuevo de cada registro). */
+export function applyEntry(data: AppData, entry: HistoryEntry): AppData {
+  let state = data
+  for (const change of entry.changes) state = setValue(state, change.collection, change.id, change.after)
   return state
 }
