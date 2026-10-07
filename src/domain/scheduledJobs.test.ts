@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { autoConfirmDue, setSchedulePaused } from './scheduledJobs'
 import { dueNotices, isQuietHour } from './notifications'
+import { savePlan } from './plans'
 import { computeBudget } from './budget'
 import { baseData, bill, ctx, income, tx } from '../test/fixtures'
 import { DEFAULT_NOTIFICATIONS } from './defaults'
@@ -86,5 +87,18 @@ describe('notificaciones locales (reglas puras)', () => {
     expect(dueNotices(data, { today: ctx.today, now: '23:00', settings: { ...settings, quietHours: true } }, fmt)).toEqual([])
     // Todo apagado: nada.
     expect(dueNotices(data, { today: ctx.today, now: '21:30', settings: DEFAULT_NOTIFICATIONS }, fmt)).toEqual([])
+  })
+
+  it('alertas de planes al 80 % y 100 % con clave por ciclo; respetan el ajuste y las horas de silencio', () => {
+    const base = baseData({ transactions: [tx({ id: 'a', categoryId: 'dining', amountMinor: 17000 })] })
+    const saved = savePlan(base, { id: 'p1', name: 'Comer fuera', categoryIds: ['dining'], amountMinor: 20000, periodType: 'month', recurring: true, alertAt80: true, alertAt100: true }, ctx)
+    if (!saved.ok) throw new Error('plan')
+    const settings = { ...DEFAULT_NOTIFICATIONS, planAlerts: true }
+    const notices = dueNotices(saved.data, { today: ctx.today, now: '00:00', settings }, { ...fmt, planName: (p) => p.name })
+    expect(notices).toMatchObject([{ key: 'plan80:p1:2026-09-01', kind: 'plan80', params: { name: 'Comer fuera', spent: '17000', limit: '20000', over: '0' }, href: '/plan/planes/p1' }])
+    const over = baseData({ ...saved.data, transactions: [tx({ id: 'b', categoryId: 'dining', amountMinor: 25000 })] })
+    expect(dueNotices(over, { today: ctx.today, now: '08:00', settings }, fmt)).toMatchObject([{ kind: 'plan100', params: { over: '5000' } }])
+    expect(dueNotices(saved.data, { today: ctx.today, now: '08:00', settings: DEFAULT_NOTIFICATIONS }, fmt)).toEqual([])
+    expect(dueNotices(saved.data, { today: ctx.today, now: '23:00', settings: { ...settings, quietHours: true } }, fmt)).toEqual([])
   })
 })

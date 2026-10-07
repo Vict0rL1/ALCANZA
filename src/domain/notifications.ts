@@ -5,12 +5,13 @@
  */
 import { addDays } from './dates'
 import { openItemsUntil, type PlanItem } from './planItems'
-import type { AppData, ClockTime, LocalDate, NotificationSettings } from './types'
+import { planAlerts } from './plans'
+import type { AppData, ClockTime, LocalDate, NotificationSettings, Plan } from './types'
 
 export interface LocalNotice {
   /** Estable por día: sirve para no repetir el mismo aviso. */
   key: string
-  kind: 'scheduledDue' | 'scheduledOverdue' | 'dailyReminder' | 'dailySummary'
+  kind: 'scheduledDue' | 'scheduledOverdue' | 'dailyReminder' | 'dailySummary' | 'plan80' | 'plan100'
   /** Claves de i18n y parámetros; la UI traduce. */
   titleKey: string
   bodyKey: string
@@ -46,7 +47,7 @@ export interface NoticeInput {
  * Avisos que corresponden hoy hasta la hora actual (la UI descarta los ya mostrados por `key`).
  * Horas de silencio: el aviso se pospone hasta que terminan (se emite cuando `now` sale del rango).
  */
-export function dueNotices(data: AppData, input: NoticeInput, options: { amount: (minor: number) => string; name: (item: PlanItem) => string }): LocalNotice[] {
+export function dueNotices(data: AppData, input: NoticeInput, options: { amount: (minor: number) => string; name: (item: PlanItem) => string; planName?: (plan: Plan) => string }): LocalNotice[] {
   const { today, now, settings } = input
   const out: LocalNotice[] = []
   const quiet = settings.quietHours && isQuietHour(now, settings.quietFrom, settings.quietTo)
@@ -70,6 +71,22 @@ export function dueNotices(data: AppData, input: NoticeInput, options: { amount:
     const spent = data.transactions.filter((t) => t.date === today && t.status === 'realized' && t.kind === 'expense').reduce((s, t) => s + t.amountMinor, 0)
     const refunds = data.transactions.filter((t) => t.date === today && t.status === 'realized' && t.kind === 'refund').reduce((s, t) => s + t.amountMinor, 0)
     out.push({ key: `summary:${today}`, kind: 'dailySummary', titleKey: 'notify.summary.title', bodyKey: 'notify.summary.body', params: { amount: options.amount(spent - refunds) }, href: '/', at: settings.dailySummaryTime })
+  }
+  if (settings.planAlerts) {
+    // Una vez por ciclo y umbral: la clave lleva el inicio del ciclo, no el día.
+    for (const a of planAlerts(data, today)) {
+      const cycle = a.progress.cycle?.start ?? today
+      const name = options.planName ? options.planName(a.plan) : a.plan.name
+      out.push({
+        key: `plan${a.level}:${a.plan.id}:${cycle}`,
+        kind: a.level === 100 ? 'plan100' : 'plan80',
+        titleKey: a.level === 100 ? 'notify.plan100.title' : 'notify.plan80.title',
+        bodyKey: a.level === 100 ? 'notify.plan100.body' : 'notify.plan80.body',
+        params: { name, spent: options.amount(a.progress.spentMinor), limit: options.amount(a.progress.limitMinor), over: options.amount(Math.max(0, -a.progress.remainingMinor)) },
+        href: `/plan/planes/${a.plan.id}`,
+        at: '00:00',
+      })
+    }
   }
   return out.filter((n) => minutes(n.at) <= minutes(now))
 }

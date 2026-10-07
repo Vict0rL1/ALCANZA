@@ -173,22 +173,19 @@ test('sugerencia: dividir como la última vez en el mismo comercio (solo propone
   await expect(page.getByTestId('split-status')).toHaveText(/Cuadra/)
 })
 
-test('bandeja: límite de categoría superado lleva a los movimientos filtrados, sin cambiar cifras', async ({ page }) => {
+test('bandeja: un plan superado lleva a su detalle, sin cambiar cifras', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
-  await summary.getByRole('button', { name: 'Agregar límite' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
-  await dialog.getByLabel('Límite por mes').fill('30')
-  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await go(page, '/plan/planes/nuevo')
+  await page.getByLabel('Límite máximo').fill('30')
+  await page.getByTestId('plan-categories').getByRole('button', { name: 'Restaurantes y café' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByText('Plan guardado')).toBeVisible()
 
   await go(page, '/pendientes')
-  const item = page.locator('article', { hasText: '«Restaurantes y café» superó su límite de este mes' })
+  const item = page.locator('article', { hasText: '«Restaurantes y café» superó su límite' })
   await expect(item).toContainText('$7.05')
-  await item.getByRole('link', { name: 'Ver movimientos de la categoría' }).click()
-  await expect(page.getByLabel('Categoría', { exact: true })).toHaveValue('dining')
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-09-01')
+  await item.getByRole('link', { name: 'Ver plan' }).click()
+  await expect(page.getByTestId('plan-spent')).toContainText('$37.05')
 
   await go(page, '/pendientes')
   await page.locator('article', { hasText: 'superó su límite' }).getByRole('button', { name: 'Está bien así' }).click()

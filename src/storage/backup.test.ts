@@ -378,12 +378,13 @@ describe('migración v8 → v9 (Clara v2)', () => {
       categoryPrefs: {},
       categoryGroups: [],
       tags: [],
-      plans: [],
       profile: { id: 'guest', isGuest: true },
       settings: { budgetPeriod: { type: 'untilIncome' }, carryOverBalance: true, onboardingDone: true, toursSeen: [] },
     })
-    // Lo que ya existía no cambia: límites por categoría, movimientos y la categoría personalizada.
-    expect(r.data.categoryLimits).toEqual([{ categoryId: 'c_pets', monthlyLimitMinor: 5000 }])
+    // Lo que ya existía no cambia: movimientos y la categoría personalizada. El límite mensual
+    // llega a v10 convertido en un plan recurrente (ver la migración v9 → v10).
+    expect(r.data.categoryLimits).toEqual([])
+    expect(r.data.plans).toMatchObject([{ id: 'limit_c_pets', categoryIds: ['c_pets'], amountMinor: 5000, periodType: 'month', recurring: true, status: 'active', name: '' }])
     expect(r.data.transactions).toEqual(baseData({ transactions: [tx({ id: 't1' })] }).transactions)
     expect(r.data.categories[0]).toMatchObject({ id: 'c_pets', name: 'Mascotas', groupId: 'other', icon: 'tag', sortOrder: 1000 })
     expect(typeof r.data.categories[0]!.color).toBe('string')
@@ -393,6 +394,27 @@ describe('migración v8 → v9 (Clara v2)', () => {
     const raw = v8Backup()
     ;(raw.categories as Record<string, unknown>[])[0]!.kind = 'other'
     expect(validateAppData(raw).ok).toBe(false)
+  })
+
+  it('v9 → v10: los límites bien formados pasan a planes mensuales; los mal formados se conservan y se señalan', () => {
+    const data = baseData({ categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 20000 }, { categoryId: 'transport', monthlyLimitMinor: 0 }] })
+    const raw: Record<string, unknown> = JSON.parse(JSON.stringify(data))
+    raw.schemaVersion = 9
+    const r = validateAppData(raw)
+    // El límite 0 no es válido: se conserva en categoryLimits y la validación lo rechaza (no se borra).
+    expect(r.ok).toBe(false)
+    const good = JSON.parse(JSON.stringify(baseData({ categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 20000 }], plans: [] })))
+    good.schemaVersion = 9
+    const ok = validateAppData(good)
+    expect(ok.ok).toBe(true)
+    if (!ok.ok) return
+    expect(ok.data.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(ok.data.categoryLimits).toEqual([])
+    expect(ok.data.plans).toMatchObject([{ id: 'limit_dining', kind: 'limit', categoryIds: ['dining'], amountMinor: 20000, currency: 'CAD', periodType: 'month', recurring: true, alertAt80: true, alertAt100: true, createdAt: good.updatedAt }])
+    expect(ok.data.plans[0]!.startDate).toBeUndefined()
+    // Una copia v10 con un plan igual no lo duplica ni toca categoryLimits ya vacíos.
+    const again = validateAppData(JSON.parse(JSON.stringify(ok.data)))
+    expect(again.ok && again.data.plans).toHaveLength(1)
   })
 
   it('un plan o una etiqueta mal formados en v9 se rechazan', () => {

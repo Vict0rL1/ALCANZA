@@ -302,7 +302,10 @@ export function validatePlan(plan: Plan, ctx: { data: Pick<AppData, 'settings'> 
   const issues: Issue[] = []
   if (!isValidId(plan.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
   if (plan.kind !== 'limit') issues.push({ path: `${p}kind`, code: 'invalidValue' })
-  checkName(plan.name, `${p}name`, issues)
+  // El nombre es opcional (vacío = se muestran las categorías), pero no puede ser otra cosa que texto.
+  if (typeof plan.name !== 'string') issues.push({ path: `${p}name`, code: 'required' })
+  else if (plan.name.length > LIMITS.nameMax) issues.push({ path: `${p}name`, code: 'textTooLong', params: { max: LIMITS.nameMax } })
+  if (plan.previousPlanId !== undefined && !isValidId(plan.previousPlanId)) issues.push({ path: `${p}previousPlanId`, code: 'invalidId' })
   const valid = categoriesForKind('expense', ctx.data.categories ?? [], { includeArchived: true })
   if (!Array.isArray(plan.categoryIds) || plan.categoryIds.length > 50 || !plan.categoryIds.every((c: unknown) => typeof c === 'string' && valid.includes(c))) {
     issues.push({ path: `${p}categoryIds`, code: 'invalidCategory' })
@@ -555,6 +558,12 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
   checkName(g.name, `${p}name`, issues)
   if (g.kind !== 'goal' && g.kind !== 'emergency' && g.kind !== 'expense') issues.push({ path: `${p}kind`, code: 'invalidValue' })
   checkCategoryLook({ icon: g.icon, color: g.color }, p, issues)
+  if (g.contribution !== undefined) {
+    const c = g.contribution
+    if (!c || typeof c !== 'object' || !isMinorAmount(c.amountMinor) || c.amountMinor <= 0 || !isOneOf(['weekly', 'biweekly', 'monthly'] as const, c.frequency)) {
+      issues.push({ path: `${p}contribution`, code: 'invalidValue' })
+    }
+  }
   // Un gasto planificado necesita fecha de vencimiento; las demás metas no llevan `plan`.
   if (g.kind === 'expense') {
     if (g.targetDate === undefined) issues.push({ path: `${p}targetDate`, code: 'required' })

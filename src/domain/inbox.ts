@@ -11,11 +11,11 @@
  * aviso deje de calcularse.
  */
 import { categoriesForKind } from './categories'
-import { addDays, daysBetween, endOfMonth, localDateInTimeZone, startOfMonth } from './dates'
+import { addDays, daysBetween, localDateInTimeZone } from './dates'
 import { distributionIncomeState } from './incomeDistribution'
 import { findSettlement, openItemsUntil, type PlanItem } from './planItems'
 import { lastVerified, reconciliationsFor, reconciliationState } from './reconcile'
-import { limitStatuses, periodSummary } from './insights'
+import { planProgress } from './plans'
 import { normalizeText, RULE_PATTERN_MIN } from './rules'
 import { cardSummary } from './cards'
 import { goalProgress, goalSavedMinor } from './goals'
@@ -40,7 +40,7 @@ export type InboxReason =
   | 'cardNearLimit'
   | 'cardOverLimit'
   | 'goalPastDue'
-  | 'categoryOverLimit'
+  | 'planOverLimit'
   | 'ruleCategoryUnavailable'
   | 'ruleUnused'
 
@@ -57,6 +57,7 @@ export interface InboxItem {
   accountId?: string
   goalId?: string
   categoryId?: string
+  planId?: string
   ruleId?: string
   distributionId?: string
   planItem?: PlanItem
@@ -222,20 +223,21 @@ function attention(data: AppData, today: LocalDate): InboxItem[] {
       canDismiss: true,
     })
   }
-  // Límites de categoría superados este mes (mismo cálculo que el resumen del mes: gasto
-  // neto, con las líneas de las compras divididas). Un aviso por categoría y mes.
-  const month = startOfMonth(today)
-  const summary = periodSummary(data, month, endOfMonth(today))
-  for (const l of limitStatuses(summary, data.categoryLimits)) {
-    if (!l.over) continue
+  // Planes de gasto superados en su ciclo en curso (mismo cálculo que la pantalla Planes:
+  // gasto neto, con las líneas de las compras divididas). Un aviso por plan y ciclo.
+  for (const plan of data.plans) {
+    if (plan.status !== 'active') continue
+    const p = planProgress(data, plan, today)
+    if (p.state !== 'over' || !p.cycle) continue
     items.push({
-      id: `limit:${l.categoryId}:${month.slice(0, 7)}`,
+      id: `plan:${plan.id}:${p.cycle.start}`,
       kind: 'attention',
-      reason: 'categoryOverLimit',
-      fingerprint: `${l.limitMinor}`,
-      date: month,
-      amountMinor: l.spentMinor - l.limitMinor,
-      categoryId: l.categoryId,
+      reason: 'planOverLimit',
+      fingerprint: `${p.limitMinor}`,
+      date: p.cycle.start,
+      amountMinor: p.spentMinor - p.limitMinor,
+      planId: plan.id,
+      ...(plan.categoryIds.length === 1 ? { categoryId: plan.categoryIds[0] } : {}),
       canDismiss: true,
     })
   }

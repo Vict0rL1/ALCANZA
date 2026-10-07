@@ -1,6 +1,6 @@
 /** Textos derivados de datos (categorías, nombres, mensajes de validación). */
 import type { PlanItem } from '../domain/planItems'
-import type { Account, Frequency, Transaction } from '../domain/types'
+import type { Account, Frequency, Plan, Transaction } from '../domain/types'
 import type { Issue } from '../domain/validation'
 import type { ImportIssue } from '../storage/backup'
 import type { MessageKey, Translator } from '../i18n'
@@ -12,6 +12,13 @@ export function categoryLabel(t: Translator['t'], id: string | undefined): strin
 }
 
 /** Opciones de categoría: si el registro usa una categoría archivada, se mantiene visible. */
+/** Título de un plan: su nombre o, si está vacío, sus categorías («Todas las categorías» si no tiene). */
+export function planTitle(t: Translator['t'], plan: Pick<Plan, 'name' | 'categoryIds'>): string {
+  if (plan.name.trim()) return plan.name
+  if (plan.categoryIds.length === 0) return t('plans.allCategories')
+  return plan.categoryIds.map((id) => categoryLabel(t, id)).join(', ')
+}
+
 export function withCurrent(options: readonly string[], current: string | undefined): string[] {
   return current && !options.includes(current) ? [...options, current] : [...options]
 }

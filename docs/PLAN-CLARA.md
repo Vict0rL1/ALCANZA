@@ -52,7 +52,13 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [x] Notificaciones locales: reglas puras (`domain/notifications.ts`: programados vencidos/hoy/mañana, recordatorio diario, resumen diario, horas de silencio), Notification API con permiso explícito, lista dentro de la app, enlaces profundos. Alertas de planes: Fase 6
 
 ## Fase 6 — Planes
-- [ ] Onboarding de planes, lista, crear, formularios, detalle, cierre, recurrencia, resultados, alertas, resumen automático
+- [x] `domain/plans.ts`: ciclo, gastado neto por categorías (vacío = todas), estados, ritmo ideal, serie diaria, cierre automático con resultado, recurrencia con historial, repetir, resumen, alertas; pruebas
+- [x] Migración v9 → v10: `categoryLimits` → planes mensuales recurrentes (prueba); metas con `contribution`
+- [x] Pantalla Planes (`#/plan/planes`): onboarding de 3 pantallas (una vez), resumen automático, Activos | Completados, tarjetas (límites y metas) con barra por estado, FAB + hoja «Controlar gasto / Ahorrar para una meta»
+- [x] Formulario de límite (importe, nombre opcional, categorías múltiples con chips, periodo con vista del rango, personalizado, recurrente, alertas 80/100 %); detalle con gráfico acumulado vs. ritmo ideal (+ tabla), movimientos, editar, pausar, eliminar con deshacer, tarjeta de resultado y «Repetir»
+- [x] Metas: icono/color, aporte periódico (recordatorio) y «Aportar ahora» con el importe propuesto
+- [x] Cierre/renovación al abrir y al cambiar el día (`useScheduledJobs`); alertas de planes en Notificaciones (horas de silencio); Inicio y pendientes avisan desde los planes
+- [ ] Pendiente: gráfico diario en las metas (hoy solo barra), onboarding de planes dentro de la demo (se omite en demo)
 
 ## Fase 7 — Estadísticas
 - [ ] Cabecera con periodos, 3 tarjetas con delta, donut, barras 6 periodos, tendencia, top 5, promedio diario, saldo futuro 90 d, PDF

@@ -21,6 +21,8 @@ import { Setup } from './ui/screens/Setup'
 
 // Pantallas secundarias: se cargan aparte (el service worker las guarda igual para usarlas sin conexión).
 const Plan = lazy(() => import('./ui/screens/Plan').then((m) => ({ default: m.Plan })))
+const PlanForm = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanForm })))
+const PlanDetail = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanDetail })))
 const ScheduleForm = lazy(() => import('./ui/screens/ScheduleForm').then((m) => ({ default: m.ScheduleForm })))
 const GoalForm = lazy(() => import('./ui/screens/Goals').then((m) => ({ default: m.GoalForm })))
 const Favorites = lazy(() => import('./ui/screens/Favorites').then((m) => ({ default: m.Favorites })))
@@ -493,6 +495,8 @@ function Screen({ route }: { route: Route }) {
   if (a === 'plan' && b === 'metas' && (c === 'nueva' || c === 'editar')) return <GoalForm key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'plan' && b === 'periodos' && (c === 'nuevo' || c === 'editar')) return <PeriodBudgetForm key={key} route={route} />
   if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
+  if (a === 'plan' && b === 'planes' && (c === 'nuevo' || c === 'editar')) return <PlanForm key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'plan' && b === 'planes' && c) return <PlanDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
   if (a === 'ajustes' && b === 'historial') return <History key={key} />
   if (a === 'ajustes' && b === 'categorias') return <Categories key={key} />

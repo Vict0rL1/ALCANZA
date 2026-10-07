@@ -152,7 +152,7 @@ const PROFILE_KEYS = ['id', 'isGuest', 'provider', 'email', 'displayName', 'avat
 const GROUP_KEYS = ['id', 'nameKey', 'name', 'color', 'sortOrder', 'createdAt', 'updatedAt'] as const
 const TAG_KEYS = ['id', 'name', 'color', 'createdAt', 'updatedAt'] as const
 const PREF_KEYS = ['name', 'archived', 'groupId', 'icon', 'color', 'sortOrder'] as const
-const PLAN_LIMIT_KEYS = ['id', 'kind', 'name', 'categoryIds', 'amountMinor', 'currency', 'periodType', 'startDate', 'endDate', 'recurring', 'status', 'alertAt80', 'alertAt100', 'result', 'createdAt', 'updatedAt'] as const
+const PLAN_LIMIT_KEYS = ['id', 'kind', 'name', 'categoryIds', 'amountMinor', 'currency', 'periodType', 'startDate', 'endDate', 'recurring', 'status', 'previousPlanId', 'alertAt80', 'alertAt100', 'result', 'createdAt', 'updatedAt'] as const
 const ACCOUNT_KEYS = ['id', 'name', 'kind', 'includeInBudget', 'anchor', 'card', 'createdAt', 'updatedAt'] as const
 const ANCHOR_KEYS = ['amountMinor', 'date', 'setAt'] as const
 const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPaymentBps', 'minPaymentFloorMinor'] as const
@@ -175,7 +175,7 @@ const SCHEDULE_KEYS = [
   'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'range', 'currency', 'accountId', 'categoryId', 'frequency',
   'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'intervalDays', 'autoConfirm', 'paused', 'createdAt', 'updatedAt',
 ] as const
-const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'icon', 'color', 'createdAt', 'updatedAt'] as const
+const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'icon', 'color', 'contribution', 'createdAt', 'updatedAt'] as const
 const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt', 'reason', 'distributionId'] as const
 const PLAN_KEYS = ['repeatEveryMonths', 'link', 'categoryId', 'history', 'paidAt'] as const
 const CYCLE_KEYS = ['dueDate', 'targetMinor', 'reservedMinor', 'paidMinor', 'txId', 'surplus', 'paidAt'] as const

@@ -4,7 +4,8 @@ import { dismissInboxItem, inboxView, possibleDuplicates, snoozeInboxItem, undis
 import { markOccurrence, reconcileAccount, saveTransaction } from './operations'
 import type { AppData } from './types'
 import { validateAppData } from '../storage/backup'
-import { account, baseData, bill, ctx, EARLIER, goal, TODAY, tx } from '../test/fixtures'
+import { account, baseData, bill, ctx, EARLIER, goal, NOW, TODAY, tx } from '../test/fixtures'
+import { closeDuePlans } from './plans'
 
 function ok<T>(r: { ok: true; data: AppData; value: T } | { ok: false; issues: unknown[] }) {
   if (!r.ok) throw new Error(JSON.stringify(r.issues))
@@ -169,9 +170,10 @@ describe('bandeja: límites de categoría y reglas', () => {
     ...over,
   })
 
-  it('límite superado este mes (con líneas de compras divididas): un aviso por categoría y mes, descartable', () => {
+  it('plan superado en su ciclo (con líneas de compras divididas): un aviso por plan y ciclo, descartable', () => {
+    const plan = { id: 'p1', kind: 'limit' as const, name: '', categoryIds: ['dining'], amountMinor: 5000, currency: 'CAD' as const, periodType: 'month' as const, startDate: '2026-09-01', endDate: '2026-09-30', recurring: true, status: 'active' as const, alertAt80: true, alertAt100: true, createdAt: NOW, updatedAt: NOW }
     const d = baseData({
-      categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 5000 }],
+      plans: [plan],
       transactions: [
         tx({ id: 'a', categoryId: 'dining', amountMinor: 3000, date: '2026-09-02' }),
         tx({ id: 's', amountMinor: 4000, categoryId: 'groceries', date: '2026-09-10', splits: [{ id: 'l1', categoryId: 'groceries', amountMinor: 1999 }, { id: 'l2', categoryId: 'dining', amountMinor: 2001 }] }),
@@ -179,13 +181,14 @@ describe('bandeja: límites de categoría y reglas', () => {
       ],
     })
     // 3000 + 2001 = 5001 > 5000: excede por 1 centavo (agosto no cuenta).
-    expect(attention(d).map((i) => [i.id, i.reason, i.amountMinor, i.canDismiss])).toEqual([['limit:dining:2026-09', 'categoryOverLimit', 1, true]])
-    const atLimit = { ...d, categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 5001 }] }
+    expect(attention(d).map((i) => [i.id, i.reason, i.amountMinor, i.canDismiss, i.categoryId])).toEqual([['plan:p1:2026-09-01', 'planOverLimit', 1, true, 'dining']])
+    const atLimit = { ...d, plans: [{ ...plan, amountMinor: 5001 }] }
     expect(attention(atLimit)).toEqual([])
     const dismissed = ok(dismissInboxItem(d, attention(d)[0]!, ctx)).data
     expect(attention(dismissed)).toEqual([])
-    // Mes nuevo: sin gasto en octubre, no hay aviso.
-    expect(attention(d, '2026-10-01')).toEqual([])
+    // Mes nuevo: el cierre diario completa el plan (resultado guardado) y el aviso desaparece.
+    const closed = closeDuePlans(d, { today: '2026-10-01', now: NOW })
+    expect(closed.ok && attention(closed.data, '2026-10-01')).toEqual([])
   })
 
   it('regla con la categoría archivada: se avisa (la regla se ignoraría sin decir nada)', () => {

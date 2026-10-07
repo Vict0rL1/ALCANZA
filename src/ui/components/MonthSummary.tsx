@@ -10,9 +10,9 @@ import { useT } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { useFormat } from '../format'
+import { href } from '../router'
 import { categoryLabel } from '../labels'
 import { StatTile } from './common'
-import { LimitsSection } from './LimitsSection'
 import { Icon } from './Icon'
 
 const TOP = 5
@@ -92,7 +92,9 @@ export function MonthSummary() {
           )}
         </>
       )}
-      <LimitsSection summary={summary} />
+      <p className="note">
+        <a href={href('/plan/planes')}>{t('summary.plansLink')}</a>
+      </p>
       <p className="note">{t('summary.note')}</p>
     </section>
   )

@@ -5,8 +5,8 @@ import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
 import { FavoriteChips } from '../favoritesUi'
 import { cardPaymentReminders } from '../../domain/cards'
-import { endOfMonth, localDateInTimeZone, startOfMonth } from '../../domain/dates'
-import { limitStatuses, periodSummary } from '../../domain/insights'
+import { localDateInTimeZone } from '../../domain/dates'
+import { planProgress } from '../../domain/plans'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
@@ -25,7 +25,7 @@ import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
 import { relativeDayKey, useFormat } from '../format'
-import { categoryLabel, planItemName } from '../labels'
+import { planItemName, planTitle } from '../labels'
 import { href, withQuery } from '../router'
 import { usePreferences, type HomeSection, type QuickAction } from '../preferences'
 import type { IconName } from '../components/Icon'
@@ -44,7 +44,7 @@ export function Home() {
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
   const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
   const overLimits = useMemo(
-    () => limitStatuses(periodSummary(data, startOfMonth(today), endOfMonth(today)), data.categoryLimits).filter((l) => l.over),
+    () => data.plans.filter((p) => p.status === 'active').map((p) => ({ plan: p, progress: planProgress(data, p, today) })).filter((x) => x.progress.state === 'over'),
     [data, today],
   )
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
@@ -167,13 +167,13 @@ export function Home() {
           tone="warning"
           title={tn('home.alert.limitOverTitle', overLimits.length)}
           actions={
-            <a className="btn btn--small btn--secondary" href={href('/movimientos')}>
-              {t('home.alert.seeSummary')}
+            <a className="btn btn--small btn--secondary" href={href('/plan/planes')}>
+              {t('home.alert.seePlans')}
             </a>
           }
         >
           {t('home.alert.limitOverText', {
-            list: overLimits.map((l) => `${categoryLabel(t, l.categoryId)} (${t('limits.over', { amount: fmt.money(-l.remainingMinor) })})`).join(' · '),
+            list: overLimits.map((x) => `${planTitle(t, x.plan)} (${t('plans.exceededBy', { amount: fmt.money(-x.progress.remainingMinor) })})`).join(' · '),
           })}
         </Alert>
       ),

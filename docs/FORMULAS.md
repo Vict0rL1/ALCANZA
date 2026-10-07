@@ -906,3 +906,30 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
 - Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por el importe previsto, `source: 'scheduled'`. Idempotente: una ocurrencia liquidada u omitida no se registra.
 - Pausa: un programado en pausa no genera ocurrencias ni reservas; al reanudar vuelven las futuras y las vencidas no omitidas.
 - Avisos: con `scheduledAlerts`, vencidos (desde las 09:00) y los que vencen hoy o mañana; `dailyReminder` a su hora solo si hoy no hay movimientos realizados; `dailySummary` a su hora con gastos − devoluciones del día. En horas de silencio (rango que puede cruzar medianoche) no se emite nada; al salir del rango se emiten los pendientes. Cada aviso tiene una clave por día para no repetirse.
+
+## 34. Planes de gasto (v2, `domain/plans.ts`)
+
+- **Ciclo** = periodo que contiene «hoy» para el tipo elegido (semana, quincena, mes, trimestre,
+  semestre, año; mismo cálculo que §31) o fechas explícitas si es personalizado. Se guarda en
+  `startDate`/`endDate` al crear y se renueva al cerrar. Un plan migrado sin ciclo recibe el de hoy en
+  el primer cierre.
+- **Gastado** = Σ gastos − Σ devoluciones realizados en las categorías del plan (vacío = todas las
+  de gasto), con las líneas de compras divididas, entre inicio y fin del ciclo (incluidos); nunca
+  negativo. Los previstos no cuentan.
+- **Estado**: superado si gastado > límite; cerca si gastado ≥ 80 % del límite; completado si el
+  plan cerró; en pausa si la persona lo pausó. Restante = límite − gastado (negativo = superado).
+- **Ritmo ideal** al día *d* del ciclo (contando hoy) = ⌊límite × d / días del ciclo⌋. Solo se compara;
+  no limita ni cambia el disponible.
+- **Cierre automático** (al abrir la app y al cambiar el día): un plan activo cuyo fin es anterior a
+  hoy pasa a `completed` con `result = { spentMinor, achieved: gastado ≤ límite, deltaMinor: límite −
+  gastado, closedAt }`. Si es recurrente se crea un plan nuevo (`previousPlanId`) en el ciclo que
+  contiene hoy; si pasaron varios ciclos no se inventan cierres intermedios. Los pausados no se
+  cierran. Idempotente: una segunda pasada el mismo día no cambia nada.
+- **Repetir** = plan nuevo con los mismos ajustes en el ciclo de hoy (los personalizados conservan su
+  duración a partir de hoy).
+- **Alertas**: con `alertAt80`/`alertAt100` y el ajuste «Alertas de planes» activo, se avisa una vez
+  por ciclo y umbral (clave `plan80|plan100:<id>:<inicio del ciclo>`); respetan las horas de silencio.
+- **Metas**: `contribution` (importe + frecuencia) es un recordatorio; «Aportar ahora» solo propone el
+  importe. Sugerencia diaria de una meta = ⌈restante / días hasta la fecha⌉.
+- Un plan nunca mueve dinero ni cambia el disponible; los límites mensuales anteriores
+  (`categoryLimits`) se convirtieron en planes mensuales recurrentes en la migración v9 → v10.

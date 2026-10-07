@@ -10,7 +10,7 @@
  */
 import { sumMinor } from './money'
 import { categoryAllocations } from './splits'
-import type { AppData, CategoryLimit, LocalDate } from './types'
+import type { AppData, LocalDate } from './types'
 
 export interface CategorySpending {
   categoryId: string
@@ -53,32 +53,4 @@ export function periodSummary(data: Pick<AppData, 'transactions'>, from: LocalDa
     netSpendingMinor: sumMinor(categories.map((c) => c.netMinor)),
     categories,
   }
-}
-
-export interface LimitStatus {
-  categoryId: string
-  limitMinor: number
-  spentMinor: number
-  /** Solo para mostrar. */
-  fraction: number
-  remainingMinor: number
-  over: boolean
-  /** ≥ 80 % del límite sin pasarse. */
-  near: boolean
-}
-
-/** Estado de cada límite mensual con el gasto neto del periodo (negativos cuentan como 0). */
-export function limitStatuses(summary: PeriodSummary, limits: readonly CategoryLimit[]): LimitStatus[] {
-  return limits.map((l) => {
-    const spent = Math.max(0, summary.categories.find((c) => c.categoryId === l.categoryId)?.netMinor ?? 0)
-    return {
-      categoryId: l.categoryId,
-      limitMinor: l.monthlyLimitMinor,
-      spentMinor: spent,
-      fraction: l.monthlyLimitMinor > 0 ? spent / l.monthlyLimitMinor : 0,
-      remainingMinor: l.monthlyLimitMinor - spent,
-      over: spent > l.monthlyLimitMinor,
-      near: spent <= l.monthlyLimitMinor && spent * 5 >= l.monthlyLimitMinor * 4,
-    }
-  })
 }

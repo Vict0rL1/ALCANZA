@@ -19,7 +19,6 @@ import type {
   AppData,
   SplitLine,
   CardDetails,
-  CategoryLimit,
   CategoryRule,
   CustomCategory,
   Favorite,
@@ -40,7 +39,6 @@ import { defaultOnboardingCategoryIds } from './categories'
 import {
   validateAccount,
   validateCategory,
-  validateCategoryLimit,
   validateCategoryRule,
   validateFavorite,
   validateGoal,
@@ -567,6 +565,9 @@ export function saveGoal(data: AppData, draft: GoalDraft, ctx: OpContext): OpRes
     currency: data.settings.currency,
     fundedFrom: draft.fundedFrom,
     allocations: existing?.allocations ?? [],
+    ...(draft.icon ? { icon: draft.icon } : {}),
+    ...(draft.color ? { color: draft.color } : {}),
+    ...(draft.contribution ? { contribution: draft.contribution } : {}),
     // Gasto planificado: se conserva el historial de periodos pagados al editar.
     ...(draft.kind === 'expense'
       ? { plan: { ...(existing?.plan ?? {}), ...(draft.plan ?? {}), history: existing?.plan?.history ?? draft.plan?.history ?? [] } }
@@ -795,23 +796,19 @@ export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpRes
   if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
   return {
     ok: true,
-    data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id), categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id), categoryRules: data.categoryRules.filter((r) => r.categoryId !== id) }, ctx.now),
+    data: touch(
+      {
+        ...data,
+        categories: data.categories.filter((c) => c.id !== id),
+        categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id),
+        categoryRules: data.categoryRules.filter((r) => r.categoryId !== id),
+        // Un plan solo para esta categoría desaparece; uno de varias la pierde (vacío significaría «todas»).
+        plans: data.plans.filter((p) => !(p.categoryIds.length === 1 && p.categoryIds[0] === id)).map((p) => (p.categoryIds.includes(id) ? { ...p, categoryIds: p.categoryIds.filter((c) => c !== id), updatedAt: ctx.now } : p)),
+      },
+      ctx.now,
+    ),
     value: category,
   }
-}
-
-/** Crea o cambia el límite mensual de una categoría de gasto (uno por categoría). */
-export function setCategoryLimit(data: AppData, limit: CategoryLimit, ctx: OpContext): OpResult<CategoryLimit> {
-  const issues = validateCategoryLimit(limit, data.categories)
-  if (issues.length) return fail(issues)
-  const others = data.categoryLimits.filter((l) => l.categoryId !== limit.categoryId)
-  return { ok: true, data: touch({ ...data, categoryLimits: [...others, limit] }, ctx.now), value: limit }
-}
-
-export function removeCategoryLimit(data: AppData, categoryId: string, ctx: OpContext): OpResult<CategoryLimit> {
-  const limit = data.categoryLimits.find((l) => l.categoryId === categoryId)
-  if (!limit) return fail([{ path: 'categoryId', code: 'notFound' }])
-  return { ok: true, data: touch({ ...data, categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== categoryId) }, ctx.now), value: limit }
 }
 
 /* ------------------------------------------------------------------ */

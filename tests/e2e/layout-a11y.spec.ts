@@ -10,6 +10,8 @@ const ROUTES = [
   '/plan/calendario',
   '/plan/metas',
   '/plan/proyeccion',
+  '/plan/planes',
+  '/plan/planes/nuevo',
   '/ajustes',
   '/plan/programado/nuevo',
   '/plan/metas/nueva',

@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 9 as const
+export const SCHEMA_VERSION = 10 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -261,8 +261,21 @@ export interface Goal {
   /* ---- v9 (opcionales) ---- */
   icon?: string
   color?: CategoryColor
+  /* ---- v10 (opcional) ---- */
+  /**
+   * Aporte periódico sugerido. Es un recordatorio: «Aportar ahora» lo propone como importe y la
+   * persona confirma. Nunca aparta dinero solo (los apartados son virtuales; ver decisión 33).
+   */
+  contribution?: GoalContribution
   createdAt: Timestamp
   updatedAt: Timestamp
+}
+
+export type ContributionFrequency = 'weekly' | 'biweekly' | 'monthly'
+
+export interface GoalContribution {
+  amountMinor: number
+  frequency: ContributionFrequency
 }
 
 /** Uno de los 16 colores de categoría (§4): el token CSS es `--cat-<color>`. */
@@ -353,16 +366,23 @@ export interface PlanResult {
 export interface Plan {
   id: string
   kind: 'limit'
+  /** Puede estar vacío: la interfaz muestra entonces la(s) categoría(s). */
   name: string
   categoryIds: string[]
   amountMinor: number
   currency: CurrencyCode
   periodType: BudgetPeriodType
-  /** Recurrentes: el periodo en curso se calcula; personalizados: fechas explícitas. */
+  /**
+   * Ciclo en curso (ambos incluidos). Personalizados: fechas explícitas. Recurrentes: se fija al
+   * crear y se renueva al cerrar; si falta (datos migrados), el primer cierre lo rellena con el
+   * periodo que contiene «hoy».
+   */
   startDate?: LocalDate
   endDate?: LocalDate
   recurring: boolean
   status: 'active' | 'completed' | 'paused'
+  /** Plan del que se renovó (recurrencia) o se repitió; para el historial. */
+  previousPlanId?: string
   alertAt80: boolean
   alertAt100: boolean
   result?: PlanResult

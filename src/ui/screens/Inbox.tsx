@@ -17,7 +17,7 @@ import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { MarkPaidDialog } from '../dialogs'
 import { useFormat } from '../format'
-import { accountName, categoryLabel, planItemName, transactionTitle } from '../labels'
+import { accountName, categoryLabel, planItemName, planTitle, transactionTitle } from '../labels'
 import { href, withQuery } from '../router'
 
 const KIND_ICON: Record<InboxItem['kind'], IconName> = {
@@ -151,9 +151,12 @@ function ItemText({ item }: { item: InboxItem }) {
   const other = item.txIds?.[1] ? data.transactions.find((x) => x.id === item.txIds![1]) : undefined
   const goal = item.goalId ? data.goals.find((g) => g.id === item.goalId) : undefined
   const rule = item.ruleId ? data.categoryRules.find((r) => r.id === item.ruleId) : undefined
+  const plan = item.planId ? data.plans.find((p) => p.id === item.planId) : undefined
   const name =
     item.planItem
       ? planItemName(item.planItem, t)
+      : plan
+        ? planTitle(t, plan)
       : rule
         ? rule.pattern
         : item.categoryId
@@ -242,9 +245,9 @@ function InboxCard({ item, onPay, onSnooze, onDismiss }: { item: InboxItem; onPa
             {t('inbox.action.seeCard')}
           </a>
         )}
-        {item.reason === 'categoryOverLimit' && item.categoryId && (
-          <a className="btn btn--primary btn--small" href={href(withQuery('/movimientos', { categoria: item.categoryId, desde: item.date }))}>
-            {t('inbox.action.seeCategory')}
+        {item.reason === 'planOverLimit' && item.planId && (
+          <a className="btn btn--primary btn--small" href={href(`/plan/planes/${item.planId}`)}>
+            {t('inbox.action.seePlan')}
           </a>
         )}
         {item.ruleId && (

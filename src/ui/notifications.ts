@@ -12,7 +12,7 @@ import type { AppData } from '../domain/types'
 import { useT, type MessageKey } from '../i18n'
 import { useData } from '../state/store'
 import { useFormat } from './format'
-import { planItemName } from './labels'
+import { planItemName, planTitle } from './labels'
 import { navigate } from './router'
 
 const SHOWN_KEY = 'clara.notified.v1'
@@ -45,7 +45,8 @@ function readShown(): Set<string> {
 function writeShown(keys: Set<string>, today: string) {
   try {
     // Solo se conservan las de hoy (las claves llevan la fecha).
-    localStorage.setItem(SHOWN_KEY, JSON.stringify([...keys].filter((k) => k.endsWith(today)).slice(-200)))
+    // Las alertas de planes llevan el inicio del ciclo: se conservan para no repetirlas cada día.
+    localStorage.setItem(SHOWN_KEY, JSON.stringify([...keys].filter((k) => k.endsWith(today) || k.startsWith('plan')).slice(-200)))
   } catch {
     // Sin almacenamiento: se repetirían al recargar; aceptable.
   }
@@ -85,7 +86,7 @@ export function useDueNotices(data: AppData, tick: number): LocalNotice[] {
     const today = todayInTimeZone(data.settings.timeZone)
     const settings = data.settings.notifications
     if (!settings) return []
-    return dueNotices(data, { today, now: localClock(data.settings.timeZone), settings }, { amount: (m) => fmt.money(m), name: (i) => planItemName(i, t) })
+    return dueNotices(data, { today, now: localClock(data.settings.timeZone), settings }, { amount: (m) => fmt.money(m), name: (i) => planItemName(i, t), planName: (p) => planTitle(t, p) })
     // `tick` fuerza el recálculo cada minuto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, fmt, t, tick])
