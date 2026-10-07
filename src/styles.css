@@ -4069,3 +4069,25 @@ li.is-selected > .item--select {
 .pro-card {
   border-color: var(--accent);
 }
+
+/* ---- Pulido (§7.9): discreto, count-up, esqueleto de pantalla ---- */
+html.is-discreet .item__title,
+html.is-discreet .item__meta,
+html.is-discreet .list-row__title,
+html.is-discreet .list-row__subtitle,
+html.is-discreet .top-list__name,
+html.is-discreet .plan-card__title strong,
+html.is-discreet .donut__name {
+  filter: blur(5px);
+  user-select: none;
+}
+html.is-discreet .item:hover .item__title,
+html.is-discreet .item:focus-within .item__title {
+  filter: blur(5px);
+}
+.count-up {
+  font-variant-numeric: tabular-nums;
+}
+.screen-skeleton {
+  padding-top: 8px;
+}

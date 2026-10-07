@@ -13,7 +13,7 @@ import { ConfirmDialog } from '../components/Dialog'
 import { CheckboxField, Segmented } from '../components/fields'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
-import { DEFAULT_PREFERENCES, MAX_QUICK_ACTIONS, moveSection, QUICK_ACTIONS, usePreferences, writePreferences } from '../preferences'
+import { DEFAULT_PREFERENCES, MAX_QUICK_ACTIONS, moveSection, QUICK_ACTIONS, usePreferences, writePreferences, type PrivacyLevel } from '../preferences'
 
 export function PersonalizeSection() {
   const { t } = useT()
@@ -91,7 +91,18 @@ export function PersonalizeSection() {
         })}
       </fieldset>
 
-      <CheckboxField checked={prefs.privacy} onChange={(v) => setPrefs((p) => ({ ...p, privacy: v }))} label={t('personalize.privacy')} hint={t('personalize.privacyHint')} />
+      <Segmented
+        legend={t('personalize.privacy')}
+        name="privacy-level"
+        value={String(prefs.privacy) as '0' | '1' | '2'}
+        onChange={(v) => setPrefs((p) => ({ ...p, privacy: Number(v) as PrivacyLevel }))}
+        options={[
+          { value: '0', label: t('privacy.level0') },
+          { value: '1', label: t('privacy.level1') },
+          { value: '2', label: t('privacy.level2') },
+        ]}
+        hint={t('personalize.privacyHint')}
+      />
 
       <button type="button" className="btn btn--secondary" onClick={() => setConfirmReset(true)}>
         <Icon name="undo" />

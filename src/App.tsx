@@ -17,6 +17,8 @@ import { useAutoBackup } from './ui/useAutoBackup'
 import { LockContext } from './ui/lock/lockContext'
 import { LockScreen } from './ui/lock/LockScreen'
 import { useLock } from './ui/lock/useLock'
+import { usePrivacyLevel } from './ui/preferences'
+import { ScreenSkeleton } from './ui/components/base'
 import { Afford } from './ui/screens/Afford'
 import { Home } from './ui/screens/Home'
 import { MovementForm } from './ui/screens/MovementForm'
@@ -328,6 +330,12 @@ function Shell() {
   }, [unsaved])
   const route = useRoute()
   useGlobalShortcuts(state.phase === 'ready' && !!state.data)
+  // Modo discreto (nivel 2 de privacidad): difumina descripciones en listas vía una clase en <html>.
+  const privacyLevel = usePrivacyLevel()
+  useEffect(() => {
+    document.documentElement.classList.toggle('is-discreet', privacyLevel === 2)
+    return () => document.documentElement.classList.remove('is-discreet')
+  }, [privacyLevel])
   const mainRef = useRef<HTMLElement>(null)
   const first = useRef(true)
 
@@ -445,7 +453,7 @@ function Shell() {
         </nav>
         <main className="main" id="main" ref={mainRef} tabIndex={-1}>
           <ScreenBoundary key={route.path}>
-            <Suspense fallback={null}>
+            <Suspense fallback={<ScreenSkeleton />}>
               <Screen route={route} />
             </Suspense>
           </ScreenBoundary>

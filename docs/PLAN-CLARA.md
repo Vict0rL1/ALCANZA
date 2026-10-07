@@ -88,7 +88,12 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] Pendiente (requiere servicio y credenciales): inicio de sesión con Google/Apple, sincronización, pagos
 
 ## Fase 11 — Pulido
-- [ ] Háptica, *count-up*, skeletons, auditoría de accesibilidad, rendimiento con 10 000 movimientos
+- [x] Háptica con `navigator.vibrate` (avisos, deslizar, privacidad; nunca con «reducir movimiento»; decisión 51)
+- [x] *Count-up* de la cifra principal interpolando enteros (decisión 53); esqueleto de pantalla al cargar pantallas diferidas
+- [x] Privacidad de 3 niveles con un toque, pista y modo discreto (decisión 52)
+- [x] Accesibilidad: auditoría axe en todas las rutas nuevas (celular, 320 px y escritorio, claro y oscuro) dentro de `layout-a11y.spec.ts`
+- [x] Rendimiento con 10 000 movimientos medido con `scripts/bench.mjs` (`docs/PERFORMANCE.md`, tabla v2; `docs/perf/results-v2.json`): Inicio 94 ms, Estadísticas 98 ms, Movimientos 78 ms, guardar 178 ms
+- [x] Widgets: no existen en una app web (decisión 54); se declaran como no disponibles
 
 ## Fase 12 — QA final
 - [ ] Recorrido de cada pantalla contra §7 (y §3 del spec cuando exista); lista de anti-patrones §13; `docs/QA-REPORT.md`

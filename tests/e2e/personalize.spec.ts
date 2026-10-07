@@ -26,8 +26,14 @@ test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin c
   // No cambia lo guardado.
   expect(await storedData(page)).toBe(before)
 
+  // Nivel 2 (discreto): sigue oculto y además difumina descripciones; el tercer toque vuelve a mostrar todo.
+  await page.getByTestId('privacy-toggle').click()
+  await expect(page.getByTestId('privacy-toggle')).toHaveAttribute('data-privacy-level', '2')
+  await expect(page.getByTestId('available')).toHaveText('$-----')
+  await expect(page.locator('html')).toHaveClass(/is-discreet/)
   await page.getByTestId('privacy-toggle').click()
   await expect(page.getByTestId('available')).toHaveText('$136.78')
+  await expect(page.locator('html')).not.toHaveClass(/is-discreet/)
 })
 
 /** Solo lo financiero: ocultar la revisión semanal es un ajuste guardado (cambia la revisión). */

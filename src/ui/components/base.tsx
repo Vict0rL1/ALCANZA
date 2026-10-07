@@ -9,6 +9,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { Icon, type IconName } from './Icon'
+import { haptic } from '../haptics'
 import type { CategoryColor } from '../../domain/types'
 
 /* ---------- Botones ---------- */
@@ -368,6 +369,7 @@ export function SwipeRow({ children, actionLabel, onAction, icon = 'trash' }: { 
           setOffset(Math.max(-WIDTH, Math.min(0, open ? dx - WIDTH : dx)))
         }}
         onPointerUp={() => {
+          if (offset < -WIDTH / 2) haptic('tick')
           if (startX.current === null) return
           startX.current = null
           setOpen(offset < -WIDTH / 2)
@@ -383,6 +385,50 @@ export function SwipeRow({ children, actionLabel, onAction, icon = 'trash' }: { 
       <button type="button" className="swipe__action" onClick={onAction} aria-label={actionLabel}>
         <Icon name={icon} size={20} />
       </button>
+    </div>
+  )
+}
+
+/* ---------- Cifra animada (count-up) ---------- */
+
+/**
+ * Anima la cifra principal del valor anterior al nuevo interpolando ENTEROS (unidades menores) con
+ * requestAnimationFrame. Con «reducir movimiento», en modo privado o en el primer render se muestra
+ * el valor final directamente. El texto final siempre es `format(valueMinor)`.
+ */
+export function CountUp({ valueMinor, format, animate = true, durationMs = 450 }: { valueMinor: number; format: (minor: number) => string; animate?: boolean; durationMs?: number }) {
+  const [shown, setShown] = useState(valueMinor)
+  const previous = useRef<number | null>(null)
+  useEffect(() => {
+    const from = previous.current
+    previous.current = valueMinor
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (from === null || !animate || reduced || from === valueMinor) {
+      setShown(valueMinor)
+      return
+    }
+    let frame = 0
+    const start = performance.now()
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / durationMs)
+      const eased = 1 - (1 - p) * (1 - p)
+      setShown(from + Math.round((valueMinor - from) * eased))
+      if (p < 1) frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [valueMinor, animate, durationMs])
+  return <span className="count-up">{format(shown)}</span>
+}
+
+/* ---------- Esqueleto de pantalla (carga diferida) ---------- */
+
+export function ScreenSkeleton() {
+  return (
+    <div className="stack screen-skeleton" aria-busy="true" aria-hidden="true">
+      <Skeleton lines={1} height={28} />
+      <Skeleton lines={4} />
+      <Skeleton lines={3} />
     </div>
   )
 }

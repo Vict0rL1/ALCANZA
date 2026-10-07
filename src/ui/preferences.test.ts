@@ -10,7 +10,11 @@ describe('preferencias de presentación', () => {
     expect(p.sections[0]).toEqual({ id: 'goals', visible: false })
     expect(p.sections.map((s) => s.id).sort()).toEqual([...HOME_SECTIONS].sort())
     expect(p.quickActions).toEqual(['search', 'calendar', 'income'])
-    expect(p.privacy).toBe(false)
+    expect(p.privacy).toBe(0)
+    // El antiguo booleano pasa a nivel 1; los niveles 1 y 2 se conservan; otra cosa, 0.
+    expect(normalizePreferences({ privacy: true }).privacy).toBe(1)
+    expect(normalizePreferences({ privacy: 2 }).privacy).toBe(2)
+    expect(normalizePreferences({ privacy: 7 }).privacy).toBe(0)
     expect(normalizePreferences(null)).toEqual(DEFAULT_PREFERENCES)
   })
 

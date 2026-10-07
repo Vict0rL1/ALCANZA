@@ -49,7 +49,7 @@ test('estadísticas: sin movimientos muestra el estado vacío y el saldo futuro 
   await expect(page.getByText('Sin movimientos en este periodo')).toBeVisible()
   await expect(page.getByText('Sin comparación').first()).toBeVisible()
   await go(page, '/ajustes?seccion=personalizar')
-  await page.getByRole('checkbox', { name: 'Modo privado (ocultar importes en pantalla)' }).check()
+  await page.getByRole('radio', { name: 'Importes ocultos' }).check()
   await go(page, '/estadisticas')
   await expect(page.getByTestId('chart-hidden').first()).toBeVisible()
   await expect(page.getByTestId('stats-income')).toContainText('-----')

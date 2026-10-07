@@ -5,6 +5,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { Icon } from './Icon'
+import { haptic } from '../haptics'
 import { ToastContext, type ToastInput } from './toastContext'
 
 interface ToastItem extends ToastInput {
@@ -21,6 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const show = useCallback(
     (toast: ToastInput) => {
       const id = ++counter.current
+      haptic(toast.tone === 'critical' ? 'error' : toast.tone === 'info' ? 'tick' : 'success')
       setToasts((list) => [...list.slice(-2), { ...toast, id }])
       window.setTimeout(() => dismiss(id), toast.durationMs ?? (toast.action ? 8000 : 4000))
     },

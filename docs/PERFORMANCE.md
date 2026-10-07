@@ -85,3 +85,37 @@ incluyen el historial.
 - **Cachés.** Los índices nuevos (`txIndex`) se asocian a la lista exacta de movimientos
   (`WeakMap`). Como los datos son inmutables, cualquier cambio crea una lista nueva y el
   índice viejo deja de usarse: no hay invalidación manual que olvidar.
+
+## Clara v2 (fases 1–11): misma máquina, misma metodología
+
+Medido tras la Fase 11 con `node scripts/bench.mjs … v2` (resultados en bruto en `docs/perf/results-v2.json`).
+La versión v2 añade al recorrido las pantallas **Estadísticas** (todas las gráficas, top 5 y saldo futuro a 90 días) y **Planes**.
+
+| Operación | 1k v2 | 10k v2 | 50k v2 |
+|---|---:|---:|---:|
+| Primera apertura | 396 | 613 | 1060 |
+| Abrir (recarga) | 194 | 358 | 946 |
+| Inicio | 50 | 94 | 293 |
+| Estadísticas (nuevo) | 33 | 98 | 227 |
+| Planes (nuevo) | 35 | 32 | 28 |
+| Movimientos | 65 | 78 | 94 |
+| Buscar en la lista | 33 | 66 | 173 |
+| Filtrar | 34 | 42 | 52 |
+| Búsqueda global | 48 | 109 | 311 |
+| Proyección | 39 | 48 | 151 |
+| Bandeja de pendientes | 48 | 105 | 289 |
+| Guardar un movimiento | 137 | 178 | 396 |
+| Exportar | 148 | 244 | 631 |
+| Importar: leer y validar | 148 | 279 | 757 |
+| Importar: aplicar | 139 | 139 | 343 |
+| Nuevo movimiento (formulario) | 49 | 52 | 78 |
+| Historial | 39 | 81 | 212 |
+| Plan ante un faltante | 42 | 60 | 282 |
+| ¿Qué cambió? (desde ayer) | 28 | 46 | 189 |
+| ¿Qué cambió? (1.000 entradas) | 70 | 664 | 2265 |
+
+Lectura: con 10 000 movimientos todas las pantallas abren por debajo de 110 ms y guardar un movimiento tarda 178 ms;
+la única operación lenta sigue siendo «¿Qué cambió?» con 1.000 entradas de historial (664 ms con 10k, 2,3 s con 50k),
+que ya estaba identificada en la versión anterior. Abrir con 50k (≈ 0,9 s) y exportar/importar 15 MB (0,6–0,8 s)
+son operaciones poco frecuentes. Las cifras siguen siendo de Chromium de escritorio en esta máquina: un teléfono
+de gama media será varias veces más lento.

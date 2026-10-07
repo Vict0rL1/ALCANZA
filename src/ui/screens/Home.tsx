@@ -12,11 +12,12 @@ import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
 import { committedFor, safeToSpend } from '../../domain/periods'
 import { periodLabel } from '../periodLabel'
-import { BottomSheet, CoachMark, FAB, ListRow } from '../components/base'
+import { BottomSheet, CoachMark, CountUp, FAB, ListRow } from '../components/base'
+import { haptic } from '../haptics'
 import { Segmented } from '../components/fields'
 import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
 import { inboxView } from '../../domain/inbox'
-import { useT } from '../../i18n'
+import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { CompositionBar } from '../components/charts'
@@ -27,7 +28,7 @@ import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
 import { relativeDayKey, useFormat } from '../format'
 import { planItemName, planTitle } from '../labels'
 import { href, withQuery } from '../router'
-import { usePreferences, type HomeSection, type QuickAction } from '../preferences'
+import { nextPrivacyLevel, usePreferences, type HomeSection, type QuickAction } from '../preferences'
 import type { IconName } from '../components/Icon'
 
 export function Home() {
@@ -477,9 +478,20 @@ export function Home() {
   return (
     <div className="stack">
       <PageHeader title={t('home.title')}>
-        <button type="button" className="btn btn--ghost" aria-pressed={prefs.privacy} onClick={() => setPrefs((p) => ({ ...p, privacy: !p.privacy }))} data-testid="privacy-toggle">
+        <button
+          type="button"
+          className="btn btn--ghost"
+          aria-pressed={prefs.privacy > 0}
+          title={t(`privacy.levelHint.${prefs.privacy}` as MessageKey)}
+          onClick={() => {
+            haptic('tick')
+            setPrefs((p) => ({ ...p, privacy: nextPrivacyLevel(p.privacy) }))
+          }}
+          data-testid="privacy-toggle"
+          data-privacy-level={prefs.privacy}
+        >
           <Icon name="lock" />
-          {prefs.privacy ? t('privacy.show') : t('privacy.hide')}
+          {t(`privacy.next.${prefs.privacy}` as MessageKey)}
         </button>
       </PageHeader>
       {prefs.privacy && (
@@ -530,7 +542,7 @@ export function Home() {
               {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
             </p>
             <p className="hero__value" data-testid="available">
-              {fmt.money(budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor)}
+              <CountUp valueMinor={budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor} format={(m) => fmt.money(m)} animate={!fmt.privacy} />
             </p>
             <p className="hero__sub">
               {horizonText}
