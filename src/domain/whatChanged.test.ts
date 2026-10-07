@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { recordHistory } from './history'
 import { allocateToGoal, markOccurrence, saveTransaction } from './operations'
 import type { AppData } from './types'
-import { classifyEntry, whatChanged, WHAT_CHANGED_MAX_STEPS } from './whatChanged'
+import { classifyEntry, whatChanged, whatChangedSteps, WHAT_CHANGED_MAX_STEPS } from './whatChanged'
 import { baseData, bill, goal, income, tx } from '../test/fixtures'
 
 function ok<T>(r: { ok: true; data: AppData; value: T } | { ok: false; issues: unknown[] }) {
@@ -110,5 +110,21 @@ describe('¿Qué cambió?', () => {
   it('clasifica por el registro principal', () => {
     const d = scenario()
     expect(d.history.map(classifyEntry)).toEqual(['expenses', 'reserves', 'payments', 'edits'])
+  })
+
+  it('paso a paso: avance creciente hasta el total y el mismo resultado que de una vez', () => {
+    const d = scenario()
+    const point = { kind: 'date' as const, date: '2026-09-29' }
+    const run = whatChangedSteps(d, '2026-10-02', point)
+    const seen: { done: number; total: number }[] = []
+    let step = run.next()
+    while (!step.done) {
+      seen.push(step.value)
+      step = run.next()
+    }
+    // 4 entradas → 4 pasos, más el inicial, el de hoy rehecho y el actual.
+    expect(seen.map((p) => p.done)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(new Set(seen.map((p) => p.total))).toEqual(new Set([7]))
+    expect(step.value).toEqual(whatChanged(d, '2026-10-02', point))
   })
 })

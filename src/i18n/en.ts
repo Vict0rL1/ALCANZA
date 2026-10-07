@@ -2687,4 +2687,9 @@ export const en: Record<keyof typeof es, string> = {
   'stats.intro': 'Pick a period to see where your money went, how it compares with the previous one and where your balance is heading. Tap a bar or a category for details.',
   'stats.openPeriod': 'View {label}',
   'backup.receipts': 'Includes {count} photo receipt(s) (≈ {size}): they make the backup larger.',
+  'changes.loadingStep': '(step {done} of {total})',
+  'backup.exportWithoutReceipts': 'Export without photos',
+  'backup.lightHint': 'The copy without photos is smaller, but it doesn\'t count as your backup: restoring it leaves movements without their receipt photo.',
+  'backup.lightExported': 'Copy without photos downloaded. It isn\'t recorded as a backup.',
+  'settings.backup.summaryNoReceipts': 'This copy was exported without receipt photos: after restoring it, movements will have no photo.',
 }

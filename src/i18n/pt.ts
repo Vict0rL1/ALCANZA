@@ -2685,4 +2685,9 @@ export const pt: Record<keyof typeof es, string> = {
   'stats.intro': 'Escolha um período para ver para onde foi seu dinheiro, como se compara com o anterior e para onde seu saldo caminha. Toque numa barra ou categoria para ver os detalhes.',
   'stats.openPeriod': 'Ver {label}',
   'backup.receipts': 'Inclui {count} recibo(s) com foto (≈ {size}): deixam a cópia mais pesada.',
+  'changes.loadingStep': '(passo {done} de {total})',
+  'backup.exportWithoutReceipts': 'Exportar sem fotos',
+  'backup.lightHint': 'A cópia sem fotos é menor, mas não conta como seu backup: ao restaurá-la, as movimentações ficam sem a foto do recibo.',
+  'backup.lightExported': 'Cópia sem fotos baixada. Não é registrada como backup.',
+  'settings.backup.summaryNoReceipts': 'Esta cópia foi exportada sem fotos de recibos: ao restaurá-la, as movimentações ficarão sem foto.',
 }

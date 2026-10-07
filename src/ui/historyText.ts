@@ -7,6 +7,21 @@ import { accountName, categoryLabel, transactionTitle } from './labels'
 
 type T = ReturnType<typeof useT>['t']
 
+/**
+ * ¿Sigue existiendo este registro? Con 50.000 movimientos y 1.000 entradas, recorrer la lista
+ * en cada línea bloqueaba la pantalla más de un segundo: el conjunto de ids se construye una
+ * vez por lista (los datos no se modifican en sitio, así que la lista identifica su contenido).
+ */
+const idSets = new WeakMap<readonly { id: string }[], Set<string>>()
+function hasId(list: readonly { id: string }[], id: string): boolean {
+  let ids = idSets.get(list)
+  if (!ids) {
+    ids = new Set(list.map((x) => x.id))
+    idSets.set(list, ids)
+  }
+  return ids.has(id)
+}
+
 export interface Line {
   text: string
   details: string[]
@@ -39,7 +54,7 @@ export function describeChange(change: HistoryChange, entry: HistoryEntry, data:
       return {
         text: t(key as MessageKey, { title: transactionTitle(tx, data.accounts, t), amount: `${sign}${fmt.money(tx.amountMinor)}`, date: fmt.date(tx.date) }),
         details: verb === 'updated' ? txDetails(change.before as Transaction, change.after as Transaction, data, t, fmt) : [],
-        link: data.transactions.some((x) => x.id === change.id) ? `/movimientos/editar/${change.id}` : undefined,
+        link: hasId(data.transactions, change.id) ? `/movimientos/editar/${change.id}` : undefined,
       }
     }
     case 'trash': {
@@ -52,12 +67,12 @@ export function describeChange(change: HistoryChange, entry: HistoryEntry, data:
       const g = (change.after ?? change.before) as Goal
       const details = verb === 'updated' && goalSavedMinor(change.before as Goal) !== goalSavedMinor(change.after as Goal) ? [t('history.field', { field: t('history.saved'), before: fmt.money(goalSavedMinor(change.before as Goal)), after: fmt.money(goalSavedMinor(change.after as Goal)) })] : []
       if (verb === 'updated' && (change.before as Goal).targetMinor !== g.targetMinor) details.push(t('history.field', { field: t('history.target'), before: fmt.money((change.before as Goal).targetMinor), after: fmt.money(g.targetMinor) }))
-      return { text: t(`history.goal.${verb}` as MessageKey, { name: g.name }), details, link: data.goals.some((x) => x.id === g.id) ? `/plan/metas/editar/${g.id}` : undefined }
+      return { text: t(`history.goal.${verb}` as MessageKey, { name: g.name }), details, link: hasId(data.goals, g.id) ? `/plan/metas/editar/${g.id}` : undefined }
     }
     case 'schedules': {
       const s = (change.after ?? change.before) as Schedule
       const details = verb === 'updated' && (change.before as Schedule).amountMinor !== s.amountMinor ? [t('history.field', { field: t('fields.amount'), before: fmt.money((change.before as Schedule).amountMinor), after: fmt.money(s.amountMinor) })] : []
-      return { text: t(`history.schedule.${verb}` as MessageKey, { name: s.name }), details, link: data.schedules.some((x) => x.id === s.id) ? `/plan/programado/editar/${s.id}` : undefined }
+      return { text: t(`history.schedule.${verb}` as MessageKey, { name: s.name }), details, link: hasId(data.schedules, s.id) ? `/plan/programado/editar/${s.id}` : undefined }
     }
     case 'accounts': {
       const a = (change.after ?? change.before) as Account

@@ -2685,4 +2685,9 @@ export const fr: Record<keyof typeof es, string> = {
   'stats.intro': 'Choisissez une période pour voir où est passé votre argent, la comparer à la précédente et voir où va votre solde. Touchez une barre ou une catégorie pour le détail.',
   'stats.openPeriod': 'Voir {label}',
   'backup.receipts': 'Inclut {count} reçu(s) en photo (≈ {size}) : ils alourdissent la sauvegarde.',
+  'changes.loadingStep': '(étape {done} sur {total})',
+  'backup.exportWithoutReceipts': 'Exporter sans photos',
+  'backup.lightHint': 'La copie sans photos est plus légère, mais elle ne compte pas comme votre sauvegarde : en la restaurant, les mouvements perdent leur photo de reçu.',
+  'backup.lightExported': 'Copie sans photos téléchargée. Elle n\'est pas enregistrée comme sauvegarde.',
+  'settings.backup.summaryNoReceipts': 'Cette copie a été exportée sans photos de reçus : après restauration, les mouvements n\'auront pas de photo.',
 }

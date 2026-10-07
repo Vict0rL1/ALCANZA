@@ -5,7 +5,8 @@ import { projectBalance } from '../domain/projection'
 import { backupStatus } from '../domain/backupReminder'
 import { createDemoData } from '../demo/demoData'
 import { baseData, bill, ctx, NOW, TODAY, tx, TZ } from '../test/fixtures'
-import { createBackup, parseBackup, validateAppData } from './backup'
+import { backupFileName, backupText as fileText, createBackup, parseBackup, performExport, validateAppData } from './backup'
+import { recordHistory } from '../domain/history'
 import { SCHEMA_VERSION } from '../domain/types'
 import { LocalStorageRepository, MemoryRepository, PRE_MIGRATION_KEY_PREFIX, STORAGE_KEY } from './localStorageRepository'
 
@@ -424,5 +425,57 @@ describe('migración v8 → v9 (Clara v2)', () => {
     const badTag = JSON.parse(JSON.stringify(baseData()))
     badTag.tags = [{ id: 'g', name: '', createdAt: NOW, updatedAt: NOW }]
     expect(validateAppData(badTag).ok).toBe(false)
+  })
+})
+
+describe('copia sin fotos de recibos', () => {
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(4000)
+  function withReceipts() {
+    const d0 = baseData()
+    const a = saveTransaction(d0, { ...tx({ id: 'r1', date: TODAY }), receiptUri: photo }, ctx)
+    if (!a.ok) throw new Error('a')
+    const d1 = recordHistory(d0, a.data, NOW)
+    const b = saveTransaction(d1, { ...tx({ id: 'r2', date: TODAY }), receiptUri: photo }, ctx)
+    if (!b.ok) throw new Error('b')
+    const d2 = recordHistory(d1, b.data, NOW)
+    const c = deleteTransaction(d2, 'r2', ctx)
+    if (!c.ok) throw new Error('c')
+    return recordHistory(d2, c.data, NOW)
+  }
+
+  it('no deja ninguna foto en movimientos, papelera ni historial, y lo dice en el archivo', () => {
+    const data = withReceipts()
+    const full = fileText(data, new Date(NOW), '0.1.0')
+    // Las fotos están en el movimiento, en la papelera y en varias entradas del historial.
+    expect(full.split(photo).length - 1).toBeGreaterThanOrEqual(4)
+    const light = fileText(data, new Date(NOW), '0.1.0', { withoutReceipts: true })
+    expect(light).not.toContain('receiptUri')
+    expect(light.length).toBeLessThan(full.length - 4 * 4000)
+    expect(JSON.parse(light).omitted).toEqual(['receipts'])
+    expect(JSON.parse(full).omitted).toBeUndefined()
+  })
+
+  it('se puede restaurar: los mismos registros sin foto, y la importación lo avisa', () => {
+    const data = withReceipts()
+    const r = parseBackup(fileText(data, new Date(NOW), '0.1.0', { withoutReceipts: true }))
+    if (!r.ok) throw new Error(JSON.stringify(r.issues))
+    expect(r.withoutReceipts).toBe(true)
+    expect(r.data.transactions.map((t) => t.id)).toEqual(data.transactions.map((t) => t.id))
+    expect(r.data.transactions.every((t) => t.receiptUri === undefined)).toBe(true)
+    expect(r.data.trash.map((e) => e.id)).toEqual(['r2'])
+    expect(r.data.history.length).toBe(data.history.length)
+    // Mismas cifras: la foto nunca participa en cálculos.
+    expect(computeBudget(r.data, TODAY).availableMinor).toBe(computeBudget(data, TODAY).availableMinor)
+    const normal = parseBackup(fileText(data, new Date(NOW), '0.1.0'))
+    expect(normal.ok && normal.withoutReceipts).toBe(false)
+    expect(normal.ok && normal.data).toEqual(data)
+  })
+
+  it('performExport usa un nombre distinto para la copia sin fotos', () => {
+    let name = ''
+    const r = performExport(withReceipts(), new Date(NOW), '0.1.0', (n) => (name = n), { withoutReceipts: true })
+    expect(r.ok).toBe(true)
+    expect(name).toBe(backupFileName(new Date(NOW), false, true))
+    expect(name).toContain('sin-fotos')
   })
 })

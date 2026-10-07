@@ -2686,4 +2686,9 @@ export const es = {
   'stats.intro': 'Elige un periodo para ver en qué se fue tu dinero, cómo se compara con el anterior y hacia dónde va tu saldo. Toca una barra o una categoría para ver el detalle.',
   'stats.openPeriod': 'Ver {label}',
   'backup.receipts': 'Incluye {count} recibo(s) con foto (≈ {size}): hacen la copia más pesada.',
+  'changes.loadingStep': '(paso {done} de {total})',
+  'backup.exportWithoutReceipts': 'Exportar sin fotos',
+  'backup.lightHint': 'La copia sin fotos pesa menos, pero no cuenta como tu copia de seguridad: al restaurarla, los movimientos quedan sin su foto de recibo.',
+  'backup.lightExported': 'Copia sin fotos descargada. No se registra como copia de seguridad.',
+  'settings.backup.summaryNoReceipts': 'Esta copia se exportó sin fotos de recibos: al restaurarla, los movimientos quedarán sin foto.',
 } as const

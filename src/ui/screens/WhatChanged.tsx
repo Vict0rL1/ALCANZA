@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addDays, isValidLocalDate, localDateInTimeZone } from '../../domain/dates'
 import type { PlanItem } from '../../domain/planItems'
-import { whatChanged, type ChangeStep, type ComparePoint, type WhatChangedResult } from '../../domain/whatChanged'
+import { whatChangedSteps, type ChangeStep, type ComparePoint, type WhatChangedResult } from '../../domain/whatChanged'
 import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
@@ -48,13 +48,38 @@ export function WhatChanged({ route }: { route: Route }) {
         return { kind: 'date', date: isValidLocalDate(custom) && custom <= today ? custom : today }
     }
   }, [choice, custom, today, lastCut])
-  // Con mucho historial el cálculo tarda (medido: < 1 s con 50.000 movimientos y 1.000
-  // entradas). Se hace después de pintar la pantalla, con un aviso mientras tanto.
+  // Con mucho historial el cálculo tarda (≈ 1–2 s con 50.000 movimientos y 1.000 entradas).
+  // Se reparte en trozos de ~12 ms entre fotogramas: la pantalla responde y muestra el avance.
   const [computed, setComputed] = useState<{ data: unknown; today: string; point: ComparePoint; value: WhatChangedResult } | null>(null)
+  const [progress, setProgress] = useState<{ data: unknown; today: string; point: ComparePoint; done: number; total: number } | null>(null)
   useEffect(() => {
-    const timer = window.setTimeout(() => setComputed({ data, today, point, value: whatChanged(data, today, point) }), 0)
+    const run = whatChangedSteps(data, today, point)
+    let timer = 0
+    let shownAt = 0
+    const slice = () => {
+      const until = performance.now() + 12
+      for (;;) {
+        const step = run.next()
+        if (step.done) {
+          setComputed({ data, today, point, value: step.value })
+          return
+        }
+        const now = performance.now()
+        if (now >= until) {
+          // El avance se repinta como mucho cada 150 ms (no en cada trozo).
+          if (now - shownAt >= 150) {
+            shownAt = now
+            setProgress({ data, today, point, ...step.value })
+          }
+          timer = window.setTimeout(slice, 0)
+          return
+        }
+      }
+    }
+    timer = window.setTimeout(slice, 0)
     return () => window.clearTimeout(timer)
   }, [data, today, point])
+  const shownProgress = progress && progress.data === data && progress.today === today && progress.point === point ? progress : null
   // Solo vale el resultado calculado con los datos y el punto actuales.
   const r = computed && computed.data === data && computed.today === today && computed.point === point ? computed.value : null
 
@@ -86,6 +111,8 @@ export function WhatChanged({ route }: { route: Route }) {
       {!r && (
         <p className="note" role="status" data-testid="changes-loading">
           {t('changes.loading')}
+          {/* El número de paso no se anuncia: cambiaría varias veces por segundo. */}
+          {shownProgress && <span aria-hidden="true"> {t('changes.loadingStep', { done: shownProgress.done, total: shownProgress.total })}</span>}
         </p>
       )}
       {r?.status === 'beforeHistory' && (

@@ -85,22 +85,40 @@ export interface BackupFile {
   /** Nombre de la app que generó el archivo («Margen» en copias anteriores). No se valida. */
   app: string
   appVersion: string
+  /** Partes que se dejaron fuera a propósito (p. ej. una copia sin fotos de recibos). */
+  omitted?: BackupOmission[]
   data: AppData
+}
+
+export type BackupOmission = 'receipts'
+
+export interface BackupOptions {
+  /** Copia ligera: sin fotos de recibos en movimientos, papelera ni historial. */
+  withoutReceipts?: boolean
+}
+
+/** Quita las fotos de recibos al serializar (están en movimientos, papelera e historial). */
+const dropReceipts = (key: string, value: unknown) => (key === 'receiptUri' ? undefined : value)
+
+/** Texto del archivo de copia; con `withoutReceipts` no queda ninguna foto dentro. */
+export function backupText(data: AppData, now: Date, appVersion: string, options: BackupOptions = {}, indent?: number): string {
+  return JSON.stringify(createBackup(data, now, appVersion, options), options.withoutReceipts ? dropReceipts : undefined, indent)
 }
 
 export type BackupIssueCode = 'invalidJson' | 'notABackup' | 'schemaTooNew' | 'tooLarge' | 'tooManyRecords' | 'noAccounts' | 'migrationFailed'
 
 export type ImportIssue = Issue | { path: string; code: BackupIssueCode; params?: Record<string, string | number> }
 
-export type ImportResult = { ok: true; data: AppData; exportedAt: string | null } | { ok: false; issues: ImportIssue[] }
+export type ImportResult = { ok: true; data: AppData; exportedAt: string | null; withoutReceipts: boolean } | { ok: false; issues: ImportIssue[] }
 
-export function createBackup(data: AppData, now: Date, appVersion: string): BackupFile {
+export function createBackup(data: AppData, now: Date, appVersion: string, options: BackupOptions = {}): BackupFile {
   return {
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: now.toISOString(),
     app: 'Clara',
     appVersion,
+    ...(options.withoutReceipts ? { omitted: ['receipts' as const] } : {}),
     data,
   }
 }
@@ -115,19 +133,20 @@ export function performExport(
   now: Date,
   appVersion: string,
   write: (filename: string, text: string) => void,
+  options: BackupOptions = {},
 ): { ok: true; exportedAt: string; filename: string } | { ok: false } {
   try {
-    const filename = backupFileName(now, data.isDemo)
-    write(filename, JSON.stringify(createBackup(data, now, appVersion), null, 2))
+    const filename = backupFileName(now, data.isDemo, options.withoutReceipts)
+    write(filename, backupText(data, now, appVersion, options, 2))
     return { ok: true, exportedAt: now.toISOString(), filename }
   } catch {
     return { ok: false }
   }
 }
 
-export function backupFileName(now: Date, isDemo: boolean): string {
+export function backupFileName(now: Date, isDemo: boolean, withoutReceipts = false): string {
   const stamp = now.toISOString().slice(0, 16).replace(/[:T]/g, '-')
-  return `clara-${isDemo ? 'demo-' : ''}copia-${stamp}.json`
+  return `clara-${isDemo ? 'demo-' : ''}copia-${withoutReceipts ? 'sin-fotos-' : ''}${stamp}.json`
 }
 
 type Obj = Record<string, unknown>
@@ -440,7 +459,7 @@ export function validateAppData(raw: unknown): ImportResult {
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,
   }
-  return { ok: true, data, exportedAt: null }
+  return { ok: true, data, exportedAt: null, withoutReceipts: false }
 }
 
 /** Lee el texto de un archivo de copia de seguridad. */
@@ -460,5 +479,9 @@ export function parseBackup(text: string): ImportResult {
   }
   const result = validateAppData(raw.data)
   if (!result.ok) return result
-  return { ...result, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null }
+  return {
+    ...result,
+    exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null,
+    withoutReceipts: Array.isArray(raw.omitted) && raw.omitted.includes('receipts'),
+  }
 }

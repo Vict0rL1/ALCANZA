@@ -63,14 +63,16 @@ incluyen el historial.
 | Guardar con 10k: 1,27 s | El formulario recalculaba lo ya devuelto de cada gasto con un recorrido por gasto (cuadrático) | Una pasada con un mapa | 10k: 1.270 → 148 ms |
 | Abrir e importar con 50k: ~2–3 s | La validación buscaba la compra original y las otras devoluciones de cada devolución recorriendo todos los movimientos | Índice por lista (`domain/txIndex.ts`), mismas reglas | Validar en Node: 1.786 → 230 ms. Abrir: 2.746 → 581 ms. Importar: 1.950 → 477 ms |
 | «¿Qué cambió?» con 1.000 entradas: 8,3 s | Reconstruir el estado copiaba la lista de 50k movimientos por cada cambio | Aplicar los cambios en bloque, una reconstrucción por colección. Prueba de equivalencia con el método anterior | Reconstruir en Node: 2.805 → 10 ms. Navegador: 8.294 → 2.168 ms |
+| «¿Qué cambió?» con 50k: la pantalla se congelaba 1,4 s | Cada línea del desglose buscaba su registro recorriendo los 50k movimientos (1.000 × 50.000) | Conjunto de ids por lista; cálculo en trozos con avance; saldos en una pasada | 10k: 560–680 → 222–286 ms. 50k: ≈ 3,0 → 1,6 s; bloqueo más largo 1,4 s → ≤ 66 ms |
+| «Ver más» con 2.460 filas: 174 ms | React repintaba todas las filas en cada página | Fila memorizada (`TxRow`); `content-visibility` se probó y no mejoró | 174 → 91–105 ms |
 
 ## Lo que sigue lento (y por qué no se tocó)
 
-- **«¿Qué cambió?» rehaciendo 1.000 entradas con 50k movimientos: ~2 s.** El coste restante
-  es recalcular el disponible en cada paso (hasta 40 pasos de ~25–50 ms). La pantalla aparece
-  primero con «Calculando el desglose…» y el cálculo corre después. Hacerlo incremental
-  exigiría duplicar la fórmula del disponible: se prefirió no arriesgar la exactitud. Desde
-  ayer o hace 7 días (lo habitual) tarda ~100 ms.
+- **«¿Qué cambió?» rehaciendo 1.000 entradas con 50k movimientos: ~1,6 s** (antes ~3 s medido igual).
+  El coste restante es recalcular el disponible en cada paso (hasta 40 pasos de ~20 ms). Ya no
+  bloquea: el cálculo va en trozos de ~12 ms con el avance visible y la pantalla responde (bloqueo
+  más largo medido ≤ 66 ms). Hacerlo incremental exigiría duplicar la fórmula del disponible: se
+  prefirió no arriesgar la exactitud (decisión 60).
 - **Exportar 50k: ~0,5 s** (serializar 15 MB). Es una acción puntual con su propio aviso.
 - **Inicio, búsqueda global y bandeja con 50k: 170–230 ms.** Por debajo de lo que se percibe
   como espera en esta máquina. En un teléfono puede notarse. No se optimizó sin una medición
@@ -116,6 +118,6 @@ La versión v2 añade al recorrido las pantallas **Estadísticas** (todas las gr
 
 Lectura: con 10 000 movimientos todas las pantallas abren por debajo de 110 ms y guardar un movimiento tarda 178 ms;
 la única operación lenta sigue siendo «¿Qué cambió?» con 1.000 entradas de historial (664 ms con 10k, 2,3 s con 50k),
-que ya estaba identificada en la versión anterior. Abrir con 50k (≈ 0,9 s) y exportar/importar 15 MB (0,6–0,8 s)
+que ya estaba identificada en la versión anterior (después de la revisión general: 222–286 ms con 10k y ≈ 1,6 s con 50k sin bloquear la pantalla; ver arriba). Abrir con 50k (≈ 0,9 s) y exportar/importar 15 MB (0,6–0,8 s)
 son operaciones poco frecuentes. Las cifras siguen siendo de Chromium de escritorio en esta máquina: un teléfono
 de gama media será varias veces más lento.

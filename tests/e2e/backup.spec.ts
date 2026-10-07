@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { available, go, startDemo } from './helpers'
+import { available, go, startDemo, storedData, writeStoredData } from './helpers'
 
 test('exportar, rechazar copias inválidas sin tocar datos e importar una válida', async ({ page }) => {
   await startDemo(page)
@@ -42,4 +42,34 @@ test('exportar, rechazar copias inválidas sin tocar datos e importar una válid
   await page.reload()
   await go(page, '/ajustes')
   await expect(page.getByText('Cuenta importada').first()).toBeVisible()
+})
+
+test('copia sin fotos: aviso de tamaño, archivo sin recibos que no cuenta como copia y aviso al importarla', async ({ page }) => {
+  await startDemo(page)
+  // Un movimiento con foto de recibo (como lo deja el asistente).
+  const d = JSON.parse((await storedData(page))!)
+  d.transactions[0].receiptUri = 'data:image/jpeg;base64,' + 'A'.repeat(3000)
+  await writeStoredData(page, d)
+  await page.reload()
+  await go(page, '/ajustes')
+
+  await expect(page.getByTestId('backup-receipts')).toContainText('Incluye 1 recibo(s) con foto')
+  await expect(page.getByText('Nunca has exportado una copia de seguridad.')).toBeVisible()
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-without-receipts').click()])
+  expect(download.suggestedFilename()).toMatch(/^clara-demo-copia-sin-fotos-.*\.json$/)
+  const text = readFileSync((await download.path())!, 'utf8')
+  expect(text).not.toContain('receiptUri')
+  const file = JSON.parse(text)
+  expect(file.omitted).toEqual(['receipts'])
+  expect(file.data.transactions.length).toBe(d.transactions.length)
+  await expect(page.getByText('Copia sin fotos descargada').first()).toBeVisible()
+  // No cuenta como copia de seguridad: el estado sigue igual.
+  await expect(page.getByText('Nunca has exportado una copia de seguridad.')).toBeVisible()
+
+  // Al importarla, el resumen avisa de que los movimientos quedarán sin foto. Se cancela: nada cambia.
+  await page.getByTestId('import-file').setInputFiles({ name: 'ligera.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  const dialog = page.getByRole('dialog', { name: '¿Reemplazar tus datos con esta copia?' })
+  await expect(dialog.getByTestId('import-no-receipts')).toContainText('sin fotos de recibos')
+  await dialog.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(page.getByTestId('backup-receipts')).toBeVisible()
 })

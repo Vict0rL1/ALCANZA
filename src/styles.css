@@ -737,8 +737,20 @@ html {
 }
 
 .card.hero {
+  position: relative;
   background: var(--hero-bg);
   border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+}
+
+/* Firma visual de la cifra principal: franja con el degradado del saldo (decorativa; el texto
+   nunca va sobre el degradado, así el contraste no depende de él). */
+.card.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+  background: var(--balance-gradient);
 }
 
 .hero__label {

@@ -84,7 +84,7 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   apartados virtuales (metas), nunca dinero ni movimientos; pagos ya reservados no se
   restan dos veces; todo o nada; deshacer solo si es coherente.
 - Registro de copias (`backup`): no modifica `updatedAt`. Una exportación fallida no se
-  registra; «exportada» ≠ «verificada».
+  registra; «exportada» ≠ «verificada». La copia sin fotos (`withoutReceipts`) tampoco se registra.
 - Historial (`domain/history.ts`): `AppStore.commit` registra antes/después de cada registro
   financiero que cambió (máx. 1000 entradas). Revertir solo si nada cambió después y validando
   todo; importar/demo = corte `replace`. Es local, no una auditoría inviolable.

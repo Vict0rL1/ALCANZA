@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { txAppliesToAccount } from '../../domain/balances'
 import { categoriesForKind } from '../../domain/categories'
 import { sumMinor } from '../../domain/money'
@@ -113,13 +113,17 @@ export function Movements({ route }: { route?: Route }) {
     toast({ message: saved ? tn('movements.bulkTrashed', ids.length) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
   }
 
-  const toggleSelected = (id: string) =>
-    setSelected((s) => {
-      const n = new Set(s)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
-      return n
-    })
+  // Estable entre renders: las filas memorizadas no se repintan al pasar de página.
+  const toggleSelected = useCallback(
+    (id: string) =>
+      setSelected((s) => {
+        const n = new Set(s)
+        if (n.has(id)) n.delete(id)
+        else n.add(id)
+        return n
+      }),
+    [],
+  )
 
   const categoryOptions = [
     { value: 'all', label: t('filters.allCategories') },
@@ -290,10 +294,7 @@ export function Movements({ route }: { route?: Route }) {
 }
 
 function TxList({ txs, today, groupByDate, selecting, selected, onToggle }: { txs: Transaction[]; today: string; groupByDate?: boolean; selecting?: boolean; selected?: Set<string>; onToggle?: (id: string) => void }) {
-  const { t, tn } = useT()
   const fmt = useFormat()
-  const data = useData()
-  const deleteTx = useDeleteTransaction()
   const groups: { date: string; items: Transaction[] }[] = []
   for (const tx of txs) {
     const last = groups[groups.length - 1]
@@ -307,68 +308,91 @@ function TxList({ txs, today, groupByDate, selecting, selected, onToggle }: { tx
         <div key={`${g.date}-${gi}`} className="tx-group">
           {groupByDate && <h3 className="tx-group__date">{fmt.date(g.date, { weekday: true, compact: true, today })}</h3>}
           <ul className="item-list">
-            {g.items.map((tx) => {
-              const account = data.accounts.find((a) => a.id === tx.accountId)
-              const includedInAnchor = tx.status === 'realized' && account && !txAppliesToAccount(tx, account) && tx.date >= account.anchor.date
-              const sign =
-                tx.kind === 'income' || tx.kind === 'refund' || (tx.kind === 'adjustment' && tx.adjustmentDirection === 'increase')
-                  ? '+'
-                  : tx.kind === 'expense' || tx.kind === 'adjustment'
-                    ? '−'
-                    : ''
-              const title = transactionTitle(tx, data.accounts, t)
-              const row = (
-                  <a className="item item--link" href={href(`/movimientos/editar/${tx.id}`)}>
-                    <span className={`item__icon item__icon--${tx.kind}`}>
-                      <Icon name={KIND_ICON[tx.kind]} size={18} />
-                    </span>
-                    <span className="item__main">
-                      <span className="item__title">{transactionTitle(tx, data.accounts, t)}</span>
-                      <span className="item__meta">
-                        {!groupByDate && <>{fmt.date(tx.date, { compact: true, today })} · </>}
-                        {tx.kind === 'transfer'
-                          ? t('txKind.transfer')
-                          : tx.kind === 'adjustment'
-                            ? t('adjustment.title')
-                            : tx.splits?.length
-                              ? txCategoryIds(tx).map((c) => categoryLabel(t, c)).join(', ')
-                              : categoryLabel(t, tx.categoryId)}
-                        {tx.kind !== 'transfer' && data.accounts.length > 1 && <> · {accountName(data.accounts, tx.accountId, t)}</>}
-                      </span>
-                      <span className="item__badges">
-                        {tx.status === 'planned' ? <Badge tone="info" icon="clock">{t('status.planned')}</Badge> : null}
-                        {tx.scheduleId ? <Badge icon="calendar">{t('movements.fromCalendar')}</Badge> : null}
-                        {tx.kind === 'adjustment' ? <Badge icon="scale">{t('adjustment.title')}</Badge> : null}
-                        {tx.refundOfId ? <Badge icon="refund">{t('movements.linkedRefund')}</Badge> : null}
-                        {tx.splits?.length && tx.kind === 'expense' ? <Badge icon="list">{tn('split.badge', txCategoryIds(tx).length)}</Badge> : null}
-                        {includedInAnchor ? <Badge icon="lock">{t('movements.includedInBalance')}</Badge> : null}
-                      </span>
-                    </span>
-                    <span className={`item__amount item__amount--${tx.kind}`}>
-                      <span className="sr-only">{t(`txKind.${tx.kind}` as MessageKey)}: </span>
-                      {sign}
-                      {fmt.money(tx.amountMinor)}
-                    </span>
-                  </a>
-              )
-              return (
-                <li key={tx.id} className={selected?.has(tx.id) ? 'is-selected' : undefined}>
-                  {selecting ? (
-                    <label className="item item--select">
-                      <input type="checkbox" checked={selected?.has(tx.id) ?? false} onChange={() => onToggle?.(tx.id)} aria-label={t('movements.selectRow', { title })} />
-                      {row}
-                    </label>
-                  ) : (
-                    <SwipeRow actionLabel={t('movements.swipeDelete', { title })} onAction={() => void deleteTx(tx.id)}>
-                      {row}
-                    </SwipeRow>
-                  )}
-                </li>
-              )
-            })}
+            {g.items.map((tx) => (
+              <TxRow key={tx.id} tx={tx} today={today} showDate={!groupByDate} selecting={!!selecting} isSelected={selected?.has(tx.id) ?? false} onToggle={onToggle} />
+            ))}
           </ul>
         </div>
       ))}
     </div>
   )
 }
+
+/** Una fila del historial. Memorizada: al cargar más, solo se pintan las filas nuevas. */
+const TxRow = memo(function TxRow({
+  tx,
+  today,
+  showDate,
+  selecting,
+  isSelected,
+  onToggle,
+}: {
+  tx: Transaction
+  today: string
+  showDate: boolean
+  selecting: boolean
+  isSelected: boolean
+  onToggle?: (id: string) => void
+}) {
+  const { t, tn } = useT()
+  const fmt = useFormat()
+  const data = useData()
+  const deleteTx = useDeleteTransaction()
+  const account = data.accounts.find((a) => a.id === tx.accountId)
+  const includedInAnchor = tx.status === 'realized' && account && !txAppliesToAccount(tx, account) && tx.date >= account.anchor.date
+  const sign =
+    tx.kind === 'income' || tx.kind === 'refund' || (tx.kind === 'adjustment' && tx.adjustmentDirection === 'increase')
+      ? '+'
+      : tx.kind === 'expense' || tx.kind === 'adjustment'
+        ? '−'
+        : ''
+  const title = transactionTitle(tx, data.accounts, t)
+  const row = (
+      <a className="item item--link" href={href(`/movimientos/editar/${tx.id}`)}>
+        <span className={`item__icon item__icon--${tx.kind}`}>
+          <Icon name={KIND_ICON[tx.kind]} size={18} />
+        </span>
+        <span className="item__main">
+          <span className="item__title">{transactionTitle(tx, data.accounts, t)}</span>
+          <span className="item__meta">
+            {showDate && <>{fmt.date(tx.date, { compact: true, today })} · </>}
+            {tx.kind === 'transfer'
+              ? t('txKind.transfer')
+              : tx.kind === 'adjustment'
+                ? t('adjustment.title')
+                : tx.splits?.length
+                  ? txCategoryIds(tx).map((c) => categoryLabel(t, c)).join(', ')
+                  : categoryLabel(t, tx.categoryId)}
+            {tx.kind !== 'transfer' && data.accounts.length > 1 && <> · {accountName(data.accounts, tx.accountId, t)}</>}
+          </span>
+          <span className="item__badges">
+            {tx.status === 'planned' ? <Badge tone="info" icon="clock">{t('status.planned')}</Badge> : null}
+            {tx.scheduleId ? <Badge icon="calendar">{t('movements.fromCalendar')}</Badge> : null}
+            {tx.kind === 'adjustment' ? <Badge icon="scale">{t('adjustment.title')}</Badge> : null}
+            {tx.refundOfId ? <Badge icon="refund">{t('movements.linkedRefund')}</Badge> : null}
+            {tx.splits?.length && tx.kind === 'expense' ? <Badge icon="list">{tn('split.badge', txCategoryIds(tx).length)}</Badge> : null}
+            {includedInAnchor ? <Badge icon="lock">{t('movements.includedInBalance')}</Badge> : null}
+          </span>
+        </span>
+        <span className={`item__amount item__amount--${tx.kind}`}>
+          <span className="sr-only">{t(`txKind.${tx.kind}` as MessageKey)}: </span>
+          {sign}
+          {fmt.money(tx.amountMinor)}
+        </span>
+      </a>
+  )
+  return (
+    <li className={isSelected ? 'is-selected' : undefined}>
+      {selecting ? (
+        <label className="item item--select">
+          <input type="checkbox" checked={isSelected} onChange={() => onToggle?.(tx.id)} aria-label={t('movements.selectRow', { title })} />
+          {row}
+        </label>
+      ) : (
+        <SwipeRow actionLabel={t('movements.swipeDelete', { title })} onAction={() => void deleteTx(tx.id)}>
+          {row}
+        </SwipeRow>
+      )}
+    </li>
+  )
+})

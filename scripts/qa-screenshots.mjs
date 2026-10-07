@@ -17,7 +17,12 @@ const browser = await chromium.launch({ executablePath })
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, timezoneId: 'America/Toronto', locale: 'es-MX', colorScheme: 'dark' })
 const page = await context.newPage()
 await page.clock.install({ time: new Date('2026-09-28T12:00:00-04:00') })
-const shot = (name) => page.screenshot({ path: `${out}/${name}.jpg`, type: 'jpeg', quality: 70, fullPage: false })
+// El puntero se aparta antes de cada captura: si se queda donde se hizo clic, activa :hover
+// (p. ej. el texto de la barra de Inicio) y la captura no muestra el estado normal.
+const shot = async (name) => {
+  await page.mouse.move(0, 0)
+  return page.screenshot({ path: `${out}/${name}.jpg`, type: 'jpeg', quality: 70, fullPage: false })
+}
 const go = async (hash) => {
   await page.evaluate((h) => (window.location.hash = h), hash)
   await page.locator('#page-title').waitFor()
@@ -83,6 +88,7 @@ await p2.evaluate(() => localStorage.setItem('clara.theme', 'light'))
 await p2.reload()
 await p2.getByTestId('available').waitFor()
 await p2.waitForTimeout(600)
+await p2.mouse.move(0, 0)
 await p2.screenshot({ path: `${out}/12-inicio-claro.jpg`, type: 'jpeg', quality: 70 })
 await browser.close()
 console.log('capturas en', out)

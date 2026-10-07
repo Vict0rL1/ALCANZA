@@ -68,8 +68,36 @@ export function accountBalance(data: Pick<AppData, 'transactions'>, account: Acc
   }
 }
 
-export function allAccountBalances(data: Pick<AppData, 'transactions' | 'accounts'>): AccountBalance[] {
-  return data.accounts.map((a) => accountBalance(data, a))
+/**
+ * Saldos de varias cuentas con una sola pasada por los movimientos (antes, una por cuenta).
+ * Mismas reglas y mismo orden que `accountBalance`: cada cuenta recibe los movimientos que la
+ * tocan, en el orden de la lista.
+ */
+export function allAccountBalances(data: Pick<AppData, 'transactions' | 'accounts'>, accounts: Account[] = data.accounts): AccountBalance[] {
+  const byId = new Map<string, { account: Account; applied: Transaction[] }>()
+  for (const account of accounts) byId.set(account.id, { account, applied: [] })
+  // Ids repetidos (datos inválidos): se calcula cada cuenta por separado, como siempre.
+  if (byId.size !== accounts.length) return accounts.map((a) => accountBalance(data, a))
+  for (const tx of data.transactions) {
+    if (tx.status !== 'realized') continue
+    const from = byId.get(tx.accountId)
+    if (from && txAppliesToAccount(tx, from.account)) from.applied.push(tx)
+    if (tx.toAccountId && tx.toAccountId !== tx.accountId) {
+      const to = byId.get(tx.toAccountId)
+      if (to && txAppliesToAccount(tx, to.account)) to.applied.push(tx)
+    }
+  }
+  return accounts.map((account) => {
+    const { applied } = byId.get(account.id)!
+    const appliedTotalMinor = sumMinor(applied.map((tx) => txEffectOnAccount(tx, account.id)))
+    return {
+      account,
+      anchorMinor: account.anchor.amountMinor,
+      applied,
+      appliedTotalMinor,
+      balanceMinor: sumMinor([account.anchor.amountMinor, appliedTotalMinor]),
+    }
+  })
 }
 
 /** Saldo total de las cuentas incluidas en el presupuesto. */
@@ -77,7 +105,7 @@ export function spendableBalance(data: Pick<AppData, 'transactions' | 'accounts'
   totalMinor: number
   accounts: AccountBalance[]
 } {
-  const accounts = allAccountBalances(data).filter((b) => b.account.includeInBudget)
+  const accounts = allAccountBalances(data, data.accounts.filter((a) => a.includeInBudget))
   return { totalMinor: sumMinor(accounts.map((b) => b.balanceMinor)), accounts }
 }
 

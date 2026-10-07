@@ -9,7 +9,7 @@ import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANG
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
-import { MAX_BACKUP_BYTES, parseBackup, type ImportIssue } from '../../storage/backup'
+import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '../../storage/backup'
 import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
 import { IndexedDbRepository } from '../../storage/indexedDbRepository'
 import { nextFrame, ReadCancelled, readFileWithProgress } from '../readFile'
@@ -90,7 +90,7 @@ export function Settings() {
   const [balanceFor, setBalanceFor] = useState<string | null>(null)
   const [importProgress, setImportProgress] = useState<{ stage: 'reading' | 'validating'; loaded: number; total: number } | null>(null)
   const importAbort = useRef<AbortController | null>(null)
-  const [importState, setImportState] = useState<{ issues: ImportIssue[] } | { data: AppData; exportedAt: string | null } | null>(null)
+  const [importState, setImportState] = useState<{ issues: ImportIssue[] } | { data: AppData; exportedAt: string | null; withoutReceipts: boolean } | null>(null)
   const [confirm, setConfirm] = useState<'resetDemo' | 'clearAll' | 'leaveDemo' | null>(null)
   const [understood, setUnderstood] = useState(false)
   const [typed, setTyped] = useState('')
@@ -113,6 +113,11 @@ export function Settings() {
   }
 
   const exportData = useExportBackup()
+  // Copia ligera sin fotos: no se registra como copia de seguridad, porque restaurarla las perdería.
+  const exportWithoutReceipts = () => {
+    const result = performExport(data, new Date(), APP_VERSION, downloadText, { withoutReceipts: true })
+    toast({ message: t(result.ok ? 'backup.lightExported' : 'backup.exportFailed'), tone: result.ok ? 'info' : 'critical' })
+  }
   const verifyBackup = useVerifyBackup()
   const verifyRef = useRef<HTMLInputElement>(null)
   const [verifyIssues, setVerifyIssues] = useState<ImportIssue[] | null>(null)
@@ -149,7 +154,7 @@ export function Settings() {
       }
       const result = parseBackup(text)
       if (controller.signal.aborted) throw new ReadCancelled()
-      setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
+      setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt, withoutReceipts: result.withoutReceipts } : { issues: result.issues })
     } catch (e) {
       // Cancelar: no se aplica nada; los datos siguen como estaban.
       if (e instanceof ReadCancelled) toast({ message: t('settings.backup.importCancelled'), tone: 'info' })
@@ -181,7 +186,7 @@ export function Settings() {
     }
     setDecrypting(null)
     const result = parseBackup(r.json)
-    setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
+    setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt, withoutReceipts: result.withoutReceipts } : { issues: result.issues })
   }
 
   const applyImport = async () => {
@@ -481,6 +486,12 @@ export function Settings() {
             <Icon name="lock" />
             {t('encrypted.export')}
           </button>
+          {receipts.length > 0 && (
+            <button type="button" className="btn btn--secondary" onClick={exportWithoutReceipts} aria-describedby="backup-light-hint" data-testid="export-without-receipts">
+              <Icon name="download" />
+              {t('backup.exportWithoutReceipts')}
+            </button>
+          )}
           <label className="btn btn--secondary file-button">
             <Icon name="shield" />
             {t('backup.verify')}
@@ -492,6 +503,11 @@ export function Settings() {
             <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} data-testid="import-file" />
           </label>
         </div>
+        {receipts.length > 0 && (
+          <p className="field__hint" id="backup-light-hint">
+            {t('backup.lightHint')}
+          </p>
+        )}
         {importProgress && (
           <div className="stack-sm" role="status" data-testid="import-progress">
             <p>
@@ -697,6 +713,7 @@ export function Settings() {
                 })}
               </li>
               {importState.data.isDemo && <li>{t('settings.backup.summaryDemo')}</li>}
+              {importState.withoutReceipts && <li data-testid="import-no-receipts">{t('settings.backup.summaryNoReceipts')}</li>}
             </ul>
             <p className="note">{t('settings.backup.confirmHint')}</p>
           </>
