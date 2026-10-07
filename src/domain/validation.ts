@@ -67,6 +67,7 @@ export type IssueCode =
   | 'exceedsSaved'
   | 'accountInUse'
   | 'lastBudgetAccount'
+  | 'lastCategoryOfKind'
   | 'creditKindChange'
   | 'duplicateName'
   | 'categoryInUse'
@@ -735,7 +736,7 @@ export const FAVORITE_NAME_MAX = 40
  */
 export function validateFavorite(
   f: Favorite,
-  ctx: { data: Pick<AppData, 'accounts' | 'categories'>; prefix?: string; checkReferences?: boolean },
+  ctx: { data: Pick<AppData, 'accounts' | 'categories' | 'categoryPrefs'>; prefix?: string; checkReferences?: boolean },
 ): Issue[] {
   const p = ctx.prefix ?? ''
   const issues: Issue[] = []
@@ -753,7 +754,7 @@ export function validateFavorite(
   if (typeof f.categoryId !== 'string' || f.categoryId === '') issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   if (ctx.checkReferences && kindOk) {
     if (!ctx.data.accounts.some((a) => a.id === f.accountId)) issues.push({ path: `${p}accountId`, code: 'favoriteAccountMissing' })
-    if (!categoriesForKind(f.kind, ctx.data.categories).includes(f.categoryId)) issues.push({ path: `${p}categoryId`, code: 'favoriteCategoryMissing' })
+    if (!categoriesForKind(f.kind, ctx.data.categories, { prefs: ctx.data.categoryPrefs }).includes(f.categoryId)) issues.push({ path: `${p}categoryId`, code: 'favoriteCategoryMissing' })
   }
   checkTimestamps(f, p, issues)
   return issues

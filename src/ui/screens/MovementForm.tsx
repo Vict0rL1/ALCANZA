@@ -276,7 +276,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     if (k !== kind) setSplitDrafts(null)
     setRuleApplied(undefined)
     setLinkKey('')
-    const valid = categoriesForKind(k, data.categories)
+    const valid = categoriesForKind(k, data.categories, { prefs: data.categoryPrefs })
     if (k !== 'transfer' && !valid.includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
     if (k === 'transfer' && toAccountId === from) setToAccountId(data.accounts.find((a) => a.id !== from)?.id ?? '')
   }
@@ -306,7 +306,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const refundSplitMode = !!refundOriginal?.splits?.length
   const refundPending = useMemo(() => (refundOriginal && refundSplitMode ? refundableByCategory(data, refundOriginal, id) : undefined), [data, refundOriginal, refundSplitMode, id])
   const inferredRefund = refundOriginal && refundSplitMode && parsedAmount.ok ? inferRefundSplit(data, refundOriginal, parsedAmount.minor, id) : null
-  const expenseCategories = categoriesForKind('expense', data.categories)
+  const expenseCategories = categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs })
   // Propuesta: repartir como la última compra dividida con la misma descripción.
   const historySplit = kind === 'expense' && !splitDrafts ? suggestSplitFromHistory(data, note, parsedAmount.ok ? parsedAmount.minor : null, id) : null
 
@@ -673,7 +673,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             }}
             options={[
               ...(categoryId ? [] : [choose]),
-              ...withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) })),
+              ...withCurrent(categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) })),
             ]}
             error={fieldError(t, fmt, issues, 'categoryId')}
             hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}

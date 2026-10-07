@@ -96,7 +96,7 @@ export function RuleDialog({
   const [categoryId, setCategoryId] = useState(start?.categoryId ?? 'other_expense')
   const [issues, setIssues] = useState<Issue[]>([])
 
-  const options = withCurrent(categoriesForKind(kind, data.categories), rule?.kind === kind ? rule.categoryId : undefined)
+  const options = withCurrent(categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }), rule?.kind === kind ? rule.categoryId : undefined)
 
   const submit = async () => {
     const { result, saved } = await run((d, c) => saveCategoryRule(d, { id, pattern, kind, categoryId }, c))

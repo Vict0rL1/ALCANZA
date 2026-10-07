@@ -42,7 +42,11 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // 1. Configurar: cuenta con 1,000.00; ingreso de 800.00 el 9-oct; renta de 300.00 el 5-oct.
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('1000')
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Importe esperado').fill('800')
   await page.getByLabel('Fecha del próximo ingreso').fill('2026-10-09')

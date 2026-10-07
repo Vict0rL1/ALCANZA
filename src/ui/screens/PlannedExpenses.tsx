@@ -400,7 +400,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
           label={t('fields.category')}
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
-          options={categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
+          options={categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
         />
         <Segmented
           legend={t('goalForm.funding')}

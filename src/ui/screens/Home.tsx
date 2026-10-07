@@ -10,6 +10,10 @@ import { limitStatuses, periodSummary } from '../../domain/insights'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
+import { safeToSpend } from '../../domain/periods'
+import { periodLabel } from '../periodLabel'
+import { BottomSheet, CoachMark, FAB, ListRow } from '../components/base'
+import { Segmented } from '../components/fields'
 import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
 import { inboxView } from '../../domain/inbox'
 import { useT } from '../../i18n'
@@ -64,11 +68,22 @@ export function Home() {
     })
   }
 
-  const horizonText = budget.horizon
-    ? budget.horizon.source === 'income'
-      ? t('home.untilIncome', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
-      : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
-    : t('home.noHorizonTitle')
+  const horizonText = budget.period
+    ? t(budget.period.daysLeft > 0 ? 'home.period.untilEnd' : 'home.period.ended', { label: periodLabel(t, fmt, budget.period), days: tn('home.periodDays', budget.period.daysLeft) })
+    : budget.horizon
+      ? budget.horizon.source === 'income'
+        ? t('home.untilIncome', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
+        : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
+      : t('home.noHorizonTitle')
+  // Safe to spend (§6.3) sobre el periodo de calendario: base del periodo − comprometido hasta su fin.
+  const safe = budget.period ? safeToSpend(budget.baseMinor, budget.reservedTotalMinor + budget.goalsReservedMinor, budget.period.daysLeft) : null
+  const granularity = data.settings.safeToSpend?.granularity ?? 'day'
+  const setGranularity = (g: 'day' | 'week' | 'period') => void run((d, c) => updateSettings(d, { safeToSpend: { ...d.settings.safeToSpend, granularity: g } }, c))
+  const tourSeen = (data.settings.toursSeen ?? []).includes('home')
+  const [tourStep, setTourStep] = useState(0)
+  const [fabOpen, setFabOpen] = useState(false)
+  const isEmpty = data.transactions.length === 0 && !data.isDemo
+  const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== 'home'), 'home'] }, c))
 
   const goalsForHome = data.goals.filter((g) => !g.plan?.paidAt).slice(0, 3)
   const showWeekly = data.settings.weeklyReview !== false
@@ -472,8 +487,42 @@ export function Home() {
         </p>
       )}
 
+      {!tourSeen && !data.isDemo && tourStep < 3 && (
+        <CoachMark
+          step={tourStep + 1}
+          total={3}
+          title={t(`tour.home.${tourStep + 1}.title` as Parameters<typeof t>[0])}
+          onNext={() => (tourStep === 2 ? endTour() : setTourStep(tourStep + 1))}
+          onDismiss={endTour}
+          nextLabel={tourStep === 2 ? t('tour.done') : t('tour.next')}
+          dismissLabel={t('tour.skip')}
+        >
+          {t(`tour.home.${tourStep + 1}.text` as Parameters<typeof t>[0])}
+        </CoachMark>
+      )}
       <div className="home-grid">
         <div className="stack">
+          {isEmpty && (
+            <Card labelledBy="empty-title">
+              <h2 id="empty-title" className="card__title">
+                {t('home.empty.title')}
+              </h2>
+              <p>{t('home.empty.text')}</p>
+              <p>
+                <code className="assistant__example">{t('assistant.exampleText')}</code>
+              </p>
+              <div className="button-row">
+                <a className="btn btn--primary" href={href(withQuery('/asistente', { texto: t('assistant.exampleText'), returnTo: '/' }))} data-testid="try-assistant">
+                  <Icon name="sparkles" />
+                  {t('home.empty.try')}
+                </a>
+                <a className="btn btn--secondary" href={href('/movimientos/nuevo')}>
+                  <Icon name="plus" />
+                  {t('home.addMovement')}
+                </a>
+              </div>
+            </Card>
+          )}
           {/* Cifra principal */}
           <Card className="hero" labelledBy="hero-label">
             <p className="hero__label" id="hero-label">
@@ -484,7 +533,7 @@ export function Home() {
             </p>
             <p className="hero__sub">
               {horizonText}
-              {budget.horizon && (
+              {budget.horizon && !budget.period && (
                 <>
                   {' · '}
                   {tn('home.periodDays', budget.horizon.days)}
@@ -499,7 +548,28 @@ export function Home() {
             )}
             {budget.status === 'needsHorizon' && <HorizonPicker />}
 
-            {budget.status === 'ok' && budget.dailyMinor !== null && budget.weeklyMinor !== null && (
+            {budget.status === 'ok' && safe && (
+              <div className="safe" data-testid="safe-to-spend">
+                <Segmented
+                  legend={t('home.safe.granularity')}
+                  name="safe-granularity"
+                  value={granularity}
+                  onChange={setGranularity}
+                  options={[
+                    { value: 'day', label: t('home.safe.day') },
+                    { value: 'week', label: t('home.safe.week') },
+                    { value: 'period', label: t('home.safe.period') },
+                  ]}
+                />
+                <StatTile
+                  label={granularity === 'day' ? t('home.daily') : granularity === 'week' ? t('home.weekly') : t('home.safe.period')}
+                  value={fmt.money(granularity === 'day' ? safe.perDayMinor : granularity === 'week' ? safe.perWeekMinor : safe.perPeriodMinor)}
+                  hint={t(granularity === 'day' ? 'home.safe.perDayHint' : granularity === 'week' ? 'home.safe.perWeekHint' : 'home.safe.perPeriodHint')}
+                />
+                <p className="note">{t('home.safe.committed', { amount: fmt.money(safe.committedMinor) })}</p>
+              </div>
+            )}
+            {budget.status === 'ok' && !safe && budget.dailyMinor !== null && budget.weeklyMinor !== null && (
               <div className="stats">
                 <StatTile label={t('home.daily')} value={fmt.money(budget.dailyMinor)} hint={t('home.dailyHint')} />
                 <StatTile
@@ -520,6 +590,18 @@ export function Home() {
 
             <Explain>
               <div className="calc">
+                {budget.periodBalance && (
+                  <>
+                    {budget.periodBalance.carryOver ? (
+                      <CalcRow label={t('explain.period.carryOver')} value={fmt.money(budget.periodBalance.carryOverMinor)} />
+                    ) : (
+                      <p className="calc__detail">{t('explain.period.noCarry')}</p>
+                    )}
+                    <CalcRow op={budget.periodBalance.carryOver ? '+' : undefined} label={t('explain.period.income')} value={fmt.money(budget.periodBalance.incomeMinor)} />
+                    <CalcRow op="−" label={t('explain.period.expenses')} value={fmt.money(budget.periodBalance.expensesMinor)} />
+                    <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                  </>
+                )}
                 <CalcRow label={t('explain.balance')} value={fmt.money(budget.spendableMinor)} />
                 {budget.accountBalances.map((b) => (
                   <p className="calc__detail" key={b.account.id}>
@@ -562,7 +644,10 @@ export function Home() {
                       })}
                     </p>
                     <p className="calc__detail">
-                      {t(budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', {
+                      {t(budget.horizon.source === 'period' ? 'explain.period.days' : budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', {
+                        from: budget.period ? fmt.date(budget.period.start, { compact: true }) : '',
+                        to: budget.period ? fmt.date(budget.period.end, { compact: true }) : '',
+                        days: budget.period ? tn('home.periodDays', budget.period.daysLeft) : '',
                         date: fmt.date(budget.horizon.endDate),
                       })}
                     </p>
@@ -690,6 +775,21 @@ export function Home() {
 
       {payItem && <MarkPaidDialog key={payItem.key} item={payItem} onClose={() => setPayItem(null)} />}
       {balanceOpen && <UpdateBalanceDialog onClose={() => setBalanceOpen(false)} />}
+      <FAB label={t('home.addMovement')} onClick={() => setFabOpen(true)} />
+      <BottomSheet open={fabOpen} onClose={() => setFabOpen(false)} title={t('fab.title')}>
+        <div data-testid="fab-sheet">
+          <ListRow icon="arrowDown" color="red" title={t('fab.expense')} href={href(withQuery('/movimientos/nuevo', { kind: 'expense', returnTo: '/' }))} chevron />
+          <ListRow icon="arrowUp" color="emerald" title={t('fab.income')} href={href(withQuery('/movimientos/nuevo', { kind: 'income', returnTo: '/' }))} chevron />
+          <ListRow icon="transfer" color="blue" title={t('fab.transfer')} href={href(withQuery('/movimientos/nuevo', { kind: 'transfer', returnTo: '/' }))} chevron />
+          <ListRow icon="sparkles" color="violet" title={t('fab.assistant')} subtitle={t('assistant.placeholder')} href={href(withQuery('/asistente', { returnTo: '/' }))} chevron />
+          {data.favorites.length > 0 && (
+            <>
+              <p className="cat-group__title">{t('fab.common')}</p>
+              <FavoriteChips returnTo="/" limit={6} />
+            </>
+          )}
+        </div>
+      </BottomSheet>
     </div>
   )
 }

@@ -73,13 +73,13 @@ export interface ResolvedSplit {
 }
 
 /** Vista previa de una plantilla de división para un total. */
-export function resolveSplitTemplate(data: Pick<AppData, 'categories'>, tpl: Extract<Template, { kind: 'split' }>, totalMinor: number): ResolvedSplit | { exceeds: true } {
+export function resolveSplitTemplate(data: Pick<AppData, 'categories' | 'categoryPrefs'>, tpl: Extract<Template, { kind: 'split' }>, totalMinor: number): ResolvedSplit | { exceeds: true } {
   const computed = templateAmounts(
     tpl.lines.map((l) => l.amount),
     totalMinor,
   )
   if (!computed) return { exceeds: true }
-  const active = new Set(categoriesForKind('expense', data.categories))
+  const active = new Set(categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }))
   const all = new Set(categoriesForKind('expense', data.categories, { includeArchived: true }))
   const lines = tpl.lines.map((line, i): ResolvedLine<SplitTemplateLine> => {
     const amountMinor = computed.amounts[i]!

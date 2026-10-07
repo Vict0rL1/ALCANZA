@@ -5,7 +5,7 @@
  * un movimiento nuevo. La persona siempre puede cambiarla. Nunca toca importes.
  */
 import { categoriesForKind } from './categories'
-import type { CategoryRule, CustomCategory } from './types'
+import type { AppData, CategoryRule, CustomCategory } from './types'
 
 export const RULE_PATTERN_MIN = 2
 export const RULE_PATTERN_MAX = 40
@@ -30,12 +30,13 @@ export function matchCategoryRule(
   kind: 'expense' | 'income' | 'refund' | 'transfer',
   rules: readonly CategoryRule[],
   custom: readonly CustomCategory[] = [],
+  prefs?: AppData['categoryPrefs'],
 ): CategoryRule | undefined {
   if (!description || kind === 'transfer') return undefined
   const wanted = kind === 'income' ? 'income' : 'expense'
   const text = normalizeText(description)
   if (!text) return undefined
-  const usable = categoriesForKind(wanted, custom)
+  const usable = categoriesForKind(wanted, custom, { prefs })
   let best: CategoryRule | undefined
   for (const rule of rules) {
     if (rule.kind !== wanted || !usable.includes(rule.categoryId)) continue

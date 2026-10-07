@@ -32,7 +32,7 @@ test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async
 
 test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/categorias')
   await page.getByRole('button', { name: 'Nueva categoría' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva categoría' })
   await dialog.getByLabel('Nombre').fill('Acuario')
@@ -55,8 +55,10 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
 
   // Archivar: desaparece de formularios pero el movimiento la conserva.
-  await go(page, '/ajustes')
-  await page.getByRole('button', { name: /Archivar.*Acuario/ }).click()
+  await go(page, '/ajustes/categorias')
+  await page.getByRole('button', { name: /^Archivar.*Acuario$/ }).click()
+  // Con registros, el diálogo ofrece reasignar; sin elegir destino, el movimiento conserva la categoría.
+  await page.getByRole('dialog', { name: '¿Archivar «Acuario»?' }).getByRole('button', { name: 'Archivar', exact: true }).click()
   await expect(page.getByText('Categoría archivada')).toBeVisible()
   await go(page, '/movimientos/nuevo')
   await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Acuario' })).toHaveCount(0)

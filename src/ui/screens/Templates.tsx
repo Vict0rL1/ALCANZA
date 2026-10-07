@@ -42,7 +42,7 @@ function targetLabel(data: AppData, target: string, t: T): string {
 
 /** Problema de disponibilidad de una línea guardada (para avisar en la lista). */
 function lineProblem(data: AppData, tpl: Template, i: number, today: string): boolean {
-  if (tpl.kind === 'split') return !categoriesForKind('expense', data.categories).includes(tpl.lines[i]!.categoryId)
+  if (tpl.kind === 'split') return !categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).includes(tpl.lines[i]!.categoryId)
   const target = tpl.lines[i]!.target
   if (target.kind === 'goal') {
     const g = data.goals.find((x) => x.id === target.goalId)
@@ -204,7 +204,7 @@ export function TemplateForm({ route }: { route: Route }) {
 
   const targetOptions =
     kind === 'split'
-      ? categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))
+      ? categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))
       : [
           ...data.goals.filter((g) => g.fundedFrom === 'budget' && !g.plan?.paidAt && !g.plan?.link).map((g) => ({ value: `g:${g.id}`, label: t('templates.goalOption', { name: g.name }) })),
           ...data.schedules.filter((s) => s.kind === 'expense').map((s) => ({ value: `p:${s.id}`, label: t('templates.paymentOption', { name: s.name }) })),

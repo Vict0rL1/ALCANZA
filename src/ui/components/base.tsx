@@ -6,7 +6,7 @@
  * Reglas: cada estado lleva icono + texto (nunca solo color), objetivos táctiles ≥ 44 px,
  * textos siempre por i18n (los recibe quien los usa) y sin dependencias externas.
  */
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { Icon, type IconName } from './Icon'
 import type { CategoryColor } from '../../domain/types'
@@ -331,6 +331,58 @@ export function MonthNavigator({ label, onPrev, onNext, prevLabel, nextLabel, ne
           {todayLabel}
         </TextButton>
       )}
+    </div>
+  )
+}
+
+/* ---------- Fila deslizable ---------- */
+
+/**
+ * Deslizar a la izquierda revela una acción (p. ej. eliminar). La misma acción está siempre
+ * disponible por teclado y lector de pantalla como botón visible al enfocar la fila.
+ */
+export function SwipeRow({ children, actionLabel, onAction, icon = 'trash' }: { children: ReactNode; actionLabel: string; onAction: () => void; icon?: IconName }) {
+  const startX = useRef<number | null>(null)
+  const [offset, setOffset] = useState(0)
+  const [open, setOpen] = useState(false)
+  const WIDTH = 88
+  return (
+    <div
+      className={`swipe${open ? ' is-open' : ''}`}
+      // Con teclado o lector de pantalla: enfocar la fila revela la acción sin gesto.
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
+      }}
+    >
+      <div
+        className="swipe__content"
+        style={{ transform: `translateX(${open ? -WIDTH : offset}px)` }}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse') return
+          startX.current = e.clientX
+        }}
+        onPointerMove={(e) => {
+          if (startX.current === null) return
+          const dx = e.clientX - startX.current
+          setOffset(Math.max(-WIDTH, Math.min(0, open ? dx - WIDTH : dx)))
+        }}
+        onPointerUp={() => {
+          if (startX.current === null) return
+          startX.current = null
+          setOpen(offset < -WIDTH / 2)
+          setOffset(0)
+        }}
+        onPointerCancel={() => {
+          startX.current = null
+          setOffset(0)
+        }}
+      >
+        {children}
+      </div>
+      <button type="button" className="swipe__action" onClick={onAction} aria-label={actionLabel}>
+        <Icon name={icon} size={20} />
+      </button>
     </div>
   )
 }

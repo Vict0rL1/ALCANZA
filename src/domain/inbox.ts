@@ -252,7 +252,7 @@ function attention(data: AppData, today: LocalDate): InboxItem[] {
  */
 function ruleItems(data: AppData, today: LocalDate): InboxItem[] {
   const items: InboxItem[] = []
-  const usable = { expense: categoriesForKind('expense', data.categories), income: categoriesForKind('income', data.categories) }
+  const usable = { expense: categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }), income: categoriesForKind('income', data.categories, { prefs: data.categoryPrefs }) }
   const since = addDays(today, -RULE_UNUSED_DAYS)
   const notes = data.transactions
     .filter((t) => t.status === 'realized' && t.kind !== 'transfer' && t.kind !== 'adjustment' && t.note)

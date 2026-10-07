@@ -4,8 +4,8 @@ import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
 import { deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
 import { backupStatus, setBackupReminder } from '../../domain/backupReminder'
-import type { Account, AccountKind, AppData, BackupReminder, DateStyle, Language, NumberLocale } from '../../domain/types'
-import { ACCOUNT_KINDS, BACKUP_REMINDERS, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import type { Account, AccountKind, AppData, BackupReminder, BudgetPeriodType, DateStyle, Language, NumberLocale, Weekday } from '../../domain/types'
+import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
@@ -30,6 +30,7 @@ import { CardFields, CardSummaryView } from '../cardUi'
 import { useThemePreference } from '../theme'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { CategoriesSection } from './CategoriesSection'
+import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 
@@ -214,6 +215,30 @@ export function Settings() {
           options={zones.map((z) => ({ value: z, label: z === detected ? t('settings.format.detected', { zone: z }) : z }))}
           hint={t('settings.format.timeZoneHint', { today: sample.date(todayInTimeZone(data.settings.timeZone)) })}
         />
+        <SelectField
+          label={t('settings.period.label')}
+          value={data.settings.budgetPeriod?.type ?? 'untilIncome'}
+          onChange={(e) => void setSetting({ budgetPeriod: { ...(data.settings.budgetPeriod ?? { weekStartsOn: 1 }), type: e.target.value as BudgetPeriodType } })}
+          options={BUDGET_PERIOD_TYPES.map((p) => ({ value: p, label: t(`period.type.${p}` as MessageKey) }))}
+          hint={t('settings.period.hint')}
+        />
+        {data.settings.budgetPeriod?.type === 'week' && (
+          <SelectField
+            label={t('settings.period.weekStart')}
+            value={String(data.settings.budgetPeriod.weekStartsOn)}
+            onChange={(e) => void setSetting({ budgetPeriod: { ...data.settings.budgetPeriod, weekStartsOn: Number(e.target.value) as Weekday } })}
+            options={[1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: sample.weekdayShort(`2026-09-${27 + d}`) }))}
+          />
+        )}
+        {data.settings.budgetPeriod?.type === 'custom' && (
+          <>
+            <TextField label={t('settings.period.customStart')} type="date" value={data.settings.budgetPeriod.customStart ?? ''} onChange={(e) => void setSetting({ budgetPeriod: { ...data.settings.budgetPeriod, customStart: e.target.value } })} />
+            <TextField label={t('settings.period.customEnd')} type="date" value={data.settings.budgetPeriod.customEnd ?? ''} onChange={(e) => void setSetting({ budgetPeriod: { ...data.settings.budgetPeriod, customEnd: e.target.value } })} />
+          </>
+        )}
+        {data.settings.budgetPeriod?.type !== 'untilIncome' && (
+          <CheckboxField label={t('settings.period.carryOver')} hint={t('settings.period.carryOverHint')} checked={data.settings.carryOverBalance !== false} onChange={(v) => void setSetting({ carryOverBalance: v })} />
+        )}
         <div className="field">
           <p className="field__label">{t('settings.currency.label')}</p>
           <p>
@@ -408,12 +433,7 @@ export function Settings() {
         </a>
       </Card>
 
-      <Card labelledBy="notifications-title">
-        <h2 id="notifications-title" className="card__title">
-          {t('settings.notifications.title')}
-        </h2>
-        <p>{t('settings.notifications.text')}</p>
-      </Card>
+      <NotificationsSection />
 
       <Card labelledBy="formulas-title">
         <h2 id="formulas" className="card__title">

@@ -883,3 +883,26 @@ ni viajan en las copias.
   porcentaje de avance de una meta sigue visible porque no es un importe.
 
 Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
+
+## 31. Periodos de presupuesto y *safe to spend* (v2)
+
+- Tipos: semana (día de inicio configurable), quincena (1–15 / 16–fin), mes, trimestre, semestre y año alineados al calendario, personalizado (el rango se repite con la misma duración hasta contener hoy) y «hasta mi próximo ingreso» (modelo original: hoy … día anterior al ingreso).
+- `daysLeft` cuenta hoy y el último día del periodo. Si hoy ya pasó el fin, es 0 y no se divide.
+- Saldo del periodo: `carryOver = saldo consolidado de hoy − (ingresos − gastos realizados del periodo)`. Con arrastre, `base = carryOver + ingresos − gastos` (= saldo consolidado); sin arrastre, `base = ingresos − gastos`. `availablePct = base disponible / (carryOver + ingresos)` solo si el denominador es > 0.
+- Disponible = `base − pagos reservados hasta el fin del periodo (incluido) − apartados de metas`. Las mismas reservas que §1; nada cambia para `untilIncome`.
+- *Safe to spend* = `max(disponible − comprometido, 0)`; por día = `floor(safe / daysLeft)`; por semana = `floor(safe × min(7, daysLeft) / daysLeft)`; por periodo = `safe`.
+
+## 32. Asistente de registro (parser local)
+
+- Entradas: líneas, «;», y «,» o conectores («y», «and», «e», «et») solo cuando cada parte tiene un número. Máximo 200.
+- Importe: primer número con símbolo o decimales; si no, el primero. Separadores regionales (`1.234,56`, `1,234.56`, `1 234,56`), «k»/«mil»/«M», números en palabras (es/en/pt/fr). Monedas sin decimales redondean a entero. Sin importe, la entrada lo pide y su confianza queda ≤ 0,25.
+- Tipo: ingreso si aparece una palabra clave de ingreso en cualquiera de los cuatro idiomas; si no, gasto.
+- Fecha: ISO, `d/m(/a)`, «15 de octubre» / «oct 15» (en inglés manda mes-día), relativas (hoy, ayer, anteayer…) y días de la semana (el más reciente, hoy incluido). Una fecha futura se sustituye por hoy. Sin fecha: hoy.
+- Categoría, por prioridad: regla de la persona → palabra aprendida del historial (≥ 2 veces y mayoría) → diccionario por palabra clave (gana la más larga). Solo categorías activas del tipo detectado; si nada coincide, no se inventa.
+- Confianza: 0,5 con importe (0,15 sin él) + 0,3 regla / 0,25 aprendida / 0,2 diccionario + 0,1 fecha + 0,05 ingreso explícito − 0,1 importe en palabras; acotada a [0,05, 0,95].
+
+## 33. Programados v2 y avisos locales
+
+- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por el importe previsto, `source: 'scheduled'`. Idempotente: una ocurrencia liquidada u omitida no se registra.
+- Pausa: un programado en pausa no genera ocurrencias ni reservas; al reanudar vuelven las futuras y las vencidas no omitidas.
+- Avisos: con `scheduledAlerts`, vencidos (desde las 09:00) y los que vencen hoy o mañana; `dailyReminder` a su hora solo si hoy no hay movimientos realizados; `dailySummary` a su hora con gastos − devoluciones del día. En horas de silencio (rango que puede cruzar medianoche) no se emite nada; al salir del rango se emiten los pendientes. Cada aviso tiene una clave por día para no repetirse.

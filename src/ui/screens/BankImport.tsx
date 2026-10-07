@@ -300,13 +300,13 @@ export function BankImport() {
                 label={t('bankImport.expenseCategory')}
                 value={expenseCategory}
                 onChange={(e) => setExpenseCategory(e.target.value)}
-                options={categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
+                options={categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
               />
               <SelectField
                 label={t('bankImport.incomeCategory')}
                 value={incomeCategory}
                 onChange={(e) => setIncomeCategory(e.target.value)}
-                options={categoriesForKind('income', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
+                options={categoriesForKind('income', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
               />
             </div>
             <p className="note">
@@ -398,7 +398,7 @@ export function BankImport() {
                             aria-label={t('bankImport.rowCategory', { description: row.description || t('bankImport.line', { n: row.line }) })}
                             onChange={(e) => setRowCategory(row, e.target.value)}
                           >
-                            {categoriesForKind(row.kind, data.categories).map((c) => (
+                            {categoriesForKind(row.kind, data.categories, { prefs: data.categoryPrefs }).map((c) => (
                               <option key={c} value={c}>
                                 {categoryLabel(t, c)}
                               </option>

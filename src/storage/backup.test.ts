@@ -130,15 +130,21 @@ describe('datos iniciales y demostración', () => {
         fallbackHorizonDays: null,
         bills: [{ name: 'Renta', amountMinor: 60000, date: '2026-10-01', frequency: 'monthly' }],
         reserve: { amountMinor: 20000, fundedFrom: 'budget', name: 'Reserva de emergencia' },
+        periodType: 'untilIncome',
       },
       ctx,
     )
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(validateAppData(r.data).ok).toBe(true)
+    expect(r.data.settings.onboardingDone).toBe(true)
     const b = computeBudget(r.data, TODAY)
     expect(b.availableMinor).toBe(120000 - 60000 - 20000)
     expect(b.horizon?.days).toBe(11)
+    // Sin indicar periodo, las instalaciones nuevas son mensuales (§7.1) y el periodo cuenta hoy.
+    const monthly = createInitialData({ currency: 'CAD', timeZone: TZ, numberLocale: 'es-MX', language: 'es', accountName: 'Mi banco', balanceMinor: 120000, balanceDate: TODAY, income: null, fallbackHorizonDays: null, bills: [], reserve: null }, ctx)
+    expect(monthly.ok && monthly.data.settings.budgetPeriod.type).toBe('month')
+    expect(monthly.ok && computeBudget(monthly.data, TODAY).period).toMatchObject({ start: '2026-09-01', end: '2026-09-30', daysLeft: 3 })
   })
 
   it('los datos de demostración existen en inglés con los mismos importes', () => {

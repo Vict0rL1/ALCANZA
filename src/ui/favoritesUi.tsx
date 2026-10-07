@@ -45,7 +45,7 @@ export function FavoriteDialog({
   })
   const [categoryId, setCategoryId] = useState(() => {
     const wanted = start.categoryId
-    return wanted && categoriesForKind(start.kind ?? 'expense', data.categories).includes(wanted) ? wanted : ''
+    return wanted && categoriesForKind(start.kind ?? 'expense', data.categories, { prefs: data.categoryPrefs }).includes(wanted) ? wanted : ''
   })
   const [amountText, setAmountText] = useState(start.amountMinor !== undefined ? fmt.moneyInput(start.amountMinor) : '')
   const [note, setNote] = useState(start.note ?? '')
@@ -99,7 +99,7 @@ export function FavoriteDialog({
         value={kind}
         onChange={(k) => {
           setKind(k)
-          if (!categoriesForKind(k, data.categories).includes(categoryId)) setCategoryId('')
+          if (!categoriesForKind(k, data.categories, { prefs: data.categoryPrefs }).includes(categoryId)) setCategoryId('')
         }}
         options={[
           { value: 'expense', label: t('txKind.expense') },
@@ -117,7 +117,7 @@ export function FavoriteDialog({
         label={t('fields.category')}
         value={categoryId}
         onChange={(e) => setCategoryId(e.target.value)}
-        options={[...(categoryId ? [] : [choose]), ...categoriesForKind(kind, data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
+        options={[...(categoryId ? [] : [choose]), ...categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
         error={fieldError(t, fmt, issues, 'categoryId')}
       />
       <MoneyField label={t('favorites.amountOptional')} hint={t('favorites.amountHint')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />

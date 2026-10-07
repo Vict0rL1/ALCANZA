@@ -176,7 +176,7 @@ export function Afford() {
                 <CalcRow op="=" label={t('afford.availableAfter')} value={fmt.money(result.availableAfterMinor)} strong />
               </div>
               <ul className="bullets">
-                <li>{t(budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', { date: fmt.date(budget.horizon.endDate) })}</li>
+                <li>{budget.period ? t('explain.period.days', { from: fmt.date(budget.period.start, { compact: true }), to: fmt.date(budget.period.end, { compact: true }), days: tn('home.periodDays', budget.period.daysLeft) }) : t(budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', { date: fmt.date(budget.horizon.endDate) })}</li>
                 <li>{t('explain.futureIncomeNotCounted')}</li>
                 {budget.overdueIncomes.length > 0 && <li>{t('afford.lateIncomeNote')}</li>}
               </ul>

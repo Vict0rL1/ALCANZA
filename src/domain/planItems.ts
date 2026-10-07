@@ -161,6 +161,8 @@ export function planItems(data: AppData, query: PlanItemsQuery): PlanItem[] {
   const items: PlanItem[] = []
 
   for (const schedule of data.schedules) {
+    // En pausa: no genera ocurrencias ni reservas hasta reanudarlo.
+    if (schedule.paused) continue
     const rangeFrom = query.includeOverdueBefore ? schedule.startDate : from
     for (const date of occurrencesBetween(schedule, rangeFrom < from ? rangeFrom : from, to)) {
       const item = scheduleItem(schedule, date, today, settlements.get(`${schedule.id}:${date}`), data.accounts, query.scenario ?? 'expected')

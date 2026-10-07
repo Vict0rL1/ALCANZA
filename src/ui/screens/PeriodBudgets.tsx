@@ -221,7 +221,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
           <fieldset className="explain__body stack-sm">
             <legend className="sr-only">{t('period.ruleTitle')}</legend>
             <p className="field__hint">{t('period.ruleHint')}</p>
-            {categoriesForKind('expense', data.categories).map((c) => (
+            {categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => (
               <CheckboxField
                 key={c}
                 checked={ruleCategoryIds.includes(c)}

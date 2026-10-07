@@ -34,7 +34,9 @@ import type {
   Transaction,
   TrashEntry,
 } from './types'
-import { SCHEMA_VERSION } from './types'
+import { SCHEMA_VERSION, type BudgetPeriodType, type TransactionSource } from './types'
+import { applyOnboardingCategories } from './categoryOps'
+import { defaultOnboardingCategoryIds } from './categories'
 import {
   validateAccount,
   validateCategory,
@@ -135,6 +137,10 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
           : { categoryId: draft.categoryId }),
     ...(draft.kind === 'refund' && draft.refundOfId ? { refundOfId: draft.refundOfId } : {}),
     ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
+    // v9: comercio, etiquetas y origen (se conservan al editar si el formulario no los manda).
+    ...(cleanText(draft.merchant ?? existing?.merchant) ? { merchant: cleanText(draft.merchant ?? existing?.merchant) } : {}),
+    ...((draft.tagIds ?? existing?.tagIds)?.length ? { tagIds: draft.tagIds ?? existing?.tagIds } : {}),
+    ...((draft.source ?? existing?.source) ? { source: draft.source ?? existing?.source } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
     ...(draft.scheduleId && draft.partialSettlement ? { partialSettlement: true } : {}),
     ...(realizedAt ? { realizedAt } : {}),
@@ -157,6 +163,22 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
 
 /* ------------------------------------------------------------------ */
 /* Papelera                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Envía varios movimientos a la papelera en una sola operación (todos o ninguno). */
+export function trashTransactions(data: AppData, ids: readonly string[], ctx: OpContext): OpResult<TrashEntry[]> {
+  let next = data
+  const entries: TrashEntry[] = []
+  for (const id of ids) {
+    const r = deleteTransaction(next, id, ctx)
+    if (!r.ok) return r
+    next = r.data
+    entries.push(r.value)
+  }
+  if (entries.length === 0) return fail([{ path: 'ids', code: 'required' }])
+  return { ok: true, data: next, value: entries }
+}
+
 /* ------------------------------------------------------------------ */
 
 /**
@@ -390,6 +412,10 @@ export function saveSchedule(data: AppData, draft: ScheduleDraft, ctx: OpContext
     accountId: draft.accountId,
     categoryId: draft.categoryId,
     frequency: draft.frequency,
+    // v9: intervalo personalizado, confirmación automática y pausa (el formulario los manda explícitos).
+    ...(draft.frequency === 'custom' && draft.intervalDays !== undefined ? { intervalDays: draft.intervalDays } : {}),
+    ...(draft.autoConfirm ? { autoConfirm: true } : {}),
+    ...(draft.paused ? { paused: true } : {}),
     startDate: draft.startDate,
     ...(draft.frequency !== 'once' && draft.endDate ? { endDate: draft.endDate } : {}),
     reminderDaysBefore: draft.reminderDaysBefore,
@@ -441,6 +467,8 @@ export interface MarkOccurrenceInput {
   /** Desde el formulario de movimientos: categoría y nota elegidas (por defecto, las del programado). */
   categoryId?: string
   note?: string
+  /** Origen del registro (`scheduled` cuando lo confirma la app sola). */
+  source?: TransactionSource
 }
 
 /** Lo que falta por recibir o pagar de una ocurrencia (esperado − parciales ya registrados). */
@@ -486,6 +514,7 @@ export function markOccurrence(data: AppData, input: MarkOccurrenceInput, ctx: O
       scheduleId: schedule.id,
       occurrenceDate: input.occurrenceDate,
       ...(input.expectRemainder ? { partialSettlement: true } : {}),
+      ...(input.source ? { source: input.source } : {}),
       alreadyInBalance: input.alreadyInBalance,
     },
     ctx,
@@ -1009,6 +1038,10 @@ export interface SetupInput {
   bills: { name: string; amountMinor: number; date: LocalDate; frequency: Schedule['frequency'] }[]
   /** `name` llega traducido desde la interfaz (p. ej. «Reserva de emergencia»). */
   reserve: { amountMinor: number; fundedFrom: Goal['fundedFrom']; name: string } | null
+  /** Categorías del sistema elegidas en el onboarding (§7.1); si falta, quedan las propuestas por defecto. */
+  categoryIds?: readonly string[]
+  /** Periodo del presupuesto (§7.1); por defecto mensual en instalaciones nuevas. */
+  periodType?: BudgetPeriodType
 }
 
 export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<AppData> {
@@ -1025,7 +1058,7 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
       language: input.language,
       fallbackHorizonDays: input.income ? null : input.fallbackHorizonDays,
       weeklyReview: true,
-      ...defaultSettingsV9(),
+      ...defaultSettingsV9({ periodType: input.periodType ?? 'month', onboardingDone: true }),
     },
     accounts: [],
     transactions: [],
@@ -1053,6 +1086,10 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
   }
   const settingsIssues = validateSettings(data.settings, 'settings.')
   if (settingsIssues.length) return fail(settingsIssues)
+
+  const chosen = applyOnboardingCategories(data, input.categoryIds ?? defaultOnboardingCategoryIds(), ctx)
+  if (!chosen.ok) return fail(chosen.issues)
+  data = chosen.data
 
   const account: Account = {
     id: accountId,

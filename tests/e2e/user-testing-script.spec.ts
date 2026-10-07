@@ -13,7 +13,11 @@ import { available, go, movementCount, openApp, openDetails } from './helpers'
 async function setUp(page: Page) {
   await openApp(page)
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('1240')
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Importe esperado').fill('900')
   await page.getByLabel('Fecha del próximo ingreso').fill('2026-10-07')
@@ -122,7 +126,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await go(page, '/ajustes')
   await page.getByLabel('Idioma').selectOption('en')
   await go(page, '/')
-  await expect(page.getByText('You can spend')).toBeVisible()
+  await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
   await go(page, '/ajustes')
   await page.getByLabel('Language').selectOption('es')
   await go(page, '/')

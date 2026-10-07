@@ -9,7 +9,7 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.getByRole('button', { name: 'Explore with demo data' }).click()
 
-  await expect(page.getByText('You can spend')).toBeVisible()
+  await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
   await expect(page.getByTestId('available')).toHaveText('$136.78')
   await expect(page.getByText('Demo mode:')).toBeVisible()
   await expect(page.getByText('Room rent').filter({ visible: true }).first()).toBeVisible()

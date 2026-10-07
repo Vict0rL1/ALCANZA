@@ -3356,3 +3356,228 @@ button.cat-chip:hover {
   gap: 6px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Categorías: cuadrícula del onboarding, selector de icono y de color */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-8);
+}
+
+.cat-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.cat-option input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.cat-option span.cat-option__label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cat-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.cat-option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+
+.icon-picker__item,
+.color-picker__item {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+}
+
+.icon-picker__item[aria-pressed='true'],
+.color-picker__item[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.icon-picker__item:focus-visible,
+.color-picker__item:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.color-picker__item {
+  border-radius: 50%;
+}
+
+.color-picker__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--cat-color);
+}
+
+.cat-group {
+  margin-top: var(--sp-8);
+}
+
+.cat-group__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-overline, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: var(--sp-8) 0 2px;
+}
+
+.cat-row__actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.safe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+/* Asistente */
+.assistant__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+}
+
+.assistant__line {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.assistant__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.assistant__hints {
+  color: var(--muted);
+  font-size: var(--font-caption, 0.8125rem);
+}
+
+.assistant__example {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--font-body-sm, 0.875rem);
+}
+
+/* Filas deslizables y selección múltiple */
+.swipe {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe__content {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition: transform 160ms ease;
+  touch-action: pan-y;
+}
+
+.swipe__action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 88px;
+  border: 0;
+  background: #b91c1c;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.swipe.is-open .swipe__action {
+  opacity: 1;
+  z-index: 2;
+}
+
+.swipe__action:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.item--select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.item--select input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.item--select .item {
+  flex: 1;
+}
+
+li.is-selected > .item--select {
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+}

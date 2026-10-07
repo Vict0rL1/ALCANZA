@@ -11,6 +11,8 @@ import { ConfirmDialog } from './ui/components/Dialog'
 import { Icon, type IconName } from './ui/components/Icon'
 import { ToastProvider } from './ui/components/Toasts'
 import { href, useRoute, type Route } from './ui/router'
+import { useLocalNotifications } from './ui/notifications'
+import { useScheduledJobs } from './ui/useScheduledJobs'
 import { Afford } from './ui/screens/Afford'
 import { Home } from './ui/screens/Home'
 import { MovementForm } from './ui/screens/MovementForm'
@@ -39,7 +41,22 @@ const TemplateForm = lazy(() => import('./ui/screens/Templates').then((m) => ({ 
 const ShortfallPlan = lazy(() => import('./ui/screens/ShortfallPlan').then((m) => ({ default: m.ShortfallPlan })))
 const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
+const Categories = lazy(() => import('./ui/screens/Categories').then((m) => ({ default: m.Categories })))
+const Assistant = lazy(() => import('./ui/screens/Assistant').then((m) => ({ default: m.Assistant })))
 const Gallery = lazy(() => import('./ui/screens/Gallery').then((m) => ({ default: m.Gallery })))
+
+/** Tareas en segundo plano con datos cargados: confirmación automática y avisos locales. */
+function BackgroundJobs() {
+  const state = useAppState()
+  if (state.phase !== 'ready' || !state.data) return null
+  return <BackgroundJobsReady />
+}
+
+function BackgroundJobsReady() {
+  useScheduledJobs()
+  useLocalNotifications()
+  return null
+}
 
 export function App() {
   const state = useAppState()
@@ -47,9 +64,15 @@ export function App() {
   const [setupLanguage, setSetupLanguage] = useState<Language>('es')
   const language = state.phase === 'ready' && state.data ? state.data.settings.language : setupLanguage
   const categories = state.phase === 'ready' && state.data ? state.data.categories : undefined
+  const categoryPrefs = state.phase === 'ready' && state.data ? state.data.categoryPrefs : undefined
+  // Nombres de categorías personalizadas y nombres propios dados a las del sistema (categoryPrefs).
   const translator = useMemo(
-    () => createTranslator(language, Object.fromEntries((categories ?? []).map((c) => [`category.${c.id}`, c.name]))),
-    [language, categories],
+    () =>
+      createTranslator(language, {
+        ...Object.fromEntries(Object.entries(categoryPrefs ?? {}).filter(([, p]) => p.name).map(([id, p]) => [`category.${id}`, p.name!])),
+        ...Object.fromEntries((categories ?? []).map((c) => [`category.${c.id}`, c.name])),
+      }),
+    [language, categories, categoryPrefs],
   )
 
   useEffect(() => {
@@ -60,6 +83,7 @@ export function App() {
     <I18nContext.Provider value={translator}>
       <ToastProvider>
         <UpdateBanner />
+        <BackgroundJobs />
         {state.phase === 'loading' && <Loading />}
         {state.phase === 'corrupt' && <Corrupt raw={state.raw} newerVersion={state.issues.some((i) => i.code === 'schemaTooNew')} />}
         {state.phase === 'ready' && !state.data && (
@@ -75,7 +99,7 @@ export function App() {
 }
 
 /** Pantallas con un formulario que se perdería al recargar. */
-const FORM_SEGMENTS = new Set(['nuevo', 'nueva', 'editar', 'importar', 'distribuir'])
+const FORM_SEGMENTS = new Set(['nuevo', 'nueva', 'editar', 'importar', 'distribuir', 'asistente'])
 function isFormRoute(route: Route): boolean {
   return route.segments[0] === 'conciliar' || route.segments.some((s) => FORM_SEGMENTS.has(s))
 }
@@ -471,7 +495,9 @@ function Screen({ route }: { route: Route }) {
   if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
   if (a === 'ajustes' && b === 'historial') return <History key={key} />
+  if (a === 'ajustes' && b === 'categorias') return <Categories key={key} />
   if (a === 'galeria') return <Gallery key={key} />
+  if (a === 'asistente') return <Assistant key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'ajustes') return <Settings key={key} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (

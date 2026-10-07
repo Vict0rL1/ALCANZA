@@ -24,31 +24,32 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] Pendiente para fases siguientes: usar los componentes nuevos en las pantallas existentes (Fase 3 en adelante)
 
 ## Fase 2 — Onboarding y categorías
-- [ ] Bienvenida con selector ES/EN/PT/FR y 3 beneficios
-- [ ] «Tus categorías» (cuadrícula, crear nueva, contador)
-- [ ] Moneda sugerida + periodo (mensual por defecto; todos gratis)
-- [ ] Saldo inicial opcional (`isInitialBalance`)
-- [ ] `onboardingDone`; vuelta atrás en cada paso; < 60 s
-- [ ] Gestión de categorías: pestañas, búsqueda, grupos con contador, crear/editar (≥ 60 iconos, 16 colores), archivar con reasignación, reordenar, grupos
+- [x] Bienvenida con selector ES/EN/PT/FR (los 4 beneficios de Clara se conservan)
+- [x] «Tus categorías» (cuadrícula con las 16 + 6 marcadas, crear propias, contador por tipo)
+- [x] Moneda + periodo (mensual por defecto; «hasta mi próximo ingreso» disponible; todos gratis)
+- [x] Saldo inicial = saldo de referencia de la cuenta (ya existía); `onboardingDone` en datos nuevos; vuelta atrás en cada paso; «Ver mi resultado ahora» para < 60 s
+- [x] Gestión de categorías (`#/ajustes/categorias`): pestañas, búsqueda, grupos con contador, crear/editar (82 iconos, 16 colores, grupo), archivar con reasignación, reordenar, grupos propios
+- [ ] Pendiente: los formularios siguen usando <select> de categorías; los chips con icono/color llegan con el rediseño del formulario (Fase 4)
 
 ## Fase 3 — Inicio
-- [ ] `getPeriod` para todos los tipos (incl. `untilIncome`), con etiquetas localizadas y pruebas
-- [ ] Saldo del periodo con arrastre, `availablePct`, *safe to spend* (día/semana/periodo) con pruebas
-- [ ] Cabecera, tarjeta de saldo, Safe to Spend, banners, historial por día con deslizar, Inicio vacío, tour, FAB
-- [ ] Privacidad de 3 niveles con háptica y tooltip
-- [ ] Todo en 3 temas y 4 idiomas
+- [x] `getPeriod` para todos los tipos (incl. `untilIncome`), etiquetas localizadas (`ui/periodLabel.ts`) y pruebas
+- [x] Saldo del periodo con arrastre, `availablePct`, *safe to spend* (día/semana/periodo) con pruebas; `computeBudget` usa el periodo de calendario cuando el ajuste no es «hasta mi próximo ingreso»
+- [x] Tarjeta de saldo con periodo y días restantes, selector Día/Semana/Periodo, explicación con arrastre/ingresos/gastos, tour de 3 pistas, ajustes de periodo (inicio de semana, arrastre, fechas personalizadas)
+- [ ] Historial por día con deslizar e Inicio vacío con demo del parser: Fase 4 (van con el registro)
+- [ ] Privacidad de 3 niveles con háptica y tooltip: Fase 11 (pulido); hoy hay 2 niveles (visible / oculto)
+- [x] Todo en 3 temas y 4 idiomas
 
 ## Fase 4 — Registro y búsqueda
-- [ ] Hoja del FAB con entradas comunes de un toque
-- [ ] Formulario manual completo (etiquetas, comercio, Repetir, Guardar como común)
-- [ ] `LocalParser` (≥ 40 casos) y `AIProvider`
-- [ ] Vista previa editable con confianza; 200 líneas
-- [ ] Deslizar + Deshacer; detalle con Duplicar
-- [ ] Historial con filtros completos, totales, CSV y selección múltiple
+- [x] FAB en Inicio con hoja: gasto, ingreso, transferencia, asistente y entradas comunes (favoritos)
+- [ ] Formulario manual: comercio y etiquetas en el formulario, «Repetir» y «Guardar como común» (favoritos ya existen) — pendiente
+- [x] `parser.ts` (81 casos: separadores, importes regionales, k/mil/palabras, tipo, fechas, diccionario en 4 idiomas, aprendizaje, reglas, confianza) y `aiProvider.ts` (local; remoto solo con credenciales, nunca simulado)
+- [x] Asistente (`#/asistente`): texto o dictado (Web Speech API si existe), vista previa editable con confianza y pistas, registro todo o nada, contador mensual
+- [x] Inicio vacío con demo del parser; deslizar + Deshacer en el historial; Duplicar ya existía
+- [x] Historial: selección múltiple a la papelera y exportación CSV del filtro (totales y filtros ya existían)
 
 ## Fase 5 — Programados y notificaciones
-- [ ] Frecuencias diaria/trimestral/personalizada, `autoConfirm`, generación al abrir y a medianoche, banner de pendientes
-- [ ] Notificaciones locales (programados, recordatorio, resumen, planes, horas de silencio) con enlaces profundos
+- [x] Frecuencias diaria/trimestral/personalizada (`intervalDays`), `autoConfirm` (apagado por defecto, ventana de 7 días), pausa; confirmación al abrir y al cambiar el día (`useScheduledJobs`); aviso de lo registrado; el banner de vencidos ya existía
+- [x] Notificaciones locales: reglas puras (`domain/notifications.ts`: programados vencidos/hoy/mañana, recordatorio diario, resumen diario, horas de silencio), Notification API con permiso explícito, lista dentro de la app, enlaces profundos. Alertas de planes: Fase 6
 
 ## Fase 6 — Planes
 - [ ] Onboarding de planes, lista, crear, formularios, detalle, cierre, recurrencia, resultados, alertas, resumen automático

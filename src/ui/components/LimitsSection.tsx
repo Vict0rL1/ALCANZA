@@ -97,7 +97,7 @@ function LimitDialog({ categoryId, onClose }: { categoryId: string | null; onClo
   const run = useRun()
   const toast = useToast()
   const existing = categoryId ? data.categoryLimits.find((l) => l.categoryId === categoryId) : undefined
-  const available = categoriesForKind('expense', data.categories).filter((c) => c === categoryId || !data.categoryLimits.some((l) => l.categoryId === c))
+  const available = categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).filter((c) => c === categoryId || !data.categoryLimits.some((l) => l.categoryId === c))
   const [category, setCategory] = useState(categoryId ?? available[0] ?? '')
   const [amountText, setAmountText] = useState(existing ? fmt.moneyInput(existing.monthlyLimitMinor) : '')
   const [amountError, setAmountError] = useState<string | null>(null)

@@ -3,6 +3,14 @@ import { txAppliesToAccount } from '../../domain/balances'
 import { categoriesForKind } from '../../domain/categories'
 import { sumMinor } from '../../domain/money'
 import { txCategoryIds } from '../../domain/splits'
+import { transactionsToCsv } from '../../domain/csvExport'
+import { trashTransactions } from '../../domain/operations'
+import { useRun } from '../../state/hooks'
+import { downloadText } from '../backupActions'
+import { useDeleteTransaction } from '../useDeleteTransaction'
+import { SwipeRow } from '../components/base'
+import { ConfirmDialog } from '../components/Dialog'
+import { useToast } from '../components/toastContext'
 import type { Transaction, TxKind, TxStatus } from '../../domain/types'
 import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
@@ -31,6 +39,11 @@ export function Movements({ route }: { route?: Route }) {
   const [from, setFrom] = useState(() => route?.query.get('desde') || '')
   const [to, setTo] = useState(() => route?.query.get('hasta') || '')
   const [limit, setLimit] = useState(PAGE)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [confirmBulk, setConfirmBulk] = useState(false)
+  const run = useRun()
+  const toast = useToast()
 
   const filtersActive = from !== '' || to !== '' || query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all'
 
@@ -72,6 +85,38 @@ export function Movements({ route }: { route?: Route }) {
     setFrom('')
     setTo('')
   }
+
+  const exportCsv = () => {
+    const csv = transactionsToCsv([...planned, ...realized], {
+      headers: (['date', 'kind', 'status', 'amount', 'currency', 'category', 'account', 'toAccount', 'note', 'merchant', 'id'] as const).map((k) => t(`csv.${k}` as MessageKey)),
+      kind: (tx) => t(`txKind.${tx.kind}` as MessageKey),
+      status: (tx) => t(tx.status === 'planned' ? 'status.planned' : 'status.realized'),
+      category: (tx) => (tx.kind === 'transfer' || tx.kind === 'adjustment' ? '' : txCategoryIds(tx).map((c) => categoryLabel(t, c)).join(' | ')),
+      account: (id) => (id ? accountName(data.accounts, id, t) : ''),
+    })
+    downloadText(`clara-movimientos-${today}.csv`, csv, 'text/csv;charset=utf-8')
+  }
+
+  const bulkTrash = async () => {
+    const ids = [...selected]
+    setConfirmBulk(false)
+    const { result, saved } = await run((d, c) => trashTransactions(d, ids, c))
+    if (!result.ok) {
+      toast({ message: t('save.error.generic'), tone: 'critical' })
+      return
+    }
+    setSelected(new Set())
+    setSelecting(false)
+    toast({ message: saved ? tn('movements.bulkTrashed', ids.length) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+  }
+
+  const toggleSelected = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
 
   const categoryOptions = [
     { value: 'all', label: t('filters.allCategories') },
@@ -174,6 +219,32 @@ export function Movements({ route }: { route?: Route }) {
           <p className="summary-line" aria-live="polite">
             {tn('movements.count', filtered.length)} · {t('movements.incomeTotal', { amount: fmt.money(incomeTotal) })} · {t('movements.spentTotal', { amount: fmt.money(spentTotal) })}
           </p>
+          <div className="button-row" data-testid="history-tools">
+            <button type="button" className="btn btn--secondary btn--small" onClick={exportCsv} disabled={filtered.length === 0} title={t('movements.exportCsvHint', { count: filtered.length })}>
+              <Icon name="download" size={16} />
+              {t('movements.exportCsv')}
+            </button>
+            <button type="button" className="btn btn--secondary btn--small" aria-pressed={selecting} onClick={() => { setSelecting((v) => !v); setSelected(new Set()) }}>
+              <Icon name="check" size={16} />
+              {selecting ? t('movements.selectDone') : t('movements.select')}
+            </button>
+            {selecting && (
+              <>
+                <button type="button" className="btn btn--ghost btn--small" onClick={() => setSelected(new Set([...planned, ...shownRealized].map((x) => x.id)))}>
+                  {t('movements.selectAll')}
+                </button>
+                <span className="muted">{tn('movements.selected', selected.size)}</span>
+                <button type="button" className="btn btn--danger-ghost btn--small" disabled={selected.size === 0} onClick={() => setConfirmBulk(true)}>
+                  <Icon name="trash" size={16} />
+                  {t('movements.bulkTrash')}
+                </button>
+              </>
+            )}
+          </div>
+          {!selecting && <p className="note">{t('movements.swipeHint')}</p>}
+          <ConfirmDialog open={confirmBulk} title={t('movements.bulkTrashTitle', { count: selected.size })} confirmLabel={t('movements.bulkTrash')} destructive onCancel={() => setConfirmBulk(false)} onConfirm={() => void bulkTrash()}>
+            <p>{t('movements.bulkTrashText')}</p>
+          </ConfirmDialog>
 
           {filtered.length === 0 && (
             <EmptyState icon="search" title={t('movements.noResults')} action={<button type="button" className="btn btn--secondary" onClick={clear}>{t('filters.clear')}</button>} />
@@ -185,7 +256,7 @@ export function Movements({ route }: { route?: Route }) {
                 {t('movements.plannedSection')}
               </h2>
               <p className="note">{t('movements.plannedNote')}</p>
-              <TxList txs={planned} today={today} />
+              <TxList txs={planned} today={today} selecting={selecting} selected={selected} onToggle={toggleSelected} />
             </section>
           )}
 
@@ -194,7 +265,7 @@ export function Movements({ route }: { route?: Route }) {
               <h2 id="realized-title" className="section-title">
                 {t('movements.realizedSection')}
               </h2>
-              <TxList txs={shownRealized} today={today} groupByDate />
+              <TxList txs={shownRealized} today={today} groupByDate selecting={selecting} selected={selected} onToggle={toggleSelected} />
               {realized.length > shownRealized.length && (
                 <button type="button" className="btn btn--secondary" onClick={() => setLimit((l) => l + PAGE)}>
                   {t('movements.showMore', { count: realized.length - shownRealized.length })}
@@ -208,10 +279,11 @@ export function Movements({ route }: { route?: Route }) {
   )
 }
 
-function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string; groupByDate?: boolean }) {
+function TxList({ txs, today, groupByDate, selecting, selected, onToggle }: { txs: Transaction[]; today: string; groupByDate?: boolean; selecting?: boolean; selected?: Set<string>; onToggle?: (id: string) => void }) {
   const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
+  const deleteTx = useDeleteTransaction()
   const groups: { date: string; items: Transaction[] }[] = []
   for (const tx of txs) {
     const last = groups[groups.length - 1]
@@ -234,8 +306,8 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
                   : tx.kind === 'expense' || tx.kind === 'adjustment'
                     ? '−'
                     : ''
-              return (
-                <li key={tx.id}>
+              const title = transactionTitle(tx, data.accounts, t)
+              const row = (
                   <a className="item item--link" href={href(`/movimientos/editar/${tx.id}`)}>
                     <span className={`item__icon item__icon--${tx.kind}`}>
                       <Icon name={KIND_ICON[tx.kind]} size={18} />
@@ -268,6 +340,19 @@ function TxList({ txs, today, groupByDate }: { txs: Transaction[]; today: string
                       {fmt.money(tx.amountMinor)}
                     </span>
                   </a>
+              )
+              return (
+                <li key={tx.id} className={selected?.has(tx.id) ? 'is-selected' : undefined}>
+                  {selecting ? (
+                    <label className="item item--select">
+                      <input type="checkbox" checked={selected?.has(tx.id) ?? false} onChange={() => onToggle?.(tx.id)} aria-label={t('movements.selectRow', { title })} />
+                      {row}
+                    </label>
+                  ) : (
+                    <SwipeRow actionLabel={t('movements.swipeDelete', { title })} onAction={() => void deleteTx(tx.id)}>
+                      {row}
+                    </SwipeRow>
+                  )}
                 </li>
               )
             })}

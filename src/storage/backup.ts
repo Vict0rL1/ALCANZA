@@ -339,7 +339,7 @@ export function validateAppData(raw: unknown): ImportResult {
   const favorites = listOf(migrated.favorites, 'favorites', issues).map((f) =>
     pick<Favorite>(f, ['id', 'name', 'kind', 'accountId', 'categoryId', 'amountMinor', 'note', 'order', 'createdAt', 'updatedAt']),
   )
-  favorites.forEach((f, i) => issues.push(...validateFavorite(f, { data: { accounts, categories }, prefix: `favorites[${i}].` })))
+  favorites.forEach((f, i) => issues.push(...validateFavorite(f, { data: { accounts, categories, categoryPrefs }, prefix: `favorites[${i}].` })))
   checkDuplicates(favorites, 'favorites', issues)
 
   const reconciliations = listOf(migrated.reconciliations, 'reconciliations', issues).map((r) =>
