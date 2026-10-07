@@ -35,6 +35,11 @@ import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 import { AssistantSection } from './settings/AssistantSection'
 import { BackupsSection } from './settings/BackupsSection'
+import { PassphraseDialog } from './settings/PassphraseDialog'
+import { useEncryptedExport } from '../useEncryptedExport'
+import { DEV_MODE } from './Pro'
+import { aiUsagePercent, isPro } from '../../domain/featureGate'
+import { decryptBackup, isEncryptedBackup, looksEncrypted } from '../../storage/encryptedBackup'
 import { CurrencyDialog } from './settings/CurrencyDialog'
 import { ExportSection } from './settings/ExportSection'
 import { LockSection } from './settings/LockSection'
@@ -90,6 +95,11 @@ export function Settings() {
   const [understood, setUnderstood] = useState(false)
   const [typed, setTyped] = useState('')
   const [currencyOpen, setCurrencyOpen] = useState(false)
+  const [encryptOpen, setEncryptOpen] = useState(false)
+  const [decrypting, setDecrypting] = useState<{ text: string; error: string | null } | null>(null)
+  const exportEncrypted = useEncryptedExport()
+  const proActive = isPro(data.settings, { devMode: DEV_MODE })
+  const aiPct = aiUsagePercent(data.settings, { today, devMode: DEV_MODE })
   const lock = useLockState()
   const fileRef = useRef<HTMLInputElement>(null)
   const pwa = usePwaState()
@@ -129,6 +139,11 @@ export function Settings() {
       setImportProgress({ stage: 'validating', loaded: file.size, total: file.size })
       await nextFrame()
       if (controller.signal.aborted) throw new ReadCancelled()
+      if (looksEncrypted(text)) {
+        // Copia cifrada: se pide la frase y se valida después, igual que cualquier importación.
+        setDecrypting({ text, error: null })
+        return
+      }
       const result = parseBackup(text)
       if (controller.signal.aborted) throw new ReadCancelled()
       setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
@@ -141,6 +156,29 @@ export function Settings() {
       setImportProgress(null)
       if (fileRef.current) fileRef.current.value = ''
     }
+  }
+
+  const openEncrypted = async (passphrase: string) => {
+    if (!decrypting) return
+    let envelope: unknown
+    try {
+      envelope = JSON.parse(decrypting.text)
+    } catch {
+      envelope = null
+    }
+    if (!isEncryptedBackup(envelope)) {
+      setDecrypting(null)
+      setImportState({ issues: [{ path: 'file', code: 'notABackup' }] })
+      return
+    }
+    const r = await decryptBackup(envelope, passphrase)
+    if (!r.ok) {
+      setDecrypting({ ...decrypting, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : 'encrypted.wrong') })
+      return
+    }
+    setDecrypting(null)
+    const result = parseBackup(r.json)
+    setImportState(result.ok ? { data: result.data, exportedAt: result.exportedAt } : { issues: result.issues })
   }
 
   const applyImport = async () => {
@@ -203,7 +241,7 @@ export function Settings() {
       <nav className="settings-toc card" aria-label={t('settings.toc')}>
         {(
           [
-            ['settings.group.general', [['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
+            ['settings.group.general', [['account-card-title', 'account.title'], ['pro-card-title', 'pro.title'], ['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
             ['settings.group.expenses', [['cuentas', 'settings.toc.accounts'], ['categorias', 'settings.toc.categories'], ['favoritos', 'favorites.title'], ['etiquetas', 'tags.title'], ['programados', 'scheduled.title'], ['safe-to-spend', 'safe.title']]],
             ['settings.group.data', [['copias-locales', 'localBackup.title'], ['copia', 'settings.toc.backup'], ['bloqueo', 'lock.sectionTitle'], ['exportar', 'export.title'], ['notificaciones', 'settings.notifications.title'], ['asistente', 'assistantSettings.title'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
             ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['legal', 'legal.title'], ['about-title', 'settings.toc.about'], ['galeria', 'settings.toc.gallery']]],
@@ -221,6 +259,31 @@ export function Settings() {
           </div>
         ))}
       </nav>
+
+      <Card labelledBy="account-card-title" className="account-card">
+        <h2 id="account-card-title" className="card__title">
+          {data.profile.isGuest ? t('account.guestTitle') : (data.profile.displayName ?? data.profile.email ?? t('account.title'))}
+        </h2>
+        <p className="note">{t('account.cardText')}</p>
+        <a className="btn btn--secondary btn--small" href={href('/cuenta')} data-testid="account-link">
+          <Icon name="user" size={16} />
+          {t('account.open')}
+        </a>
+      </Card>
+
+      {!proActive && (
+        <Card labelledBy="pro-card-title" className="pro-card">
+          <h2 id="pro-card-title" className="card__title">
+            {t('pro.cardTitle')}
+          </h2>
+          <p className="note">{t('pro.cardText')}</p>
+          <p className="item__meta" data-testid="ai-usage">{t('pro.aiUsagePct', { pct: aiPct })}</p>
+          <a className="btn btn--secondary btn--small" href={href('/pro')}>
+            <Icon name="sparkles" size={16} />
+            {t('pro.discover')}
+          </a>
+        </Card>
+      )}
 
       <Card labelledBy="format-title">
         <h2 id="format-title" className="card__title">
@@ -408,6 +471,10 @@ export function Settings() {
             <Icon name="download" />
             {t('settings.backup.export')}
           </button>
+          <button type="button" className="btn btn--secondary" onClick={() => setEncryptOpen(true)}>
+            <Icon name="lock" />
+            {t('encrypted.export')}
+          </button>
           <label className="btn btn--secondary file-button">
             <Icon name="shield" />
             {t('backup.verify')}
@@ -587,6 +654,16 @@ export function Settings() {
         )}
       </Card>
 
+      {encryptOpen && (
+        <PassphraseDialog
+          mode="encrypt"
+          onClose={() => setEncryptOpen(false)}
+          onSubmit={async (p) => {
+            if (await exportEncrypted(p)) setEncryptOpen(false)
+          }}
+        />
+      )}
+      {decrypting && <PassphraseDialog mode="decrypt" error={decrypting.error} onClose={() => setDecrypting(null)} onSubmit={openEncrypted} />}
       {currencyOpen && <CurrencyDialog current={data.settings.currency} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
       {accountDialog && <AccountDialog account={accountDialog === 'new' ? null : accountDialog} onClose={() => setAccountDialog(null)} />}
       {balanceFor && <UpdateBalanceDialog initialAccountId={balanceFor} onClose={() => setBalanceFor(null)} />}

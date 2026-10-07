@@ -111,3 +111,11 @@ Probado en `src/storage/indexedDb.test.ts` y en la prueba de navegador `data-saf
   aplica con `commit(..., { source: 'replace' })`, con deshacer inmediato.
 - El bloqueo con PIN (`ui/lock/pin.ts`) vive en `localStorage` (`clara.lock.v1`), nunca en estas copias ni en
   las exportaciones.
+
+## Copias cifradas (v2)
+
+- Sobre JSON `{ format: 'clara-encrypted-backup', version: 1, kdf: 'PBKDF2-SHA-256', iterations, salt, iv, cipher: 'AES-GCM-256', data }`
+  (`storage/encryptedBackup.ts`). `data` es la copia normal (`clara-backup`) cifrada; sal e IV aleatorios por archivo.
+- La frase nunca se guarda ni viaja en el archivo. Al importar, `looksEncrypted` detecta el sobre, se pide la frase, se
+  descifra y el resultado pasa por `parseBackup`/`validateAppData` como cualquier copia. Una frase incorrecta y un
+  archivo alterado dan el mismo error (AES-GCM no los distingue).

@@ -4,7 +4,9 @@
  * (nunca se simula). Ninguna IA calcula ni modifica saldos.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createAiProvider } from '../../domain/aiProvider'
+import { createAiProvider, LocalProvider } from '../../domain/aiProvider'
+import { gate } from '../../domain/featureGate'
+import { DEV_MODE } from './Pro'
 import { recordAiUsage, saveConfirmedEntries, type ConfirmedEntry } from '../../domain/assistant'
 import { parseReceiptText } from '../../domain/receipt'
 import { compressReceipt, ocrAvailable, recognizeText } from '../ocr'
@@ -28,6 +30,7 @@ import { moneyErrorMessage } from '../moneyText'
 import { href, useNavigateIfStillHere, withQuery, type Route } from '../router'
 
 const provider = createAiProvider(import.meta.env as { VITE_AI_ENDPOINT?: string; VITE_AI_KEY?: string })
+const localProvider = new LocalProvider()
 
 interface Line {
   id: string
@@ -118,7 +121,9 @@ export function Assistant({ route }: { route: Route }) {
   const analyze = async (input = text) => {
     if (!input.trim()) return
     setBusy(true)
-    const entries = await provider.parseText(input, {
+    const remoteGate = gate('aiRemote', data.settings, { today, devMode: DEV_MODE })
+    const active = provider.id === 'remote' && remoteGate.allowed ? provider : localProvider
+    const entries = await active.parseText(input, {
       today,
       currency: data.settings.currency,
       language,
@@ -139,7 +144,7 @@ export function Assistant({ route }: { route: Route }) {
         note: entry.description,
       })),
     )
-    if (provider.id === 'remote') void run((d, c) => recordAiUsage(d, c))
+    if (active.id === 'remote') void run((d, c) => recordAiUsage(d, c))
   }
 
   const update = (id: string, patch: Partial<Line>) => setLines((ls) => ls?.map((l) => (l.id === id ? { ...l, ...patch } : l)) ?? null)
@@ -234,6 +239,7 @@ export function Assistant({ route }: { route: Route }) {
             </TextButton>
           </div>
           <p className="note">{provider.id === 'remote' ? t('assistant.remote', { endpoint: (import.meta.env as { VITE_AI_ENDPOINT?: string }).VITE_AI_ENDPOINT ?? '' }) : t('assistant.local')}</p>
+          {provider.id === 'remote' && !gate('aiRemote', data.settings, { today, devMode: DEV_MODE }).allowed && <p className="note">{t('assistant.aiLimitReached')}</p>}
           {!speech && <p className="note">{t('assistant.voiceUnavailable')}</p>}
           <p className="note">{ocrAvailable() ? t('assistant.photoHint') : t('assistant.photoNoOcr')}</p>
           {speech && <p className="note">{t('assistant.voiceHint')}</p>}

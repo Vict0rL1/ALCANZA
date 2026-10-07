@@ -62,7 +62,7 @@ test('las pantallas nuevas no dejan texto en español al usar inglés', async ({
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   // Palabras de interfaz en español que no deberían aparecer (los nombres de la demo están traducidos).
   const spanish = /\b(Guardar|Cancelar|Importe|Disponible|Historial|Plantilla|Borrador|Revertir|Supuesto|Registrado|faltante|Comparar|Ajustes|Movimiento|Inicio)\b|¿|¡/
-  for (const route of ['/', '/movimientos/nuevo', '/cambios', '/ajustes/historial', '/movimientos/plantillas', '/movimientos/plantillas/nueva?tipo=distribution', '/alcanza/faltante', '/ajustes', '/estadisticas', '/plan/planes']) {
+  for (const route of ['/', '/movimientos/nuevo', '/cambios', '/ajustes/historial', '/movimientos/plantillas', '/movimientos/plantillas/nueva?tipo=distribution', '/alcanza/faltante', '/ajustes', '/estadisticas', '/plan/planes', '/cuenta', '/pro', '/legal/terminos']) {
     await go(page, route)
     if (route === '/cambios') await page.getByLabel('Compare with').selectOption('historyStart')
     await page.waitForTimeout(200)

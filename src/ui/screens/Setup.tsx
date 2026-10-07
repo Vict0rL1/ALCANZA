@@ -251,6 +251,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
             </button>
           </div>
           <p className="note">{t('setup.welcome.demoNote')}</p>
+          <p className="note">{t('setup.welcome.guestNote')}</p>
         </Card>
       )}
 

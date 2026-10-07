@@ -81,7 +81,11 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] Pendiente: `transcribe` y `parseReceipt` remotos (sin servicio no se simulan)
 
 ## Fase 10 — Cuenta, sincronización y Pro
-- [ ] `FeatureGate` y modo de desarrollo; perfil invitado; pantalla de inicio de sesión y sincronización preparadas; proveedores reales solo con credenciales
+- [x] `domain/featureGate.ts` con pruebas: lo esencial gratis, cupo mensual del proveedor remoto, Pro solo simulado en desarrollo (decisión 48); el asistente cae a local al agotar el cupo
+- [x] Pantalla Cuenta (`#/cuenta`): invitado real, explicación honesta de lo que harían sesión y sincronización, vías locales; tarjeta de cuenta en Ajustes; mención en la bienvenida (anti-patrón 11)
+- [x] Pantalla Pro (`#/pro`): lo gratis, barra de uso del asistente, beneficios (marcando lo que aún no existe), sin precio ni compra; interruptor «Simular Pro» solo en desarrollo; tarjeta Pro en Ajustes con «Uso del asistente remoto N %»
+- [x] Copia cifrada con frase (AES-GCM + PBKDF2, `storage/encryptedBackup.ts`, pruebas): exportar desde Cuenta y Copias; importar detecta el sobre y pide la frase (decisión 50)
+- [ ] Pendiente (requiere servicio y credenciales): inicio de sesión con Google/Apple, sincronización, pagos
 
 ## Fase 11 — Pulido
 - [ ] Háptica, *count-up*, skeletons, auditoría de accesibilidad, rendimiento con 10 000 movimientos
