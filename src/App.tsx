@@ -23,6 +23,7 @@ import { Setup } from './ui/screens/Setup'
 const Plan = lazy(() => import('./ui/screens/Plan').then((m) => ({ default: m.Plan })))
 const PlanForm = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanForm })))
 const PlanDetail = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanDetail })))
+const Statistics = lazy(() => import('./ui/screens/Statistics').then((m) => ({ default: m.Statistics })))
 const ScheduleForm = lazy(() => import('./ui/screens/ScheduleForm').then((m) => ({ default: m.ScheduleForm })))
 const GoalForm = lazy(() => import('./ui/screens/Goals').then((m) => ({ default: m.GoalForm })))
 const Favorites = lazy(() => import('./ui/screens/Favorites').then((m) => ({ default: m.Favorites })))
@@ -502,6 +503,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'ajustes' && b === 'categorias') return <Categories key={key} />
   if (a === 'galeria') return <Gallery key={key} />
   if (a === 'asistente') return <Assistant key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'estadisticas') return <Statistics key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'ajustes') return <Settings key={key} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (

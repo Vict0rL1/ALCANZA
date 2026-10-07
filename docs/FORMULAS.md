@@ -933,3 +933,26 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
   importe. Sugerencia diaria de una meta = ⌈restante / días hasta la fecha⌉.
 - Un plan nunca mueve dinero ni cambia el disponible; los límites mensuales anteriores
   (`categoryLimits`) se convirtieron en planes mensuales recurrentes en la migración v9 → v10.
+
+## 35. Estadísticas (v2, `domain/statistics.ts`)
+
+- **Rango** = periodo de calendario que contiene la fecha ancla (mismo cálculo que §31) o fechas
+  explícitas si es personalizado (por defecto los últimos 30 días). Anterior/siguiente = el periodo
+  que contiene el día previo al inicio / posterior al fin; los personalizados se desplazan su duración.
+- **Tres cifras**: ingresos = Σ ingresos realizados; gastos = gasto neto (§15); neto = ingresos − gastos.
+  Delta = actual − anterior; porcentaje entero = ⌊delta × 100 / anterior⌋ solo si anterior > 0 y el
+  periodo anterior empieza en o después de `trackedSince` (si no, se indica «no comparable»).
+- **Por categoría**: netos positivos ordenados de mayor a menor; porcentaje entero sobre su suma.
+  Tocar una categoría abre el historial filtrado por categoría y fechas del rango.
+- **Series de 6 periodos**: ingresos y gasto neto por periodo, del más antiguo al actual.
+- **Tendencia**: acumulado diario del gasto neto (nunca negativo) del periodo frente al anterior,
+  alineados por día del periodo; los días futuros del actual quedan vacíos.
+- **Top 5**: agrupa por comercio (o nota si no hay) sin acentos ni mayúsculas; resta devoluciones;
+  sin texto no se cuenta.
+- **Promedio diario** = ⌊gasto neto / días transcurridos (hasta hoy, mínimo 1)⌋. Día de la semana con
+  más gasto = suma por fecha del periodo.
+- **Saldo futuro (90 días)**: base = proyección (§8) con el gasto diario estimado (§9, 30 días) y el
+  escenario mínimo de ingresos variables; optimista = 75 % del gasto diario con ingresos esperados;
+  pesimista = 125 % con mínimos. Marcas en hoy, 30, 60 y 90 días. Oculto con menos de 14 días desde
+  `trackedSince`, menos de 7 días de gasto observado o sin movimientos.
+- **PDF** = impresión del navegador de la vista (hoja de estilos `@media print`); no hay servicio.

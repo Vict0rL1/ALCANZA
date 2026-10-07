@@ -136,6 +136,10 @@ export function Movements({ route }: { route?: Route }) {
         </a>
       </PageHeader>
       <p className="link-row">
+        <a href={href('/estadisticas')}>
+          <Icon name="chart" size={16} />
+          {t('stats.title')}
+        </a>
         <a href={href('/movimientos/favoritos')}>
           <Icon name="star" size={16} />
           {t('favorites.title')}

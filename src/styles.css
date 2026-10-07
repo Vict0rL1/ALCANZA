@@ -3689,3 +3689,274 @@ li.is-selected > .item--select {
 .legend__swatch--limit {
   background: var(--danger);
 }
+
+/* ---- Estadísticas (§7.6) ---- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 420px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.stat__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.stat__delta--good {
+  color: var(--good-text);
+}
+.stat__delta--bad {
+  color: var(--danger);
+}
+.stat__delta--neutral {
+  color: var(--text-muted);
+}
+.donut {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .donut {
+    grid-template-columns: 180px 1fr;
+    align-items: start;
+  }
+}
+.donut__svg {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  display: block;
+}
+.donut__slice {
+  stroke: var(--cat-color);
+}
+.donut__total {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.donut__sub {
+  font-size: 8px;
+  fill: var(--text-muted);
+}
+.donut__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.donut__row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  grid-template-areas: 'dot name amount pct' 'dot bar bar bar';
+  gap: 2px 8px;
+  align-items: center;
+  background: none;
+  border: 0;
+  padding: 6px 4px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border-radius: 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.donut__row:hover,
+.donut__row:focus-visible {
+  background: var(--surface-2);
+}
+.donut__row:focus-visible {
+  outline: 3px solid var(--focus);
+}
+.donut__row .cat-dot {
+  grid-area: dot;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+}
+.donut__name {
+  grid-area: name;
+  overflow-wrap: anywhere;
+}
+.donut__amount {
+  grid-area: amount;
+  font-variant-numeric: tabular-nums;
+}
+.donut__pct {
+  grid-area: pct;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  min-width: 3ch;
+  text-align: right;
+}
+.donut__bar {
+  grid-area: bar;
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.donut__fill {
+  display: block;
+  height: 100%;
+  background: var(--cat-color);
+}
+.bars__svg,
+.trend__svg,
+.future__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart__axis {
+  stroke: var(--border-strong, var(--border));
+  stroke-width: 1;
+}
+.chart__axis--zero {
+  stroke: var(--danger);
+  stroke-dasharray: 3 3;
+}
+.chart__label {
+  font-size: 9px;
+  fill: var(--text-muted);
+}
+.bars__group {
+  cursor: pointer;
+}
+.bars__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.bars__hit:focus {
+  outline: none;
+}
+.bars__hit:focus-visible {
+  stroke: var(--focus);
+  stroke-width: 2;
+}
+.bars__group.is-active .bars__bar {
+  stroke: var(--text);
+  stroke-width: 1;
+}
+.bars__bar.series-3 {
+  fill: var(--series-3);
+}
+.bars__bar.series-2 {
+  fill: var(--series-2);
+}
+.bars__tip {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  min-height: 1.4em;
+}
+.legend__swatch.series-1 {
+  background: var(--series-1);
+}
+.legend__swatch.series-2 {
+  background: var(--series-2);
+}
+.legend__swatch.series-3 {
+  background: var(--series-3);
+}
+.trend__cur {
+  stroke: var(--series-1);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.trend__prev {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+.future__band {
+  fill: var(--series-1);
+  opacity: 0.18;
+}
+.future__line {
+  stroke: var(--series-1);
+  stroke-width: 2.5;
+}
+.future__dot {
+  fill: var(--surface);
+  stroke: var(--series-1);
+  stroke-width: 2;
+  pointer-events: none;
+}
+.future__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.future__hit:focus {
+  outline: none;
+}
+.future__hit:focus-visible {
+  stroke: var(--focus);
+  stroke-width: 2;
+}
+.future__mark.is-active .future__dot {
+  fill: var(--series-1);
+}
+.top-list {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 4px;
+}
+.top-list a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name amount' 'meta amount';
+  gap: 0 8px;
+  color: inherit;
+  text-decoration: none;
+  padding: 6px 4px;
+  min-height: 44px;
+  border-radius: 8px;
+}
+.top-list a:hover,
+.top-list a:focus-visible {
+  background: var(--surface-2);
+}
+.top-list__name {
+  grid-area: name;
+  overflow-wrap: anywhere;
+}
+.top-list__meta {
+  grid-area: meta;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.top-list__amount {
+  grid-area: amount;
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Exportar como PDF = imprimir la vista (el navegador ofrece «Guardar como PDF»). */
+@media print {
+  .nav,
+  .fab,
+  .page-header .btn,
+  .toasts,
+  .month-nav .btn,
+  .statistics .chips,
+  .statistics .btn {
+    display: none !important;
+  }
+  .statistics .card {
+    break-inside: avoid;
+    border: 1px solid #ccc;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

@@ -687,6 +687,9 @@ export function Home() {
               <a href={href('/cambios')} data-testid="what-changed-link">
                 <Icon name="clock" size={16} /> {t('changes.link')}
               </a>
+              <a href={href('/estadisticas')} data-testid="stats-link">
+                <Icon name="chart" size={16} /> {t('stats.title')}
+              </a>
             </p>
 
             <div className="button-row button-row--main">

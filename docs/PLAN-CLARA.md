@@ -61,7 +61,10 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] Pendiente: gráfico diario en las metas (hoy solo barra), onboarding de planes dentro de la demo (se omite en demo)
 
 ## Fase 7 — Estadísticas
-- [ ] Cabecera con periodos, 3 tarjetas con delta, donut, barras 6 periodos, tendencia, top 5, promedio diario, saldo futuro 90 d, PDF
+- [x] `domain/statistics.ts`: rangos y navegación, tres cifras con delta (sin porcentaje con base 0 o no comparable), desglose por categoría, series de 6 periodos, tendencia acumulada, top 5, promedio diario y día de la semana, saldo futuro a 90 días con banda (oculto sin datos); pruebas
+- [x] Pantalla `#/estadisticas` (enlaces desde Inicio y Movimientos): chips de periodo (todos gratis), navegador, 3 tarjetas con delta, donut + lista (toca → historial filtrado), barras con tooltip accesible, tendencia (dos series), top 5, promedio diario, saldo futuro con marcas Hoy/30/60/90; tablas alternativas; modo privado oculta gráficos
+- [x] Exportar PDF = impresión del navegador con estilos `@media print` (decisión 36)
+- [ ] Pendiente: medir con 10 000 movimientos en la Fase 11 (hoy un solo recorrido por métrica, memoizado)
 
 ## Fase 8 — Ajustes
 - [ ] Cuenta, Pro, apariencia (moneda ≥ 45), gestión de gastos (todas las subpantallas), datos y seguridad (copias automáticas, PIN/WebAuthn, exportar, notificaciones), legal, acerca de, zona de peligro
