@@ -117,6 +117,9 @@ export function Settings() {
   const verifyRef = useRef<HTMLInputElement>(null)
   const [verifyIssues, setVerifyIssues] = useState<ImportIssue[] | null>(null)
   const backup = backupStatus(data, today)
+  // Los recibos son imágenes guardadas dentro de cada movimiento: viajan en la copia y la agrandan.
+  const receipts = data.transactions.filter((tx) => tx.receiptUri)
+  const receiptBytes = receipts.reduce((sum, tx) => sum + (tx.receiptUri?.length ?? 0), 0)
 
   const onVerifyFile = async (file: File | undefined) => {
     if (verifyRef.current) verifyRef.current.value = ''
@@ -459,6 +462,9 @@ export function Settings() {
                 : t('backup.notVerified')}
               {backup.lastVerifiedAt && backup.latestExportUnverified ? ` ${t('backup.latestUnverified')}` : ''}
             </li>
+            {receipts.length > 0 && (
+              <li data-testid="backup-receipts">{t('backup.receipts', { count: receipts.length, size: receiptBytes >= 1048576 ? `${(receiptBytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(receiptBytes / 1024))} KB` })}</li>
+            )}
             {backup.snoozedUntil && backup.snoozedUntil > today ? (
               <li>{t('backup.snoozedUntil', { date: fmt.date(backup.snoozedUntil) })}</li>
             ) : backup.dueDate && !data.isDemo ? (

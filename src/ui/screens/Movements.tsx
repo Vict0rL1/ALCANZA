@@ -138,7 +138,7 @@ export function Movements({ route }: { route?: Route }) {
           {t('movements.add')}
         </a>
       </PageHeader>
-      <p className="link-row">
+      <p className="link-row link-row--chips">
         <a href={href('/estadisticas')}>
           <Icon name="chart" size={16} />
           {t('stats.title')}

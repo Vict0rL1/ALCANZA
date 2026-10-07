@@ -88,3 +88,8 @@ Capturas (celular 390 px, tema oscuro salvo `12-inicio-claro.jpg`): `docs/qa/01-
 - Lectura de recibos solo donde el navegador ofrece `TextDetector` (Chrome Android); Tesseract.js se descartó por tamaño y CSP (decisión 45).
 - PT y FR verificados por claves y pseudo-locale, no visualmente por una persona.
 - Rendimiento medido en Chromium de escritorio (`docs/PERFORMANCE.md`), no en teléfonos.
+- Listas muy largas (10 000+ movimientos) sin virtualizar: el historial se pinta por páginas con «Ver más»; virtualizar queda pendiente.
+
+## Mejoras tras la revisión general
+
+Fuente Inter incluida, banner de demostración en una línea, pestañas de Planes desplazables con fundido, índice de Ajustes en chips agrupados, barra Pro sin cortes, enlaces de Movimientos como chips, avisos arriba en el celular, indicador «Guardado» que se desvanece, etiquetas de ejes legibles, idiomas bajo demanda, CSP con el proveedor remoto configurado, «Ver periodo» desde las barras, introducción en Estadísticas, etiquetas visibles en el formulario y aviso de tamaño de recibos (decisiones 55–61). Capturas en `docs/qa/` retomadas tras los cambios.

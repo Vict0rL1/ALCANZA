@@ -1,7 +1,7 @@
 import { useGlobalShortcuts } from './ui/shortcuts'
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Language } from './domain/types'
-import { I18nContext, createTranslator, useT } from './i18n'
+import { I18nContext, createTranslator, useLoadedLanguage, useT } from './i18n'
 import { usePwaState } from './pwa/register'
 import { getStore, useAppState, type SaveStatus } from './state/store'
 import { createBackup, backupFileName } from './storage/backup'
@@ -75,7 +75,11 @@ export function App() {
   const state = useAppState()
   // Antes de configurar, el idioma se elige en la bienvenida; después se guarda en Ajustes.
   const [setupLanguage, setSetupLanguage] = useState<Language>('es')
-  const language = state.phase === 'ready' && state.data ? state.data.settings.language : setupLanguage
+  const requested = state.phase === 'ready' && state.data ? state.data.settings.language : setupLanguage
+  // Los diccionarios que no son el español se cargan bajo demanda: mientras llega el pedido se muestra el anterior.
+  const { language, ready: languageReady } = useLoadedLanguage(requested)
+  // Primera apertura en otro idioma: se espera al diccionario para no mostrar la app en español un instante.
+  const waitingLanguage = state.phase === 'ready' && !!state.data && !languageReady && language === 'es' && requested !== 'es'
   const categories = state.phase === 'ready' && state.data ? state.data.categories : undefined
   const categoryPrefs = state.phase === 'ready' && state.data ? state.data.categoryPrefs : undefined
   // Nombres de categorías personalizadas y nombres propios dados a las del sistema (categoryPrefs).
@@ -97,7 +101,7 @@ export function App() {
       <ToastProvider>
         <UpdateBanner />
         <BackgroundJobs />
-        {state.phase === 'loading' && <Loading />}
+        {(state.phase === 'loading' || waitingLanguage) && <Loading />}
         {state.phase === 'corrupt' && <Corrupt raw={state.raw} newerVersion={state.issues.some((i) => i.code === 'schemaTooNew')} />}
         {state.phase === 'ready' && !state.data && (
           <>
@@ -105,7 +109,7 @@ export function App() {
             <Setup language={setupLanguage} onLanguageChange={setSetupLanguage} />
           </>
         )}
-        {state.phase === 'ready' && state.data && <LockedShell />}
+        {state.phase === 'ready' && state.data && !waitingLanguage && <LockedShell />}
       </ToastProvider>
     </I18nContext.Provider>
   )
@@ -223,6 +227,15 @@ const NAV: { path: string; match: string; key: NavKey; icon: IconName; add?: boo
 
 function SaveIndicator({ save }: { save: SaveStatus }) {
   const { t } = useT()
+  // «Guardado» se ve 2,5 s y luego se desvanece (sigue en el DOM para lectores de pantalla);
+  // los errores no se desvanecen nunca.
+  const [quietFor, setQuietFor] = useState<SaveStatus | null>(null)
+  useEffect(() => {
+    if (save.state !== 'saved') return
+    const id = window.setTimeout(() => setQuietFor(save), 2500)
+    return () => window.clearTimeout(id)
+  }, [save])
+  const quiet = save.state === 'saved' && quietFor === save
   let content: React.ReactNode = null
   // En pantallas estrechas «Guardando…» y «Guardado» se muestran solo con icono (el texto
   // sigue para lectores de pantalla) para que la barra superior no ocupe dos filas.
@@ -249,7 +262,7 @@ function SaveIndicator({ save }: { save: SaveStatus }) {
       </>
     )
   return (
-    <span className={`save-indicator save-indicator--${save.state}`} role="status" aria-live="polite">
+    <span className={`save-indicator save-indicator--${save.state}${quiet ? ' save-indicator--quiet' : ''}`} role="status" aria-live="polite">
       {content}
     </span>
   )
@@ -396,11 +409,11 @@ function Shell() {
       {data.isDemo && (
         <div className="banner banner--demo" role="note">
           <Icon name="info" size={18} />
-          <span>
-            <strong>{t('shell.demoTitle')}</strong> {t('shell.demoText')}
+          <span className="banner__text">
+            <strong>{t('shell.demoTitle')}</strong> <span className="banner__extra">{t('shell.demoText')}</span>
           </span>
-          <a className="btn btn--small btn--inverse" href={href('/ajustes?seccion=reset-title')}>
-            {t('shell.leaveDemo')}
+          <a className="btn btn--small btn--inverse banner__action" href={href('/ajustes?seccion=reset-title')}>
+            {t('shell.leaveDemoShort')}
           </a>
         </div>
       )}

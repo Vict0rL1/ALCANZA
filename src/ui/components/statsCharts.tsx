@@ -85,14 +85,14 @@ export function CategoryDonut({ categories, total, fmt, label, color, onSelect }
 /* Barras agrupadas: ingresos vs gastos                                */
 /* ------------------------------------------------------------------ */
 
-export function IncomeExpenseBars({ series, fmt, label }: { series: SeriesPoint[]; fmt: Formatter; label: (p: SeriesPoint) => string }) {
+export function IncomeExpenseBars({ series, fmt, label, axisLabel, currentStart, onOpen }: { series: SeriesPoint[]; fmt: Formatter; label: (p: SeriesPoint) => string; axisLabel?: (p: SeriesPoint) => string; currentStart?: string; onOpen?: (p: SeriesPoint) => void }) {
   const { t } = useT()
   const [active, setActive] = useState<number | null>(series.length - 1)
   const id = useId()
   if (fmt.privacy) return <HiddenChart />
   const W = 320
-  const H = 150
-  const pad = { l: 8, r: 8, t: 12, b: 24 }
+  const H = 156
+  const pad = { l: 8, r: 8, t: 12, b: 26 }
   const max = Math.max(1, ...series.map((p) => Math.max(p.incomeMinor, p.expensesMinor)))
   const group = (W - pad.l - pad.r) / Math.max(1, series.length)
   const bw = Math.max(6, Math.min(22, group * 0.32))
@@ -108,8 +108,8 @@ export function IncomeExpenseBars({ series, fmt, label }: { series: SeriesPoint[
             <g key={p.range.start} className={`bars__group${active === i ? ' is-active' : ''}`}>
               <rect x={cx - bw - 1} y={y(p.incomeMinor)} width={bw} height={y(0) - y(p.incomeMinor)} className="bars__bar series-3" rx="2" />
               <rect x={cx + 1} y={y(p.expensesMinor)} width={bw} height={y(0) - y(p.expensesMinor)} className="bars__bar series-2" rx="2" />
-              <text x={cx} y={H - 8} textAnchor="middle" className="chart__label">
-                {label(p)}
+              <text x={cx} y={H - 7} textAnchor="middle" className="stats-axis">
+                {(axisLabel ?? label)(p)}
               </text>
               {/* Zona de toque de todo el grupo: un elemento con caja propia para teclado y lectores. */}
               <rect x={cx - group / 2} y={pad.t} width={group} height={H - pad.t} className="bars__hit" tabIndex={0} role="button" aria-label={`${label(p)}: ${t('stats.income')} ${fmt.money(p.incomeMinor)} · ${t('stats.expenses')} ${fmt.money(p.expensesMinor)}`} aria-describedby={`${id}-tip`} onClick={() => setActive(i)} onFocus={() => setActive(i)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(i) } }} />
@@ -120,6 +120,11 @@ export function IncomeExpenseBars({ series, fmt, label }: { series: SeriesPoint[
       <p className="bars__tip" id={`${id}-tip`} aria-live="polite" data-testid="bars-tooltip">
         {sel ? `${label(sel)} — ${t('stats.income')} ${fmt.money(sel.incomeMinor)} · ${t('stats.expenses')} ${fmt.money(sel.expensesMinor)}` : ''}
       </p>
+      {sel && onOpen && sel.range.start !== currentStart && (
+        <button type="button" className="btn btn--ghost btn--small bars__open" onClick={() => onOpen(sel)} data-testid="bars-open">
+          {t('stats.openPeriod', { label: label(sel) })}
+        </button>
+      )}
       <ul className="legend" aria-hidden="true">
         <li>
           <span className="legend__swatch series-3" /> {t('stats.income')}
@@ -242,7 +247,7 @@ export function FutureBalanceChart({ future, fmt, today }: { future: FutureBalan
           <g key={idx} className={`future__mark${active === i ? ' is-active' : ''}`}>
             <circle cx={x(idx)} cy={y(future.points[idx]!.baseMinor)} r="9" className="future__hit" tabIndex={0} role="button" aria-label={`${markLabel(i)}: ${fmt.money(future.points[idx]!.baseMinor)}`} onClick={() => setActive(i)} onFocus={() => setActive(i)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(i) } }} />
             <circle cx={x(idx)} cy={y(future.points[idx]!.baseMinor)} r="5" className="future__dot" />
-            <text x={x(idx)} y={H - 6} textAnchor={i === 0 ? 'start' : i === 3 ? 'end' : 'middle'} className="chart__label">
+            <text x={x(idx)} y={H - 6} textAnchor={i === 0 ? 'start' : i === 3 ? 'end' : 'middle'} className="stats-axis">
               {markLabel(i)}
             </text>
           </g>

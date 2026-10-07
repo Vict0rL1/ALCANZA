@@ -775,6 +775,20 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
           />
         )}
 
+          {data.tags.length > 0 && (
+            <fieldset className="field">
+              <legend className="field__label">{t('fields.tags')}</legend>
+              <div className="chip-wrap" data-testid="tag-chips">
+                {data.tags.map((tg) => (
+                  <CategoryChip key={tg.id} label={tg.name} icon="tag" color={tg.color} selected={tagIds.includes(tg.id)} onClick={() => setTagIds((ids) => (ids.includes(tg.id) ? ids.filter((x) => x !== tg.id) : [...ids, tg.id]))} />
+                ))}
+              </div>
+              <p className="field__hint">
+                <a href={href('/ajustes?seccion=etiquetas')}>{t('tags.manage')}</a>
+              </p>
+            </fieldset>
+          )}
+
         <details
           className="form-details"
           open={detailsOpen}
@@ -837,19 +851,6 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
               {keepReceipt ? <img className="receipt-thumb receipt-thumb--large" src={existing.receiptUri} alt={t('assistant.receiptAlt')} /> : <p className="note">{t('movementForm.receiptWillBeRemoved')}</p>}
               <CheckboxField checked={!keepReceipt} onChange={(v) => setKeepReceipt(!v)} label={t('movementForm.removeReceipt')} />
             </div>
-          )}
-          {data.tags.length > 0 && (
-            <fieldset className="field">
-              <legend className="field__label">{t('fields.tags')}</legend>
-              <div className="chip-wrap" data-testid="tag-chips">
-                {data.tags.map((tg) => (
-                  <CategoryChip key={tg.id} label={tg.name} icon="tag" color={tg.color} selected={tagIds.includes(tg.id)} onClick={() => setTagIds((ids) => (ids.includes(tg.id) ? ids.filter((x) => x !== tg.id) : [...ids, tg.id]))} />
-                ))}
-              </div>
-              <p className="field__hint">
-                <a href={href('/ajustes?seccion=etiquetas')}>{t('tags.manage')}</a>
-              </p>
-            </fieldset>
           )}
 
           {(kind === 'expense' || kind === 'refund') && openPeriods.length > 0 && (

@@ -23,6 +23,14 @@ test('estadísticas: periodo, tres cifras, donut con enlace al historial, barras
   await expect(page.getByTestId('bars-tooltip')).toContainText('septiembre de 2026 — Ingresos $1,238.10 · Gastos $1,243.18')
   await page.getByRole('button', { name: /^agosto de 2026/ }).click()
   await expect(page.getByTestId('bars-tooltip')).toContainText('agosto de 2026 — Ingresos $0.00')
+  // Desde la barra elegida se abre ese periodo; el actual no ofrece el botón.
+  await page.getByTestId('bars-open').click()
+  await expect(page).toHaveURL(/2026-08-01/)
+  // Agosto no tiene movimientos: se muestra el periodo con su estado vacío, sin gráficos.
+  await expect(page.getByText('agosto de 2026', { exact: true }).first()).toBeVisible()
+  await expect(page.getByTestId('bars-tooltip')).toHaveCount(0)
+  await page.goBack()
+  await expect(page.getByTestId('bars-tooltip')).toContainText('septiembre de 2026 — Ingresos')
   await page.getByRole('button', { name: 'Ver tabla' }).first().click()
   await expect(page.getByRole('table').first()).toBeVisible()
 

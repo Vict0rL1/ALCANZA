@@ -2679,4 +2679,10 @@ export const pt: Record<keyof typeof es, string> = {
   'privacy.next.0': 'Ocultar valores',
   'privacy.next.1': 'Modo discreto',
   'privacy.next.2': 'Mostrar tudo',
+  'shell.leaveDemoShort': 'Usar meus dados',
+  'stats.axisQuarter': 'T{n}',
+  'stats.axisSemester': 'S{n}',
+  'stats.intro': 'Escolha um período para ver para onde foi seu dinheiro, como se compara com o anterior e para onde seu saldo caminha. Toque numa barra ou categoria para ver os detalhes.',
+  'stats.openPeriod': 'Ver {label}',
+  'backup.receipts': 'Inclui {count} recibo(s) com foto (≈ {size}): deixam a cópia mais pesada.',
 }

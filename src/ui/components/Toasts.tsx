@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = ++counter.current
       haptic(toast.tone === 'critical' ? 'error' : toast.tone === 'info' ? 'tick' : 'success')
       setToasts((list) => [...list.slice(-2), { ...toast, id }])
-      window.setTimeout(() => dismiss(id), toast.durationMs ?? (toast.action ? 8000 : 4000))
+      window.setTimeout(() => dismiss(id), toast.durationMs ?? (toast.action ? 8000 : 3200))
     },
     [dismiss],
   )

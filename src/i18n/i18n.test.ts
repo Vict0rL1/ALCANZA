@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS } from '../domain/categories'
 import { ACCOUNT_KINDS, FREQUENCIES, NUMBER_LOCALES } from '../domain/validation'
 import { en } from './en'
@@ -8,7 +8,7 @@ import { es } from './es'
 import { fr } from './fr'
 import { pt } from './pt'
 import { pseudoLocalize } from './pseudo'
-import { createTranslator, enablePseudoLocale, translate } from './index'
+import { createTranslator, enablePseudoLocale, isLanguageLoaded, loadLanguage, translate } from './index'
 
 const LANGS = { en, pt, fr } as const
 
@@ -24,6 +24,16 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('textos (i18n)', () => {
+  // Inglés, portugués y francés se cargan bajo demanda (decisión 55).
+  beforeAll(async () => {
+    await Promise.all((['en', 'pt', 'fr'] as const).map((l) => loadLanguage(l)))
+  })
+
+  it('carga bajo demanda: el español siempre está; los demás tras loadLanguage', () => {
+    expect(isLanguageLoaded('es')).toBe(true)
+    expect(isLanguageLoaded('en') && isLanguageLoaded('pt') && isLanguageLoaded('fr')).toBe(true)
+  })
+
   it('tiene texto para cada valor dinámico', () => {
     const expected = [
       ...[...EXPENSE_CATEGORY_IDS, ...INCOME_CATEGORY_IDS].map((c) => `category.${c}`),

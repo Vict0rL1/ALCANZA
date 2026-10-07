@@ -2681,4 +2681,10 @@ export const en: Record<keyof typeof es, string> = {
   'privacy.next.0': 'Hide amounts',
   'privacy.next.1': 'Discreet mode',
   'privacy.next.2': 'Show everything',
+  'shell.leaveDemoShort': 'Use my data',
+  'stats.axisQuarter': 'Q{n}',
+  'stats.axisSemester': 'H{n}',
+  'stats.intro': 'Pick a period to see where your money went, how it compares with the previous one and where your balance is heading. Tap a bar or a category for details.',
+  'stats.openPeriod': 'View {label}',
+  'backup.receipts': 'Includes {count} photo receipt(s) (≈ {size}): they make the backup larger.',
 }

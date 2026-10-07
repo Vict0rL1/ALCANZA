@@ -4,6 +4,28 @@
  * pueda ampliar. Los estados nunca se comunican solo con color (icono + texto).
  */
 
+/* ------------------------------------------------------------------ */
+/* Tipografía: Inter variable autoalojada (latin + latin-ext; OFL 1.1).   */
+/* La CSP solo permite fuentes propias; si no carga, sigue la del sistema. */
+/* ------------------------------------------------------------------ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/inter-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./assets/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
 :root {
   color-scheme: light;
   /* ---- Tokens de diseño (§4 del master prompt) — tema claro ---- */
@@ -134,7 +156,7 @@
   --nav-h: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* Tema oscuro (predeterminado para instalaciones nuevas; «Sistema» sigue al dispositivo). */
@@ -220,6 +242,14 @@ html {
   text-size-adjust: 100%;
 }
 
+/* Los controles de formulario no heredan la fuente por defecto: sin esto, chips y botones usarían la del sistema. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -228,6 +258,9 @@ body {
   font-size: 1rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Inter: «1» con base y ceros sin barra; mejor lectura de importes. */
+  font-feature-settings: 'cv05', 'ss03';
+  font-optical-sizing: auto;
 }
 
 h1,
@@ -240,6 +273,13 @@ p {
 h1 {
   font-size: 1.6rem;
   line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+h2,
+h3 {
+  letter-spacing: -0.01em;
 }
 
 h1:focus {
@@ -383,7 +423,13 @@ code {
 }
 
 .topbar .topbar__proto {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  padding: 1px 8px;
+  letter-spacing: 0.01em;
 }
 
 .save-indicator {
@@ -398,6 +444,12 @@ code {
 
 .save-indicator--saved {
   color: var(--good-text);
+}
+.save-indicator {
+  transition: opacity 0.4s ease;
+}
+.save-indicator--quiet {
+  opacity: 0;
 }
 
 @media (max-width: 479px) {
@@ -556,6 +608,29 @@ html {
 .banner--demo {
   background: #3b2f86;
   color: #ffffff;
+  flex-wrap: nowrap;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.banner--demo .banner__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.3;
+}
+.banner--demo .banner__action {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* En celular el aviso cabe en una línea: el detalle queda para lectores de pantalla. */
+@media (max-width: 599px) {
+  .banner--demo .banner__extra {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 .banner--info {
@@ -675,7 +750,8 @@ html {
   font-size: clamp(2.25rem, 10vw, 3.4rem);
   font-weight: 750;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
@@ -1875,16 +1951,40 @@ fieldset.bill-row {
 
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   background: var(--surface-2);
   padding: 4px;
   border-radius: 14px;
+  /* En celular las pestañas se desplazan en horizontal en vez de partirse en dos filas. */
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+/* Pista de que hay más pestañas: el borde derecho se desvanece en pantallas estrechas. */
+@media (max-width: 599px) {
+  .tabs {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    /* La última pestaña puede salir de la zona desvanecida. */
+    padding-right: 28px;
+    scroll-padding-inline-end: 28px;
+  }
+  .link-row--chips {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
 }
 
 .tabs__tab {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-width: 0;
+  white-space: nowrap;
+  scroll-snap-align: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2069,12 +2169,32 @@ fieldset.bill-row {
   z-index: 50;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--nav-h) + 16px + var(--safe-bottom));
+  /* En celular, arriba (bajo la barra superior): abajo tapaban la última tarjeta y el botón «+». */
+  top: calc(var(--safe-top) + 60px);
   width: min(520px, calc(100vw - 24px));
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: none;
+}
+@media (min-width: 960px) {
+  .toasts {
+    top: auto;
+    bottom: 24px;
+  }
+}
+.toast {
+  animation: toast-in 0.18s ease-out;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .toast {
@@ -2762,27 +2882,76 @@ kbd {
 
 .settings-toc {
   display: grid;
-  gap: var(--space-3, 12px);
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4, 16px);
 }
 
+/* Índice como chips por grupo: menos desplazamiento que una columna de enlaces. */
 .settings-toc ul {
   list-style: none;
-  margin: 0;
+  margin: 6px 0 0;
   padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .settings-toc a {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.settings-toc a:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.settings-toc a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .settings-toc__group {
   margin: 0;
-  font-size: var(--text-sm);
+  font-size: var(--font-overline);
   font-weight: 800;
-  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Fila de accesos secundarios como chips desplazables (Movimientos). */
+.link-row--chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.link-row--chips::-webkit-scrollbar {
+  display: none;
+}
+.link-row--chips a {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.link-row--chips a:hover {
+  border-color: var(--accent);
 }
 
 progress {
@@ -3266,9 +3435,28 @@ button.cat-chip:hover {
 .progress__text {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 8px;
   font-size: var(--font-body-sm, 0.875rem);
   color: var(--ink-2);
+}
+/* El valor («0 %», «$37.05 / $30.00 · 123 %») nunca se parte; el estado se ajusta a la derecha. */
+.progress__text > span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.progress__text > .progress__state {
+  /* Bloque con el icono en línea: si el texto se parte, el icono acompaña a la primera línea. */
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: right;
+}
+.progress__text > .progress__state svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 4px;
 }
 
 .progress__state {
@@ -3824,9 +4012,11 @@ li.is-selected > .item--select {
   stroke: var(--danger);
   stroke-dasharray: 3 3;
 }
-.chart__label {
-  font-size: 9px;
-  fill: var(--text-muted);
+.stats-axis {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .bars__group {
   cursor: pointer;
@@ -4090,4 +4280,14 @@ html.is-discreet .item:focus-within .item__title {
 }
 .screen-skeleton {
   padding-top: 8px;
+}
+
+/* Estadísticas: introducción breve y acción «Ver periodo» bajo el gráfico de barras. */
+.statistics__intro {
+  margin: -4px 0 4px;
+  max-width: 60ch;
+}
+.bars__open {
+  margin: 0 auto 4px;
+  display: flex;
 }

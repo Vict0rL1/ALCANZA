@@ -2680,4 +2680,10 @@ export const es = {
   'privacy.next.0': 'Ocultar importes',
   'privacy.next.1': 'Modo discreto',
   'privacy.next.2': 'Mostrar todo',
+  'shell.leaveDemoShort': 'Usar mis datos',
+  'stats.axisQuarter': 'T{n}',
+  'stats.axisSemester': 'S{n}',
+  'stats.intro': 'Elige un periodo para ver en qué se fue tu dinero, cómo se compara con el anterior y hacia dónde va tu saldo. Toca una barra o una categoría para ver el detalle.',
+  'stats.openPeriod': 'Ver {label}',
+  'backup.receipts': 'Incluye {count} recibo(s) con foto (≈ {size}): hacen la copia más pesada.',
 } as const

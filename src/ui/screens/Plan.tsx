@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useT } from '../../i18n'
 import { PageHeader } from '../components/common'
 import { Icon, type IconName } from '../components/Icon'
@@ -19,12 +20,17 @@ const TABS: { id: 'planes' | 'calendario' | 'metas' | 'periodos' | 'proyeccion';
 export function Plan({ route }: { route: Route }) {
   const { t } = useT()
   const tab = TABS.find((x) => x.id === route.segments[1])?.id ?? 'calendario'
+  // La pestaña activa siempre queda a la vista dentro de la fila desplazable.
+  const activeRef = useRef<HTMLAnchorElement>(null)
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [tab])
   return (
     <div className="stack">
       <PageHeader title={t('plan.title')} />
       <nav className="tabs" aria-label={t('plan.tabsAria')}>
         {TABS.map((x) => (
-          <a key={x.id} className={`tabs__tab${tab === x.id ? ' is-active' : ''}`} href={href(`/plan/${x.id}`)} aria-current={tab === x.id ? 'page' : undefined}>
+          <a key={x.id} ref={tab === x.id ? activeRef : undefined} className={`tabs__tab${tab === x.id ? ' is-active' : ''}`} href={href(`/plan/${x.id}`)} aria-current={tab === x.id ? 'page' : undefined}>
             <Icon name={x.icon} size={18} />
             {t(x.key)}
           </a>

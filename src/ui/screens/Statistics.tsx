@@ -16,7 +16,7 @@ import { Card, EmptyState, Explain, PageHeader } from '../components/common'
 import { TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
 import { CategoryDonut, FutureBalanceChart, IncomeExpenseBars, TrendLines } from '../components/statsCharts'
-import { useFormat, type Formatter } from '../format'
+import { DATE_LOCALE, useFormat, type Formatter } from '../format'
 import { categoryLabel } from '../labels'
 import { periodLabel } from '../periodLabel'
 import { href, navigate, withQuery, type Route } from '../router'
@@ -63,6 +63,15 @@ export function Statistics({ route }: { route: Route }) {
   const color = (id: string): CategoryColor => colors.get(id) ?? 'blue'
   const label = (p: SeriesPoint) => (p.range.period ? periodLabel(t, fmt, p.range.period) : t('home.period.range', { from: fmt.date(p.range.start, { compact: true }), to: fmt.date(p.range.end, { compact: true }) }))
   const title = label({ range, incomeMinor: 0, expensesMinor: 0 })
+  // Eje de las barras: etiqueta corta («sep», «T3», «2026», «28 sep»); la completa va en el tooltip y la tabla.
+  const axisLabel = (p: SeriesPoint) => {
+    const per = p.range.period
+    if (per?.type === 'year') return String(per.anchorYear)
+    if (per?.type === 'month') return new Intl.DateTimeFormat(DATE_LOCALE[data.settings.language], { month: 'short', timeZone: 'UTC' }).format(new Date(`${p.range.start}T12:00:00Z`)).replace('.', '')
+    if (per?.type === 'quarter') return t('stats.axisQuarter', { n: Math.floor((per.anchorMonth - 1) / 3) + 1 })
+    if (per?.type === 'semester') return t('stats.axisSemester', { n: per.anchorMonth <= 6 ? 1 : 2 })
+    return fmt.date(p.range.start, { compact: true })
+  }
   const go = (patch: Record<string, string | undefined>) => navigate(withQuery('/estadisticas', { periodo: type, fecha: anchor, ...patch }))
   const move = (dir: -1 | 1) => {
     const next = shiftRange(range, type, data.settings, dir)
@@ -84,6 +93,7 @@ export function Statistics({ route }: { route: Route }) {
           {t('stats.exportPdf')}
         </SecondaryButton>
       </PageHeader>
+      <p className="muted statistics__intro">{t('stats.intro')}</p>
       <div className="chips" role="group" aria-label={t('stats.periodType')}>
         {CHIPS.map((p) => (
           <button key={p} type="button" className={`chip${p === type ? ' chip--selected' : ''}`} aria-pressed={p === type} onClick={() => go({ periodo: p, fecha: today })}>
@@ -140,7 +150,7 @@ export function Statistics({ route }: { route: Route }) {
             <h2 id="stats-bars-title" className="section-title">
               {t('stats.barsTitle')}
             </h2>
-            <IncomeExpenseBars series={series} fmt={fmt} label={label} />
+            <IncomeExpenseBars series={series} fmt={fmt} label={label} axisLabel={axisLabel} currentStart={range.start} onOpen={type === 'custom' ? undefined : (p) => go({ fecha: p.range.start })} />
           </Card>
 
           <Card labelledBy="stats-trend-title">

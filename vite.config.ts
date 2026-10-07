@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
-import type { Plugin } from 'vite'
+import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 /**
@@ -34,37 +34,55 @@ function serviceWorker(): Plugin {
  * no se permite conectar con otros sitios: si alguna vez se colara texto con código,
  * el navegador no lo ejecutaría ni podría enviar datos fuera.
  */
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  // React aplica algunos estilos en línea (atributo style) para gráficos y barras.
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "worker-src 'self'",
-  "manifest-src 'self'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ')
+/**
+ * Origen permitido para el proveedor remoto del asistente: solo si la compilación define
+ * `VITE_AI_ENDPOINT` con https. Sin él, `connect-src` sigue siendo solo la propia app.
+ */
+export function remoteOrigin(endpoint: string | undefined): string | null {
+  if (!endpoint) return null
+  try {
+    const url = new URL(endpoint)
+    return url.protocol === 'https:' ? url.origin : null
+  } catch {
+    return null
+  }
+}
 
-function contentSecurityPolicy(): Plugin {
+export function buildCsp(aiEndpoint?: string): string {
+  const remote = remoteOrigin(aiEndpoint)
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    // React aplica algunos estilos en línea (atributo style) para gráficos y barras.
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    `connect-src 'self'${remote ? ` ${remote}` : ''}`,
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join('; ')
+}
+
+function contentSecurityPolicy(aiEndpoint?: string): Plugin {
+  const csp = buildCsp(aiEndpoint)
   return {
     name: 'margen-csp',
     apply: 'build',
     transformIndexHtml(html) {
-      return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`)
+      return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`)
     },
   }
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), serviceWorker(), contentSecurityPolicy()],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), serviceWorker(), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_ENDPOINT)],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).
     include: ['src/**/*.test.ts'],
     environment: 'node',
   },
-})
+}))
