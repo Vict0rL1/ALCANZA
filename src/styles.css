@@ -808,7 +808,8 @@ table td,
 }
 
 .btn--danger {
-  background: var(--critical-mark);
+  /* Rojo oscuro fijo: #ef4444 con texto blanco no llega a AA (4,5:1); este da 5,9:1 en ambos temas. */
+  background: #b91c1c;
   color: #ffffff;
 }
 

@@ -33,10 +33,11 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   const light = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
   expect(light.violations.map((v) => v.id)).toEqual([])
   await go(page, '/ajustes')
+  // «Sistema» deja mandar al dispositivo (sin atributo) y se recuerda al recargar.
   await page.getByRole('radio', { name: 'Sistema' }).check()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/)
   await page.reload()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/)
 })
 
 test('oscuro es el tema predeterminado; la galería de componentes pasa la auditoría en claro y oscuro', async ({ page }) => {
