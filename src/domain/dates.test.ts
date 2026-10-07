@@ -87,6 +87,16 @@ describe('recurrencias', () => {
     expect(occurrencesBetween(s, '2026-09-20', '2026-10-31')).toEqual(['2026-10-02', '2026-10-16', '2026-10-30'])
   })
 
+  it('diaria, trimestral y personalizada (cada N días) — v9', () => {
+    expect(occurrencesBetween({ frequency: 'daily', startDate: '2026-10-01' }, '2026-10-03', '2026-10-05')).toEqual(['2026-10-03', '2026-10-04', '2026-10-05'])
+    // Trimestral el 31: último día de los meses cortos y vuelta al 31.
+    expect(occurrencesBetween({ frequency: 'quarterly', startDate: '2026-01-31' }, '2026-01-01', '2026-12-31')).toEqual(['2026-01-31', '2026-04-30', '2026-07-31', '2026-10-31'])
+    expect(occurrencesBetween({ frequency: 'custom', startDate: '2026-10-01', intervalDays: 10 }, '2026-10-05', '2026-11-05')).toEqual(['2026-10-11', '2026-10-21', '2026-10-31'])
+    // Lejos: el salto inicial no se pierde ninguna ocurrencia.
+    expect(occurrencesBetween({ frequency: 'custom', startDate: '2026-01-01', intervalDays: 3 }, '2026-12-30', '2027-01-05')).toEqual(['2026-12-30', '2027-01-02', '2027-01-05'])
+    expect(nthOccurrence({ frequency: 'daily', startDate: '2026-02-27' }, 2)).toBe('2026-03-01')
+  })
+
   it('respeta la fecha final y el pago único', () => {
     expect(occurrencesBetween({ frequency: 'weekly', startDate: '2026-09-01', endDate: '2026-09-15' }, '2026-09-01', '2026-12-31')).toEqual([
       '2026-09-01',

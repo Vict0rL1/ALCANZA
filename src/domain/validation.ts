@@ -27,6 +27,7 @@ import type {
   IncomeRange,
   InboxState,
   PeriodBudget,
+  Plan,
   PlannedExpense,
   Reconciliation,
   SavedScenario,
@@ -34,6 +35,10 @@ import type {
   Settings,
   Transaction,
   TrashEntry,
+  CategoryGroup,
+  CategoryPref,
+  Tag,
+  UserProfile,
 } from './types'
 
 export type IssueCode =
@@ -109,10 +114,16 @@ export const LIMITS = {
 export const TX_KINDS = ['income', 'expense', 'transfer', 'refund', 'adjustment'] as const
 export const TX_STATUSES = ['planned', 'realized'] as const
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings', 'credit', 'other'] as const
-export const FREQUENCIES = ['once', 'weekly', 'biweekly', 'monthly', 'yearly'] as const
-export const NUMBER_LOCALES = ['es-MX', 'es-ES', 'en-CA', 'fr-CA'] as const
+export const FREQUENCIES = ['once', 'daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom'] as const
+export const NUMBER_LOCALES = ['es-MX', 'es-ES', 'es-CO', 'en-CA', 'en-US', 'fr-CA', 'fr-FR', 'pt-BR'] as const
 export const DATE_STYLES = ['short', 'medium', 'iso'] as const
-export const LANGUAGES = ['es', 'en'] as const
+export const LANGUAGES = ['es', 'en', 'pt', 'fr'] as const
+export const BUDGET_PERIOD_TYPES = ['week', 'biweek', 'month', 'quarter', 'semester', 'year', 'custom', 'untilIncome'] as const
+export const CATEGORY_COLORS = ['emerald', 'green', 'lime', 'yellow', 'amber', 'orange', 'red', 'rose', 'pink', 'purple', 'violet', 'indigo', 'blue', 'sky', 'cyan', 'teal'] as const
+export const TX_SOURCES = ['manual', 'ai_text', 'voice', 'photo', 'scheduled', 'common', 'shortcut', 'import'] as const
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+/** Nombres de iconos: letras, números y guiones (se validan por forma; la interfaz tiene un icono de reserva). */
+const ICON_NAME = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/
 
 function isOneOf<T extends string>(list: readonly T[], value: unknown): value is T {
   return typeof value === 'string' && (list as readonly string[]).includes(value)
@@ -163,6 +174,155 @@ export function validateSettings(s: Settings, prefix = ''): Issue[] {
     issues.push({ path: `${prefix}fallbackHorizonDays`, code: 'invalidValue' })
   }
   if (s.weeklyReview !== undefined && typeof s.weeklyReview !== 'boolean') issues.push({ path: `${prefix}weeklyReview`, code: 'invalidValue' })
+  // v9
+  const bp = s.budgetPeriod
+  if (!bp || typeof bp !== 'object') issues.push({ path: `${prefix}budgetPeriod`, code: 'required' })
+  else {
+    if (!isOneOf(BUDGET_PERIOD_TYPES, bp.type)) issues.push({ path: `${prefix}budgetPeriod.type`, code: 'invalidValue' })
+    if (!Number.isInteger(bp.weekStartsOn) || bp.weekStartsOn < 0 || bp.weekStartsOn > 6) issues.push({ path: `${prefix}budgetPeriod.weekStartsOn`, code: 'invalidValue' })
+    if (bp.customStart !== undefined) checkDate(bp.customStart, `${prefix}budgetPeriod.customStart`, issues)
+    if (bp.customEnd !== undefined) checkDate(bp.customEnd, `${prefix}budgetPeriod.customEnd`, issues)
+    if (bp.type === 'custom') {
+      if (!isValidLocalDate(bp.customStart) || !isValidLocalDate(bp.customEnd)) issues.push({ path: `${prefix}budgetPeriod.customStart`, code: 'required' })
+      else if (bp.customEnd < bp.customStart) issues.push({ path: `${prefix}budgetPeriod.customEnd`, code: 'endBeforeStart' })
+    }
+  }
+  if (typeof s.carryOverBalance !== 'boolean') issues.push({ path: `${prefix}carryOverBalance`, code: 'invalidValue' })
+  const sts = s.safeToSpend
+  if (!sts || typeof sts !== 'object') issues.push({ path: `${prefix}safeToSpend`, code: 'required' })
+  else {
+    for (const k of ['showOnHome', 'subtractScheduled', 'subtractGoalContributions'] as const) {
+      if (typeof sts[k] !== 'boolean') issues.push({ path: `${prefix}safeToSpend.${k}`, code: 'invalidValue' })
+    }
+    if (!isOneOf(['day', 'week', 'period'] as const, sts.granularity)) issues.push({ path: `${prefix}safeToSpend.granularity`, code: 'invalidValue' })
+  }
+  const n = s.notifications
+  if (!n || typeof n !== 'object') issues.push({ path: `${prefix}notifications`, code: 'required' })
+  else {
+    for (const k of ['scheduledAlerts', 'dailyReminder', 'dailySummary', 'quietHours', 'planAlerts'] as const) {
+      if (typeof n[k] !== 'boolean') issues.push({ path: `${prefix}notifications.${k}`, code: 'invalidValue' })
+    }
+    for (const k of ['dailyReminderTime', 'dailySummaryTime', 'quietFrom', 'quietTo'] as const) {
+      if (typeof n[k] !== 'string' || !CLOCK_TIME.test(n[k])) issues.push({ path: `${prefix}notifications.${k}`, code: 'invalidValue' })
+    }
+  }
+  for (const k of ['biometricLock', 'onboardingDone'] as const) {
+    if (typeof s[k] !== 'boolean') issues.push({ path: `${prefix}${k}`, code: 'invalidValue' })
+  }
+  if (!Array.isArray(s.toursSeen) || !s.toursSeen.every((t) => typeof t === 'string' && t.length <= 40) || s.toursSeen.length > 100) {
+    issues.push({ path: `${prefix}toursSeen`, code: 'invalidValue' })
+  }
+  const pro = s.proStatus
+  if (!pro || typeof pro !== 'object' || typeof pro.active !== 'boolean') issues.push({ path: `${prefix}proStatus`, code: 'invalidValue' })
+  else {
+    if (pro.plan !== undefined && pro.plan !== 'monthly' && pro.plan !== 'annual') issues.push({ path: `${prefix}proStatus.plan`, code: 'invalidValue' })
+    if (pro.expiresAt !== undefined && !isValidTimestamp(pro.expiresAt)) issues.push({ path: `${prefix}proStatus.expiresAt`, code: 'invalidTimestamp' })
+  }
+  const ai = s.aiUsage
+  if (!ai || typeof ai !== 'object' || typeof ai.month !== 'string' || !Number.isInteger(ai.count) || ai.count < 0) {
+    issues.push({ path: `${prefix}aiUsage`, code: 'invalidValue' })
+  }
+  return issues
+}
+
+export function validateProfile(p: UserProfile, prefix = 'profile.'): Issue[] {
+  const issues: Issue[] = []
+  if (!p || typeof p !== 'object') return [{ path: 'profile', code: 'required' }]
+  if (typeof p.id !== 'string' || p.id.length === 0 || p.id.length > 128) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  if (typeof p.isGuest !== 'boolean') issues.push({ path: `${prefix}isGuest`, code: 'invalidValue' })
+  if (p.provider !== undefined && p.provider !== 'google' && p.provider !== 'apple') issues.push({ path: `${prefix}provider`, code: 'invalidValue' })
+  checkOptionalText(p.email, `${prefix}email`, issues)
+  checkOptionalText(p.displayName, `${prefix}displayName`, issues)
+  checkOptionalText(p.avatarUrl, `${prefix}avatarUrl`, issues, 2048)
+  return issues
+}
+
+/** Campos opcionales de categoría (v9): grupo, icono, color y orden. */
+function checkCategoryLook(c: { groupId?: unknown; icon?: unknown; color?: unknown; sortOrder?: unknown }, prefix: string, issues: Issue[]) {
+  if (c.groupId !== undefined && (typeof c.groupId !== 'string' || c.groupId.length === 0 || c.groupId.length > 64)) issues.push({ path: `${prefix}groupId`, code: 'invalidValue' })
+  if (c.icon !== undefined && (typeof c.icon !== 'string' || !ICON_NAME.test(c.icon))) issues.push({ path: `${prefix}icon`, code: 'invalidValue' })
+  if (c.color !== undefined && !isOneOf(CATEGORY_COLORS, c.color)) issues.push({ path: `${prefix}color`, code: 'invalidValue' })
+  if (c.sortOrder !== undefined && (typeof c.sortOrder !== 'number' || !Number.isInteger(c.sortOrder) || c.sortOrder < 0)) issues.push({ path: `${prefix}sortOrder`, code: 'invalidValue' })
+}
+
+export function validateCategoryPrefs(prefs: Record<string, CategoryPref>, prefix = 'categoryPrefs'): Issue[] {
+  const issues: Issue[] = []
+  if (!prefs || typeof prefs !== 'object' || Array.isArray(prefs)) return [{ path: prefix, code: 'invalidValue' }]
+  const entries = Object.entries(prefs)
+  if (entries.length > 500) return [{ path: prefix, code: 'tooMany', params: { max: 500 } }]
+  for (const [id, pref] of entries) {
+    const p = `${prefix}.${id}.`
+    if (!pref || typeof pref !== 'object') {
+      issues.push({ path: `${prefix}.${id}`, code: 'invalidValue' })
+      continue
+    }
+    if (pref.name !== undefined) checkName(pref.name, `${p}name`, issues, 40)
+    if (pref.archived !== undefined && typeof pref.archived !== 'boolean') issues.push({ path: `${p}archived`, code: 'invalidValue' })
+    checkCategoryLook(pref, p, issues)
+  }
+  return issues
+}
+
+export function validateCategoryGroup(g: CategoryGroup, all: readonly CategoryGroup[], prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(g.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  if (g.nameKey === undefined) checkName(g.name, `${prefix}name`, issues, 40)
+  else if (typeof g.nameKey !== 'string' || g.nameKey.length > 80) issues.push({ path: `${prefix}nameKey`, code: 'invalidValue' })
+  if (!isOneOf(CATEGORY_COLORS, g.color)) issues.push({ path: `${prefix}color`, code: 'invalidValue' })
+  if (!Number.isInteger(g.sortOrder) || g.sortOrder < 0) issues.push({ path: `${prefix}sortOrder`, code: 'invalidValue' })
+  if (typeof g.name === 'string') {
+    const norm = g.name.trim().toLocaleLowerCase()
+    if (all.some((o) => o.id !== g.id && typeof o.name === 'string' && o.name.trim().toLocaleLowerCase() === norm)) issues.push({ path: `${prefix}name`, code: 'duplicateName' })
+  }
+  if (g.createdAt !== undefined || g.updatedAt !== undefined) checkTimestamps(g, prefix, issues)
+  return issues
+}
+
+export function validateTag(tag: Tag, all: readonly Tag[], prefix = ''): Issue[] {
+  const issues: Issue[] = []
+  if (!isValidId(tag.id)) issues.push({ path: `${prefix}id`, code: 'invalidId' })
+  checkName(tag.name, `${prefix}name`, issues, 30)
+  if (!isOneOf(CATEGORY_COLORS, tag.color)) issues.push({ path: `${prefix}color`, code: 'invalidValue' })
+  if (typeof tag.name === 'string') {
+    const norm = tag.name.trim().toLocaleLowerCase()
+    if (all.some((o) => o.id !== tag.id && o.name.trim().toLocaleLowerCase() === norm)) issues.push({ path: `${prefix}name`, code: 'duplicateName' })
+  }
+  checkTimestamps(tag, prefix, issues)
+  return issues
+}
+
+function checkTagIds(value: unknown, path: string, issues: Issue[]) {
+  if (value === undefined) return
+  if (!Array.isArray(value) || value.length > 20 || !value.every(isValidId) || new Set(value).size !== value.length) issues.push({ path, code: 'invalidValue' })
+}
+
+export function validatePlan(plan: Plan, ctx: { data: Pick<AppData, 'settings'> & { categories?: CustomCategory[] }; prefix?: string }): Issue[] {
+  const p = ctx.prefix ?? ''
+  const issues: Issue[] = []
+  if (!isValidId(plan.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
+  if (plan.kind !== 'limit') issues.push({ path: `${p}kind`, code: 'invalidValue' })
+  checkName(plan.name, `${p}name`, issues)
+  const valid = categoriesForKind('expense', ctx.data.categories ?? [], { includeArchived: true })
+  if (!Array.isArray(plan.categoryIds) || plan.categoryIds.length > 50 || !plan.categoryIds.every((c: unknown) => typeof c === 'string' && valid.includes(c))) {
+    issues.push({ path: `${p}categoryIds`, code: 'invalidCategory' })
+  }
+  checkPositiveAmount(plan.amountMinor, `${p}amountMinor`, issues)
+  if (plan.currency !== ctx.data.settings.currency) issues.push({ path: `${p}currency`, code: 'currencyMismatch', params: { expected: ctx.data.settings.currency } })
+  if (!isOneOf(BUDGET_PERIOD_TYPES, plan.periodType) || plan.periodType === 'untilIncome') issues.push({ path: `${p}periodType`, code: 'invalidValue' })
+  if (plan.startDate !== undefined) checkDate(plan.startDate, `${p}startDate`, issues)
+  if (plan.endDate !== undefined) checkDate(plan.endDate, `${p}endDate`, issues)
+  if (isValidLocalDate(plan.startDate) && isValidLocalDate(plan.endDate) && plan.endDate < plan.startDate) issues.push({ path: `${p}endDate`, code: 'endBeforeStart' })
+  if (plan.periodType === 'custom' && (!isValidLocalDate(plan.startDate) || !isValidLocalDate(plan.endDate))) issues.push({ path: `${p}startDate`, code: 'required' })
+  if (typeof plan.recurring !== 'boolean') issues.push({ path: `${p}recurring`, code: 'invalidValue' })
+  if (!isOneOf(['active', 'completed', 'paused'] as const, plan.status)) issues.push({ path: `${p}status`, code: 'invalidValue' })
+  for (const k of ['alertAt80', 'alertAt100'] as const) if (typeof plan[k] !== 'boolean') issues.push({ path: `${p}${k}`, code: 'invalidValue' })
+  if (plan.result !== undefined) {
+    const r = plan.result
+    if (!r || typeof r !== 'object' || !isMinorAmount(r.spentMinor) || typeof r.achieved !== 'boolean' || !isMinorAmount(r.deltaMinor) || !isValidTimestamp(r.closedAt)) {
+      issues.push({ path: `${p}result`, code: 'invalidValue' })
+    }
+  }
+  checkTimestamps(plan, p, issues)
   return issues
 }
 
@@ -206,6 +366,7 @@ export function validateCategory(c: CustomCategory, all: readonly CustomCategory
   checkName(c.name, `${prefix}name`, issues, 40)
   if (c.kind !== 'expense' && c.kind !== 'income') issues.push({ path: `${prefix}kind`, code: 'invalidValue' })
   if (typeof c.archived !== 'boolean') issues.push({ path: `${prefix}archived`, code: 'invalidValue' })
+  checkCategoryLook(c, prefix, issues)
   if (typeof c.name === 'string') {
     const norm = c.name.trim().toLocaleLowerCase()
     if (all.some((o) => o.id !== c.id && o.kind === c.kind && o.name.trim().toLocaleLowerCase() === norm)) {
@@ -318,6 +479,15 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
   if (tx.splits !== undefined) issues.push(...validateSplits(tx, ctx))
   checkOptionalText(tx.note, `${p}note`, issues)
   checkOptionalText(tx.importRef, `${p}importRef`, issues, 200)
+  // v9
+  checkOptionalText(tx.merchant, `${p}merchant`, issues, 80)
+  checkTagIds(tx.tagIds, `${p}tagIds`, issues)
+  if (tx.source !== undefined && !isOneOf(TX_SOURCES, tx.source)) issues.push({ path: `${p}source`, code: 'invalidValue' })
+  checkOptionalText(tx.receiptUri, `${p}receiptUri`, issues, 2_000_000)
+  for (const k of ['lat', 'lng'] as const) {
+    if (tx[k] !== undefined && (typeof tx[k] !== 'number' || !Number.isFinite(tx[k]) || Math.abs(tx[k]) > (k === 'lat' ? 90 : 180))) issues.push({ path: `${p}${k}`, code: 'invalidValue' })
+  }
+  if (tx.isInitialBalance !== undefined && typeof tx.isInitialBalance !== 'boolean') issues.push({ path: `${p}isInitialBalance`, code: 'invalidValue' })
   checkTimestamps(tx, p, issues)
   return issues
 }
@@ -355,6 +525,10 @@ export function validateSchedule(s: Schedule, ctx: ValidationContext): Issue[] {
     if (!s.categoryId || !categoriesForKind(s.kind, ctx.data.categories, { includeArchived: true }).includes(s.categoryId)) issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   }
   if (!isOneOf(FREQUENCIES, s.frequency)) issues.push({ path: `${p}frequency`, code: 'invalidValue' })
+  if (s.frequency === 'custom' && !(Number.isInteger(s.intervalDays) && (s.intervalDays as number) >= 1 && (s.intervalDays as number) <= 366)) {
+    issues.push({ path: `${p}intervalDays`, code: 'invalidValue' })
+  } else if (s.intervalDays !== undefined && (!Number.isInteger(s.intervalDays) || s.intervalDays < 1)) issues.push({ path: `${p}intervalDays`, code: 'invalidValue' })
+  for (const k of ['autoConfirm', 'paused'] as const) if (s[k] !== undefined && typeof s[k] !== 'boolean') issues.push({ path: `${p}${k}`, code: 'invalidValue' })
   checkDate(s.startDate, `${p}startDate`, issues)
   if (s.endDate !== undefined) {
     checkDate(s.endDate, `${p}endDate`, issues)
@@ -379,6 +553,7 @@ export function validateGoal(g: Goal, ctx: Pick<ValidationContext, 'data' | 'pre
   if (!isValidId(g.id)) issues.push({ path: `${p}id`, code: 'invalidId' })
   checkName(g.name, `${p}name`, issues)
   if (g.kind !== 'goal' && g.kind !== 'emergency' && g.kind !== 'expense') issues.push({ path: `${p}kind`, code: 'invalidValue' })
+  checkCategoryLook({ icon: g.icon, color: g.color }, p, issues)
   // Un gasto planificado necesita fecha de vencimiento; las demás metas no llevan `plan`.
   if (g.kind === 'expense') {
     if (g.targetDate === undefined) issues.push({ path: `${p}targetDate`, code: 'required' })
@@ -571,6 +746,9 @@ export function validateFavorite(
   if (f.amountMinor !== undefined) checkPositiveAmount(f.amountMinor, `${p}amountMinor`, issues)
   checkOptionalText(f.note, `${p}note`, issues)
   if (!Number.isInteger(f.order) || f.order < 0) issues.push({ path: `${p}order`, code: 'invalidValue' })
+  if (f.usageCount !== undefined && (!Number.isInteger(f.usageCount) || f.usageCount < 0)) issues.push({ path: `${p}usageCount`, code: 'invalidValue' })
+  if (f.lastUsedAt !== undefined && !isValidTimestamp(f.lastUsedAt)) issues.push({ path: `${p}lastUsedAt`, code: 'invalidTimestamp' })
+  checkTagIds(f.tagIds, `${p}tagIds`, issues)
   if (!isValidId(f.accountId)) issues.push({ path: `${p}accountId`, code: 'unknownAccount' })
   if (typeof f.categoryId !== 'string' || f.categoryId === '') issues.push({ path: `${p}categoryId`, code: 'invalidCategory' })
   if (ctx.checkReferences && kindOk) {

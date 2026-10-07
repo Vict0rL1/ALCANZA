@@ -23,8 +23,9 @@ describe('preferencias de presentación', () => {
   it('modo privado: solo cambia lo que se muestra; los campos de entrada conservan el importe', () => {
     const settings = baseData().settings
     const shown = createFormatter(settings, { privacy: true })
-    expect(shown.money(12345)).toBe(MASKED)
-    expect(shown.money(-500, { sign: true })).toBe(MASKED)
+    expect(shown.money(12345)).toBe(`$${MASKED}`)
+    expect(shown.money(-500, { sign: true })).toBe(`-$${MASKED}`)
+    expect(shown.money(12345)).not.toMatch(/\d/)
     expect(shown.moneyInput(12345)).toBe(createFormatter(settings).moneyInput(12345))
     expect(createFormatter(settings).money(12345)).toBe('$123.45')
   })

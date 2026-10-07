@@ -63,7 +63,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   const editor = page.getByTestId('split-editor')
   await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
   await editor.getByLabel('Importe de la línea 1').fill('28.40')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda y alquiler' })
   await editor.getByLabel('Importe de la línea 2').fill('10')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$401.60')

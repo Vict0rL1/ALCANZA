@@ -17,10 +17,10 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   const editor = page.getByTestId('split-editor')
   await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
   await editor.getByLabel('Importe de la línea 1').fill('75')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda y alquiler' })
   await editor.getByLabel('Importe de la línea 2').fill('30')
   await editor.getByRole('button', { name: 'Añadir línea' }).click()
-  await editor.getByLabel('Categoría de la línea 3').selectOption({ label: 'Compras' })
+  await editor.getByLabel('Categoría de la línea 3').selectOption({ label: 'Ropa y compras' })
   await editor.getByLabel('Importe de la línea 3').fill('14.99')
   await expect(page.getByTestId('split-status')).toHaveText(/Falta asignar \$0\.01/)
   // Un centavo de diferencia bloquea el guardado.
@@ -37,7 +37,7 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   await expect(await available(page)).toHaveText('$16.78')
   await go(page, '/movimientos')
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toContainText('Dividida en 3 categorías')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda' })
+  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda y alquiler' })
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toBeVisible()
 
   // Cambiar el total pide ajustar; quitar la división conserva el movimiento.
@@ -158,7 +158,7 @@ test('sugerencia: dividir como la última vez en el mismo comercio (solo propone
   const editor = page.getByTestId('split-editor')
   await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
   await editor.getByLabel('Importe de la línea 1').fill('90')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda y alquiler' })
   await editor.getByLabel('Importe de la línea 2').fill('30')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 
@@ -179,12 +179,12 @@ test('bandeja: límite de categoría superado lleva a los movimientos filtrados,
   const summary = page.locator('.month-summary')
   await summary.getByRole('button', { name: 'Agregar límite' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
   await dialog.getByLabel('Límite por mes').fill('30')
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   await go(page, '/pendientes')
-  const item = page.locator('article', { hasText: '«Comida fuera y café» superó su límite de este mes' })
+  const item = page.locator('article', { hasText: '«Restaurantes y café» superó su límite de este mes' })
   await expect(item).toContainText('$7.05')
   await item.getByRole('link', { name: 'Ver movimientos de la categoría' }).click()
   await expect(page.getByLabel('Categoría', { exact: true })).toHaveValue('dining')

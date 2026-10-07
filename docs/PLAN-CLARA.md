@@ -11,16 +11,17 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] `spec-clara-referencia-lukas.md` recibido (falta en el repositorio; necesario para la Fase 12)
 
 ## Fase 1 — Cimientos: tokens, temas, i18n, formateadores, componentes, modelo de datos
-- [ ] Tokens de §4 en `styles.css` (oscuro, claro, 16 colores de categoría, radios, espaciado, tipografía, movimiento)
-- [ ] Oscuro por defecto; sistema y claro siguen disponibles; nada se rompe en los tres
-- [ ] `pt.ts` y `fr.ts` completos con el mismo tipo que `en.ts`
-- [ ] Prueba: clave ausente o vacía en cualquier idioma = rojo; pseudo-locale para literales
-- [ ] Script `scripts/find-literals.mjs` que detecta texto visible escrito en componentes
-- [ ] `formatMoney(minor, currency, locale, {privacy, compact})`, `formatNumber`, `formatDate`, `formatRelativeDate` como funciones puras con pruebas (ejemplos de §2)
-- [ ] Componentes base nuevos: `BottomSheet`, `Toggle`, `CoachMark`, `FAB`, `Skeleton`, `SearchBar`, `TimePickerRow`, `CategoryChip`, `ListRow`, `ProgressBar` (por estado), `AmountInput` con prefijo de moneda
-- [ ] Galería de componentes (`/galeria`) en los tres temas
-- [ ] Modelo v9: categorías materializadas (grupo, icono, color, orden, `nameKey`), grupos, etiquetas, planes (límites), entradas comunes, programados ampliados, ajustes (periodo, arrastre, safe to spend, notificaciones, bloqueo, copias, onboarding, tours, Pro), perfil, uso de IA
-- [ ] Migración v8 → v9 con prueba (incluye `categoryLimits` → planes y copias v1–v8 restaurables)
+- [x] Tokens de §4 en `styles.css` (oscuro, claro, 16 colores de categoría, radios, espaciado, tipografía, movimiento)
+- [x] Oscuro por defecto; sistema y claro siguen disponibles; nada se rompe en los tres (prueba e2e con axe en ambos)
+- [x] `pt.ts` y `fr.ts` completos con el mismo tipo que `en.ts` (1979 claves cada uno)
+- [x] Prueba: clave ausente o vacía en cualquier idioma = rojo; pseudo-locale (`?pseudo=1`, `i18n/pseudo.ts`)
+- [x] Script `scripts/find-literals.mjs` (AST de TypeScript) en `npm run check`
+- [x] `formatMoney(minor, currency, locale, {privacy, compact})`, `formatNumber`, `formatPercent`, `formatDate`, `formatRelativeDate`, `currencyName` como funciones puras con pruebas (ejemplos de §2)
+- [x] Componentes base nuevos (`ui/components/base.tsx`): `PrimaryButton`/`SecondaryButton`/`TextButton`, `BottomSheet`, `Toggle`, `CoachMark`, `FAB`, `Skeleton`, `SearchBar`, `TimePickerRow`, `CategoryChip`, `ListRow`, `ProgressBar` (por estado), `MonthNavigator`; `MoneyField` ya tenía prefijo de moneda
+- [x] Galería de componentes (`#/galeria`) con selector de tema
+- [x] Modelo v9: categorías del sistema con grupo, icono, color y orden + `categoryPrefs` (decisión 17), grupos, etiquetas, planes (límites), favoritos ampliados (entradas comunes), programados ampliados, ajustes (periodo, arrastre, safe to spend, notificaciones, bloqueo, onboarding, tours, Pro, uso de IA), perfil
+- [x] Migración v8 → v9 con prueba (copias v1–v8 restaurables). `categoryLimits` → planes se hace en la Fase 6, cuando exista la pantalla que los muestra
+- [ ] Pendiente para fases siguientes: usar los componentes nuevos en las pantallas existentes (Fase 3 en adelante)
 
 ## Fase 2 — Onboarding y categorías
 - [ ] Bienvenida con selector ES/EN/PT/FR y 3 beneficios

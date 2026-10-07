@@ -9,7 +9,7 @@ test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin c
 
   await page.getByTestId('privacy-toggle').click()
   await expect(page.getByTestId('privacy-toggle')).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByTestId('available')).toHaveText('•••')
+  await expect(page.getByTestId('available')).toHaveText('$-----')
   await expect(page.getByText('no es una contraseña ni cifra tus datos')).toBeVisible()
   // Ningún importe visible ni en atributos accesibles de Inicio.
   const main = page.locator('#main')
@@ -22,7 +22,7 @@ test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin c
   await expect(page.locator('#main')).not.toContainText(/\$\d/)
   await page.reload()
   await go(page, '/')
-  await expect(page.getByTestId('available')).toHaveText('•••')
+  await expect(page.getByTestId('available')).toHaveText('$-----')
   // No cambia lo guardado.
   expect(await storedData(page)).toBe(before)
 

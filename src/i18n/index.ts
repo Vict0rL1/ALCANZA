@@ -1,17 +1,27 @@
 /**
- * Textos de la interfaz. Español es el idioma completo de la primera fase;
- * `en.ts` tiene la misma estructura y se completará en una fase posterior.
- * Una clave que falte en inglés usa el texto en español.
+ * Textos de la interfaz en cuatro idiomas (`es` es la base; `en`, `pt` y `fr` tienen el mismo tipo,
+ * así TypeScript obliga a tener todas las claves). Una clave que faltara usaría el texto en español.
+ * En desarrollo, `?pseudo=1` en la URL activa el pseudo-locale (`pseudo.ts`) para encontrar texto
+ * que no pasa por i18n.
  */
 import { createContext, useContext } from 'react'
 import type { Language } from '../domain/types'
 import { en } from './en'
 import { es } from './es'
+import { fr } from './fr'
+import { pt } from './pt'
+import { pseudoDictionary } from './pseudo'
 
 export type MessageKey = keyof typeof es
 export type Params = Record<string, string | number>
 
-const dictionaries: Record<Language, Partial<Record<MessageKey, string>>> = { es, en }
+const dictionaries: Record<Language, Partial<Record<MessageKey, string>>> = { es, en, pt, fr }
+
+/** Pseudo-locale (solo desarrollo): sustituye el idioma activo por la versión marcada. */
+let pseudo: Record<MessageKey, string> | null = null
+export function enablePseudoLocale(on: boolean): void {
+  pseudo = on ? pseudoDictionary(es) : null
+}
 
 function interpolate(message: string, params?: Params): string {
   if (!params) return message
@@ -19,7 +29,7 @@ function interpolate(message: string, params?: Params): string {
 }
 
 export function translate(language: Language, key: MessageKey, params?: Params): string {
-  const message = dictionaries[language][key] ?? es[key] ?? key
+  const message = pseudo?.[key] ?? dictionaries[language][key] ?? es[key] ?? key
   return interpolate(message, params)
 }
 

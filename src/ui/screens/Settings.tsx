@@ -163,7 +163,7 @@ export function Settings() {
           [
             ['settings.group.general', [['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
             ['settings.group.data', [['cuentas', 'settings.toc.accounts'], ['copia', 'settings.toc.backup'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
-            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['about-title', 'settings.toc.about']]],
+            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['about-title', 'settings.toc.about'], ['galeria', 'settings.toc.gallery']]],
           ] as const
         ).map(([group, links]) => (
           <div key={group}>
@@ -171,7 +171,7 @@ export function Settings() {
             <ul>
               {links.map(([id, label]) => (
                 <li key={id}>
-                  <a href={href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
+                  <a href={id === 'galeria' ? href('/galeria') : href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
                 </li>
               ))}
             </ul>

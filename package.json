@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run lint:i18n && npm run test",
+    "lint:i18n": "node scripts/find-literals.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",

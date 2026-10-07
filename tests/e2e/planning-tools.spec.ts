@@ -319,16 +319,16 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   await page.getByLabel('Hasta (incluido)').fill('2026-10-10')
   await page.getByLabel('Asignado').fill('80')
   await page.locator('summary', { hasText: 'Proponer gastos automáticamente' }).click()
-  await page.getByLabel('Comida fuera y café').check()
+  await page.getByLabel('Restaurantes y café').check()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page.getByText(/Regla: Comida fuera y café/)).toBeVisible()
+  await expect(page.getByText(/Regla: Restaurantes y café/)).toBeVisible()
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('6')
   await openDetails(page)
   const period = page.getByRole('checkbox', { name: /Semana de exámenes/ })
   await expect(period).not.toBeChecked() // categoría por defecto: Otros gastos
-  await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await page.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
   await expect(period).toBeChecked()
   await expect(page.getByText('Propuesto por la regla del periodo')).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -339,7 +339,7 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   // Desmarcar la propuesta: no se asocia.
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('3')
-  await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await page.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
   await openDetails(page)
   await page.getByRole('checkbox', { name: /Semana de exámenes/ }).uncheck()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()

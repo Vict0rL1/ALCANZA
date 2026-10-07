@@ -3,6 +3,8 @@
  * añade aquí una función que convierta la versión anterior a la nueva.
  * Nunca se borra información sin una migración explícita y probada.
  */
+import { colorForId } from '../domain/categories'
+import { defaultCollectionsV9, defaultSettingsV9 } from '../domain/defaults'
 import { SCHEMA_VERSION } from '../domain/types'
 
 type Raw = Record<string, unknown>
@@ -70,6 +72,38 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
     history: raw.history ?? [],
     historyStartedAt: raw.historyStartedAt ?? (typeof raw.updatedAt === 'string' ? raw.updatedAt : raw.createdAt),
   }),
+  /**
+   * v8 → v9 (Clara v2): periodo de presupuesto, arrastre, safe to spend, notificaciones, bloqueo,
+   * onboarding, tours, Pro y uso de IA en ajustes; preferencias de categorías del sistema, grupos,
+   * etiquetas, planes (límites) y perfil. Los datos existentes conservan su fórmula
+   * (`untilIncome`) y se consideran ya configurados (`onboardingDone`). Solo se rellenan campos
+   * ausentes; las categorías personalizadas reciben grupo, icono, color y orden por defecto.
+   */
+  8: (raw) => {
+    const settings = raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings) ? (raw.settings as Raw) : null
+    const defaults = defaultSettingsV9({ periodType: 'untilIncome', onboardingDone: true }) as unknown as Raw
+    const categories = Array.isArray(raw.categories)
+      ? raw.categories.map((c: unknown, i: number) =>
+          c && typeof c === 'object' && !Array.isArray(c)
+            ? {
+                groupId: (c as Raw).kind === 'income' ? 'income' : 'other',
+                icon: 'tag',
+                color: colorForId(String((c as Raw).id ?? i)),
+                sortOrder: 1000 + i,
+                ...(c as Raw),
+              }
+            : c,
+        )
+      : raw.categories
+    return {
+      ...raw,
+      schemaVersion: 9,
+      settings: settings ? { ...defaults, ...settings } : raw.settings,
+      categories,
+      ...defaultCollectionsV9(),
+      ...Object.fromEntries((['categoryPrefs', 'categoryGroups', 'tags', 'plans', 'profile'] as const).filter((k) => raw[k] !== undefined).map((k) => [k, raw[k]])),
+    }
+  },
 }
 
 export function migrate(raw: Raw): Raw {

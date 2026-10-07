@@ -3,12 +3,14 @@
  * Todo lo que se pide es opcional salvo moneda y saldo; se puede explorar la demo.
  */
 import { useRef, useState } from 'react'
+import { currencyName } from '../../domain/formatters'
+import { defaultSettingsV9 } from '../../domain/defaults'
 import { computeBudget, type BudgetResult } from '../../domain/budget'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { SUPPORTED_CURRENCIES } from '../../domain/money'
 import { createInitialData, type SetupInput } from '../../domain/operations'
 import type { AppData, Frequency, GoalFunding, Language, NumberLocale, Settings } from '../../domain/types'
-import { FREQUENCIES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import { FREQUENCIES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
 import { getStore } from '../../state/store'
@@ -62,7 +64,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
 
-  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language, fallbackHorizonDays: null }
+  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language, fallbackHorizonDays: null, ...defaultSettingsV9({ periodType: 'untilIncome', onboardingDone: true }) }
   const fmt = createFormatter(settings)
   const money = (text: string, opts: { allowNegative?: boolean; allowZero?: boolean } = {}) => parseMoney(text, currency, numberLocale, opts)
 
@@ -202,10 +204,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
             name="lang"
             value={language}
             onChange={onLanguageChange}
-            options={[
-              { value: 'es', label: t('settings.language.es') },
-              { value: 'en', label: t('settings.language.en') },
-            ]}
+            options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
           />
           <h1 id="setup-step-title" tabIndex={-1}>
             {t('setup.welcome.title')}
@@ -245,7 +244,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
             {step === 1 && (
               <>
                 {stepTitle('setup.balance.title')}
-                <SelectField label={t('setup.balance.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: t(`currency.${c.code}` as MessageKey) }))} hint={t('setup.balance.currencyHint')} />
+                <SelectField label={t('setup.balance.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} · ${currencyName(c.code, language)}` }))} hint={t('setup.balance.currencyHint')} />
                 <SelectField
                   label={t('settings.format.number')}
                   value={numberLocale}

@@ -114,7 +114,7 @@ test('límite mensual por categoría: progreso, aviso en Inicio y quitar con des
   const summary = page.locator('.month-summary')
   await summary.getByRole('button', { name: 'Agregar límite' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
   await dialog.getByLabel('Límite por mes').fill('30')
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   // En septiembre la demo gasta 37.05 en comida fuera.
@@ -127,7 +127,7 @@ test('límite mensual por categoría: progreso, aviso en Inicio y quitar con des
   await expect(page.getByTestId('available')).toHaveText('$136.78') // informativo: no cambia el disponible
 
   await go(page, '/movimientos')
-  await summary.getByRole('button', { name: /Quitar.*Comida fuera/ }).click()
+  await summary.getByRole('button', { name: /Quitar.*Restaurantes/ }).click()
   await expect(summary.getByText('Sin límites.', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(summary.getByText('$37.05 de $30.00')).toBeVisible()

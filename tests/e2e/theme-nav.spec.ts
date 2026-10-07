@@ -28,8 +28,42 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   await go(page, '/ajustes')
   await page.getByRole('radio', { name: 'Claro' }).check()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  // Contraste también en claro.
+  await go(page, '/')
+  const light = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
+  expect(light.violations.map((v) => v.id)).toEqual([])
+  await go(page, '/ajustes')
   await page.getByRole('radio', { name: 'Sistema' }).check()
-  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+})
+
+test('oscuro es el tema predeterminado; la galería de componentes pasa la auditoría en claro y oscuro', async ({ page }) => {
+  await startDemo(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await go(page, '/galeria')
+  await expect(page.getByRole('heading', { name: 'Galería de componentes' })).toBeVisible()
+  for (const theme of ['Oscuro', 'Claro']) {
+    await page.getByRole('radio', { name: theme }).check()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'Claro' ? 'light' : 'dark')
+    const results = await new AxeBuilder({ page }).disableRules(['region']).analyze()
+    expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
+  }
+  // Hoja inferior: abre, atrapa el foco y se cierra con Escape.
+  await page.getByRole('button', { name: 'Abrir hoja inferior' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Hoja inferior' })
+  await expect(sheet).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+  // Interruptor accesible.
+  const toggle = page.getByRole('switch', { name: 'Interruptor de ejemplo' })
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  // Sin desplazamiento horizontal.
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+  expect(overflow).toBe(false)
 })
 
 test('navegación: «Agregar» a un toque y sección activa marcada (no solo por color)', async ({ page }) => {

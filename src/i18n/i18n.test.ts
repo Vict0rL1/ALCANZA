@@ -2,10 +2,15 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS } from '../domain/categories'
-import { SUPPORTED_CURRENCIES } from '../domain/money'
 import { ACCOUNT_KINDS, FREQUENCIES, NUMBER_LOCALES } from '../domain/validation'
 import { en } from './en'
 import { es } from './es'
+import { fr } from './fr'
+import { pt } from './pt'
+import { pseudoLocalize } from './pseudo'
+import { createTranslator, enablePseudoLocale, translate } from './index'
+
+const LANGS = { en, pt, fr } as const
 
 const keys = new Set(Object.keys(es))
 const has = (k: string) => keys.has(k)
@@ -27,7 +32,6 @@ describe('textos (i18n)', () => {
       ...['income', 'expense', 'transfer', 'refund'].map((k) => `movementForm.kindHint.${k}`),
       ...['pending', 'overdue', 'paid', 'received', 'skipped'].map((s) => `state.${s}`),
       ...ACCOUNT_KINDS.map((k) => `accountKind.${k}`),
-      ...SUPPORTED_CURRENCIES.map((c) => `currency.${c.code}`),
       ...NUMBER_LOCALES.map((l) => `settings.format.locale.${l}`),
       ...['fits', 'tight', 'onlyWithGoals', 'doesNotFit'].flatMap((v) => [`afford.verdict.${v}`, `afford.verdictText.${v}`]),
       ...['empty', 'invalid', 'tooManyDecimals', 'negativeNotAllowed', 'tooLarge', 'zero'].map((e) => `money.error.${e}`),
@@ -59,14 +63,50 @@ describe('textos (i18n)', () => {
     expect(missing).toEqual([])
   })
 
-  it('el inglés solo usa claves existentes', () => {
-    expect(Object.keys(en).filter((k) => !has(k))).toEqual([])
+  it.each(Object.keys(LANGS))('%s: tiene todas las claves del español, ninguna extra y ninguna vacía', (lang) => {
+    const dict = LANGS[lang as keyof typeof LANGS] as Record<string, string>
+    expect(Object.keys(dict).filter((k) => !has(k))).toEqual([])
+    expect([...keys].filter((k) => !(k in dict))).toEqual([])
+    expect(Object.entries(dict).filter(([, v]) => typeof v !== 'string' || v.trim() === '').map(([k]) => k)).toEqual([])
+    expect(Object.keys(dict).length).toBe(keys.size)
   })
 
-  it('las variables {x} del inglés coinciden con las del español', () => {
-    for (const [k, v] of Object.entries(en)) {
-      const vars = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
-      expect(vars(v!), k).toEqual(vars(es[k as keyof typeof es]))
+  it.each(Object.keys(LANGS))('%s: las variables {x} coinciden con las del español', (lang) => {
+    const dict = LANGS[lang as keyof typeof LANGS] as Record<string, string>
+    const vars = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
+    for (const [k, v] of Object.entries(dict)) expect(vars(v), `${lang}: ${k}`).toEqual(vars(es[k as keyof typeof es]))
+  })
+
+  it('cada idioma tiene singular y plural para cada base _one/_other', () => {
+    const bases = [...keys].filter((k) => k.endsWith('_one')).map((k) => k.slice(0, -4))
+    for (const base of bases) {
+      for (const dict of [es, en, pt, fr] as Record<string, string>[]) {
+        expect(dict[`${base}_one`], base).toBeTruthy()
+        expect(dict[`${base}_other`], base).toBeTruthy()
+      }
     }
+  })
+
+  it('traduce y pluraliza en los cuatro idiomas', () => {
+    expect(translate('es', 'common.save')).toBe('Guardar')
+    expect(translate('en', 'common.save')).toBe('Save')
+    expect(translate('pt', 'common.save')).toBe('Salvar')
+    expect(translate('fr', 'common.save')).toBe('Enregistrer')
+    expect(createTranslator('fr').tn('movements.count', 1)).toBe('1 opération')
+    expect(createTranslator('pt').tn('movements.count', 2)).toBe('2 movimentos')
+    expect(createTranslator('fr').tn('movements.count', 0)).toBe('0 opération')
+  })
+
+  it('pseudo-locale: marca el texto, conserva variables y se desactiva', () => {
+    expect(pseudoLocalize('Guardar')).toBe('[Gúárdár~~~]')
+    expect(pseudoLocalize('Faltan {amount}')).toMatch(/^\[Fáltáñ \{amount\}~+\]$/)
+    enablePseudoLocale(true)
+    try {
+      expect(translate('en', 'goals.remaining', { amount: '5' })).toMatch(/^\[.*5.*\]$/)
+      expect(translate('en', 'goals.remaining', { amount: '5' })).not.toContain('{amount}')
+    } finally {
+      enablePseudoLocale(false)
+    }
+    expect(translate('en', 'common.save')).toBe('Save')
   })
 })

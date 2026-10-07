@@ -39,6 +39,7 @@ const TemplateForm = lazy(() => import('./ui/screens/Templates').then((m) => ({ 
 const ShortfallPlan = lazy(() => import('./ui/screens/ShortfallPlan').then((m) => ({ default: m.ShortfallPlan })))
 const History = lazy(() => import('./ui/screens/History').then((m) => ({ default: m.History })))
 const BankImport = lazy(() => import('./ui/screens/BankImport').then((m) => ({ default: m.BankImport })))
+const Gallery = lazy(() => import('./ui/screens/Gallery').then((m) => ({ default: m.Gallery })))
 
 export function App() {
   const state = useAppState()
@@ -470,6 +471,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'plan' && b === 'periodos' && c) return <PeriodBudgetDetail key={key} route={route} />
   if (a === 'plan') return <Plan key={key} route={route} />
   if (a === 'ajustes' && b === 'historial') return <History key={key} />
+  if (a === 'galeria') return <Gallery key={key} />
   if (a === 'ajustes') return <Settings key={key} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (

@@ -5,12 +5,12 @@
  */
 import { useMemo } from 'react'
 import { daysBetween, localDateToDisplayDate, parseLocalDate } from '../domain/dates'
-import { formatMoney, localeSeparators, minorToInputString } from '../domain/money'
+import { formatMoney, localeSeparators, minorToInputString, MASKED_DIGITS } from '../domain/money'
 import type { LocalDate, Settings, Timestamp } from '../domain/types'
 import { useData } from '../state/store'
 import { usePrivacy } from './preferences'
 
-const DATE_LOCALE: Record<Settings['language'], string> = { es: 'es-MX', en: 'en-CA' }
+export const DATE_LOCALE: Record<Settings['language'], string> = { es: 'es-MX', en: 'en-CA', pt: 'pt-BR', fr: 'fr-CA' }
 
 export interface Formatter {
   currency: string
@@ -28,8 +28,11 @@ export interface Formatter {
   percent: (fraction: number) => string
 }
 
-/** Lo que se muestra en lugar de un importe en modo privado (también en etiquetas accesibles). */
-export const MASKED_AMOUNT = '•••'
+/**
+ * Modo privado: `formatMoney` conserva el símbolo y la posición del locale y oculta todas las cifras
+ * («$ -----»), también en etiquetas accesibles. Este texto sirve para comprobarlo en pruebas.
+ */
+export const MASKED_AMOUNT = MASKED_DIGITS
 
 export function createFormatter(settings: Settings, options: { privacy?: boolean } = {}): Formatter {
   const lang = DATE_LOCALE[settings.language]
@@ -51,7 +54,7 @@ export function createFormatter(settings: Settings, options: { privacy?: boolean
     // Modo privado: solo cambia lo que se MUESTRA. Los campos de entrada (moneyInput) y las
     // exportaciones no usan esta función.
     money: (minor, opts) =>
-      options.privacy ? MASKED_AMOUNT : formatMoney(minor, settings.currency, settings.numberLocale, { signDisplay: opts?.sign ? 'exceptZero' : 'auto' }),
+      formatMoney(minor, settings.currency, settings.numberLocale, { signDisplay: opts?.sign ? 'exceptZero' : 'auto', privacy: !!options.privacy }),
     privacy: !!options.privacy,
     moneyInput: (minor) => minorToInputString(minor, settings.currency, settings.numberLocale),
     date: (date, options = {}) => {

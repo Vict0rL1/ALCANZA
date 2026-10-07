@@ -27,7 +27,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   const entry = page.locator('.item', { hasText: 'Café' })
   await expect(entry).toContainText('Eliminado el')
   await expect(entry).toContainText('$4.25')
-  await expect(entry).toContainText('Comida fuera y café')
+  await expect(entry).toContainText('Restaurantes y café')
 
   await entry.getByRole('button', { name: /^Restaurar/ }).click()
   await expect(page.getByText('Movimiento restaurado.')).toBeVisible()

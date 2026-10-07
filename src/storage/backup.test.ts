@@ -332,7 +332,7 @@ describe('migración v7 → v8', () => {
     const r = validateAppData(v7)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.data).toMatchObject({ schemaVersion: 8, templates: [], history: [], historyStartedAt: '2026-09-27T10:00:00.000Z' })
+    expect(r.data).toMatchObject({ schemaVersion: SCHEMA_VERSION, templates: [], history: [], historyStartedAt: '2026-09-27T10:00:00.000Z' })
     expect(r.data.transactions).toEqual(baseData({ transactions: [tx({ id: 't1' })] }).transactions)
   })
 
@@ -343,5 +343,58 @@ describe('migración v7 → v8', () => {
     const badTpl = JSON.parse(JSON.stringify(baseData()))
     badTpl.templates = [{ id: 't', name: 'X', kind: 'split', lines: [{ categoryId: 'dining', amount: { mode: 'percent', bps: 12000 } }], createdAt: NOW, updatedAt: NOW }]
     expect(validateAppData(badTpl).ok).toBe(false)
+  })
+})
+
+describe('migración v8 → v9 (Clara v2)', () => {
+  function v8Backup(): Record<string, unknown> {
+    const data = baseData({
+      categories: [{ id: 'c_pets', name: 'Mascotas', kind: 'expense', archived: false, createdAt: NOW, updatedAt: NOW }],
+      categoryLimits: [{ categoryId: 'c_pets', monthlyLimitMinor: 5000 }],
+      transactions: [tx({ id: 't1' })],
+    })
+    const raw: Record<string, unknown> = JSON.parse(JSON.stringify(data))
+    raw.schemaVersion = 8
+    for (const k of ['categoryPrefs', 'categoryGroups', 'tags', 'plans', 'profile']) delete raw[k]
+    const settings = raw.settings as Record<string, unknown>
+    for (const k of ['budgetPeriod', 'carryOverBalance', 'safeToSpend', 'notifications', 'biometricLock', 'onboardingDone', 'toursSeen', 'proStatus', 'aiUsage']) delete settings[k]
+    const cat = (raw.categories as Record<string, unknown>[])[0]!
+    for (const k of ['groupId', 'icon', 'color', 'sortOrder']) delete cat[k]
+    return raw
+  }
+
+  it('rellena ajustes, colecciones y aspecto de categorías; los datos existentes conservan su fórmula', () => {
+    const r = validateAppData(v8Backup())
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data).toMatchObject({
+      schemaVersion: SCHEMA_VERSION,
+      categoryPrefs: {},
+      categoryGroups: [],
+      tags: [],
+      plans: [],
+      profile: { id: 'guest', isGuest: true },
+      settings: { budgetPeriod: { type: 'untilIncome' }, carryOverBalance: true, onboardingDone: true, toursSeen: [] },
+    })
+    // Lo que ya existía no cambia: límites por categoría, movimientos y la categoría personalizada.
+    expect(r.data.categoryLimits).toEqual([{ categoryId: 'c_pets', monthlyLimitMinor: 5000 }])
+    expect(r.data.transactions).toEqual(baseData({ transactions: [tx({ id: 't1' })] }).transactions)
+    expect(r.data.categories[0]).toMatchObject({ id: 'c_pets', name: 'Mascotas', groupId: 'other', icon: 'tag', sortOrder: 1000 })
+    expect(typeof r.data.categories[0]!.color).toBe('string')
+  })
+
+  it('una copia v8 con una categoría personalizada mal formada se rechaza (no se borra)', () => {
+    const raw = v8Backup()
+    ;(raw.categories as Record<string, unknown>[])[0]!.kind = 'other'
+    expect(validateAppData(raw).ok).toBe(false)
+  })
+
+  it('un plan o una etiqueta mal formados en v9 se rechazan', () => {
+    const bad = JSON.parse(JSON.stringify(baseData()))
+    bad.plans = [{ id: 'p', name: 'Comer fuera', kind: 'limit', categoryIds: ['dining'], amountMinor: -1, currency: 'CAD', periodType: 'month', recurring: true, status: 'active', alertAt80: true, alertAt100: true, createdAt: NOW, updatedAt: NOW }]
+    expect(validateAppData(bad)).toMatchObject({ ok: false, issues: [{ path: expect.stringMatching(/^plans\[0\]/) }] })
+    const badTag = JSON.parse(JSON.stringify(baseData()))
+    badTag.tags = [{ id: 'g', name: '', createdAt: NOW, updatedAt: NOW }]
+    expect(validateAppData(badTag).ok).toBe(false)
   })
 })

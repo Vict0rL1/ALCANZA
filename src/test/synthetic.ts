@@ -5,6 +5,7 @@
  * Se marcan `isDemo: true` para que la app los identifique como ficticios.
  */
 import { addDays, daysBetween } from '../domain/dates'
+import { defaultCollectionsV9, defaultSettingsV9 } from '../domain/defaults'
 import { occurrencesBetween } from '../domain/recurrence'
 import { SCHEMA_VERSION, type Account, type AppData, type HistoryEntry, type Schedule, type Transaction, type TrashEntry } from '../domain/types'
 import { HISTORY_MAX_ENTRIES } from '../domain/history'
@@ -160,12 +161,13 @@ export function createSyntheticData({ movements, today, timeZone = 'America/Toro
     schemaVersion: SCHEMA_VERSION,
     budgetId: `synthetic-${movements}`,
     isDemo: true,
-    settings: { currency: 'CAD', numberLocale: 'es-MX', dateStyle: 'medium', timeZone, language: 'es', fallbackHorizonDays: null, weeklyReview: true },
+    settings: { currency: 'CAD', numberLocale: 'es-MX', dateStyle: 'medium', timeZone, language: 'es', fallbackHorizonDays: null, weeklyReview: true, ...defaultSettingsV9() },
     accounts,
     transactions,
     schedules,
     goals: [],
     categories: [],
+    ...defaultCollectionsV9(),
     categoryLimits: [{ categoryId: 'dining', monthlyLimitMinor: 30000 }],
     categoryRules: [{ id: 'r1', pattern: 'Café', kind: 'expense', categoryId: 'dining', createdAt: anchorSetAt, updatedAt: anchorSetAt }],
     trash,

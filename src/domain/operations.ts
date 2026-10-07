@@ -6,6 +6,7 @@
  * Guardar dos veces el mismo id actualiza el registro; no crea duplicados.
  */
 import { computeBudget } from './budget'
+import { defaultCollectionsV9, defaultSettingsV9 } from './defaults'
 import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
@@ -1024,12 +1025,14 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
       language: input.language,
       fallbackHorizonDays: input.income ? null : input.fallbackHorizonDays,
       weeklyReview: true,
+      ...defaultSettingsV9(),
     },
     accounts: [],
     transactions: [],
     schedules: [],
     goals: [],
     categories: [],
+    ...defaultCollectionsV9(),
     categoryLimits: [],
     categoryRules: [],
     trash: [],

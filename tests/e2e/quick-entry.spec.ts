@@ -60,13 +60,13 @@ test('plantilla de división: porcentajes con redondeo explícito, vista previa 
   await page.getByLabel('Categoría (línea 1)').selectOption({ label: 'Supermercado' })
   await page.getByLabel('Porcentaje (línea 1)').fill('70')
   await page.getByRole('button', { name: 'Añadir línea' }).click()
-  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda' })
+  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda y alquiler' })
   await page.getByLabel('Porcentaje (línea 2)').fill('30')
   // Vista previa con un total de ejemplo: 49.99 → 35.00 (incluye 0.01 de redondeo) + 14.99.
   await page.getByLabel('Probar con un total de').fill('49.99')
   const example = page.getByTestId('template-example')
   await expect(example).toContainText('Supermercado: $35.00 (incluye $0.01 de redondeo)')
-  await expect(example).toContainText('Vivienda: $14.99')
+  await expect(example).toContainText('Vivienda y alquiler: $14.99')
   await page.getByRole('button', { name: 'Guardar plantilla' }).click()
   await expect(page.getByText('Plantilla «Súper y casa» guardada')).toBeVisible()
   // Crear la plantilla no registra nada.

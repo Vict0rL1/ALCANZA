@@ -105,7 +105,7 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
   await page.getByLabel('Categoría (línea 1)').selectOption({ label: 'Supermercado' })
   await page.getByLabel('Porcentaje (línea 1)').fill('60')
   await page.getByRole('button', { name: 'Añadir línea' }).click()
-  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda' })
+  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda y alquiler' })
   await page.getByLabel('Porcentaje (línea 2)').fill('40')
   await page.getByRole('button', { name: 'Guardar plantilla' }).click()
   const before = await movementCount(page)

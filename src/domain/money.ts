@@ -4,22 +4,74 @@
  */
 import type { CurrencyCode, NumberLocale } from './types'
 
+export type CurrencyGroup = 'americas' | 'europe' | 'asiaPacific' | 'middleEastAfrica'
+
 export interface CurrencyInfo {
   code: CurrencyCode
-  /** Decimales fijos. Se fijan aquí (no se leen de Intl) para que los datos guardados no cambien de significado. */
+  /** Decimales fijos (tomados de CLDR al añadir la moneda). No se leen de Intl en tiempo de ejecución para que los datos guardados no cambien de significado. */
   digits: number
+  group: CurrencyGroup
 }
 
+/** ≥ 45 monedas agrupadas por región (§7.7). Los nombres se muestran con `Intl.DisplayNames`. */
 export const SUPPORTED_CURRENCIES: readonly CurrencyInfo[] = [
-  { code: 'CAD', digits: 2 },
-  { code: 'USD', digits: 2 },
-  { code: 'MXN', digits: 2 },
-  { code: 'EUR', digits: 2 },
-  { code: 'GBP', digits: 2 },
-  { code: 'COP', digits: 2 },
-  { code: 'PEN', digits: 2 },
-  { code: 'ARS', digits: 2 },
-  { code: 'CLP', digits: 0 },
+  { code: 'CAD', digits: 2, group: 'americas' },
+  { code: 'USD', digits: 2, group: 'americas' },
+  { code: 'MXN', digits: 2, group: 'americas' },
+  /* 0 decimales como CLDR («$ 25.000»): los pesos colombianos se guardan enteros (decisión 16). */
+  { code: 'COP', digits: 0, group: 'americas' },
+  { code: 'PEN', digits: 2, group: 'americas' },
+  { code: 'ARS', digits: 2, group: 'americas' },
+  { code: 'CLP', digits: 0, group: 'americas' },
+  { code: 'BRL', digits: 2, group: 'americas' },
+  { code: 'UYU', digits: 2, group: 'americas' },
+  { code: 'PYG', digits: 0, group: 'americas' },
+  { code: 'BOB', digits: 2, group: 'americas' },
+  { code: 'GTQ', digits: 2, group: 'americas' },
+  { code: 'HNL', digits: 2, group: 'americas' },
+  { code: 'NIO', digits: 2, group: 'americas' },
+  { code: 'CRC', digits: 2, group: 'americas' },
+  { code: 'PAB', digits: 2, group: 'americas' },
+  { code: 'DOP', digits: 2, group: 'americas' },
+  { code: 'EUR', digits: 2, group: 'europe' },
+  { code: 'GBP', digits: 2, group: 'europe' },
+  { code: 'CHF', digits: 2, group: 'europe' },
+  { code: 'SEK', digits: 2, group: 'europe' },
+  { code: 'NOK', digits: 2, group: 'europe' },
+  { code: 'DKK', digits: 2, group: 'europe' },
+  { code: 'PLN', digits: 2, group: 'europe' },
+  { code: 'CZK', digits: 2, group: 'europe' },
+  { code: 'HUF', digits: 0, group: 'europe' },
+  { code: 'RON', digits: 2, group: 'europe' },
+  { code: 'BGN', digits: 2, group: 'europe' },
+  { code: 'ISK', digits: 0, group: 'europe' },
+  { code: 'TRY', digits: 2, group: 'europe' },
+  { code: 'UAH', digits: 2, group: 'europe' },
+  { code: 'JPY', digits: 0, group: 'asiaPacific' },
+  { code: 'CNY', digits: 2, group: 'asiaPacific' },
+  { code: 'KRW', digits: 0, group: 'asiaPacific' },
+  { code: 'INR', digits: 2, group: 'asiaPacific' },
+  { code: 'AUD', digits: 2, group: 'asiaPacific' },
+  { code: 'NZD', digits: 2, group: 'asiaPacific' },
+  { code: 'SGD', digits: 2, group: 'asiaPacific' },
+  { code: 'HKD', digits: 2, group: 'asiaPacific' },
+  { code: 'TWD', digits: 2, group: 'asiaPacific' },
+  { code: 'THB', digits: 2, group: 'asiaPacific' },
+  { code: 'PHP', digits: 2, group: 'asiaPacific' },
+  { code: 'IDR', digits: 0, group: 'asiaPacific' },
+  { code: 'MYR', digits: 2, group: 'asiaPacific' },
+  { code: 'VND', digits: 0, group: 'asiaPacific' },
+  { code: 'PKR', digits: 0, group: 'asiaPacific' },
+  { code: 'AED', digits: 2, group: 'middleEastAfrica' },
+  { code: 'SAR', digits: 2, group: 'middleEastAfrica' },
+  { code: 'ILS', digits: 2, group: 'middleEastAfrica' },
+  { code: 'EGP', digits: 2, group: 'middleEastAfrica' },
+  { code: 'ZAR', digits: 2, group: 'middleEastAfrica' },
+  { code: 'NGN', digits: 2, group: 'middleEastAfrica' },
+  { code: 'KES', digits: 2, group: 'middleEastAfrica' },
+  { code: 'MAD', digits: 2, group: 'middleEastAfrica' },
+  { code: 'QAR', digits: 2, group: 'middleEastAfrica' },
+  { code: 'KWD', digits: 3, group: 'middleEastAfrica' },
 ]
 
 /** Límite por importe individual: 10^12 unidades menores (10 000 millones de CAD). */
@@ -91,8 +143,8 @@ export function minorToDecimalString(minor: number, currency: CurrencyCode): str
 
 const formatterCache = new Map<string, Intl.NumberFormat>()
 
-function getFormatter(locale: string, currency: string, signDisplay: 'auto' | 'always' | 'exceptZero') {
-  const key = `${locale}|${currency}|${signDisplay}`
+function getFormatter(locale: string, currency: string, signDisplay: 'auto' | 'always' | 'exceptZero', compact: boolean) {
+  const key = `${locale}|${currency}|${signDisplay}|${compact ? 'c' : ''}`
   let f = formatterCache.get(key)
   if (!f) {
     const digits = currencyDigits(currency)
@@ -100,8 +152,7 @@ function getFormatter(locale: string, currency: string, signDisplay: 'auto' | 'a
       style: 'currency',
       currency,
       currencyDisplay: 'narrowSymbol',
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
+      ...(compact ? { notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 } : { minimumFractionDigits: digits, maximumFractionDigits: digits }),
       signDisplay,
     })
     formatterCache.set(key, f)
@@ -109,13 +160,21 @@ function getFormatter(locale: string, currency: string, signDisplay: 'auto' | 'a
   return f
 }
 
+/** Lo que sustituye a las cifras en modo privado (el símbolo de la moneda se conserva). */
+export const MASKED_DIGITS = '-----'
+
 export interface FormatMoneyOptions {
   /** 'always' muestra "+" en positivos (útil para movimientos). */
   signDisplay?: 'auto' | 'always' | 'exceptZero'
+  /** Modo privado: `$ -----` con el símbolo real de la moneda y en la posición del locale. */
+  privacy?: boolean
+  /** Notación compacta para espacios pequeños (`$1.3 M`). Solo para mostrar, nunca para calcular. */
+  compact?: boolean
 }
 
 /**
- * Formatea sin pasar por flotantes: Intl recibe el texto decimal exacto.
+ * Formatea sin pasar por flotantes: Intl recibe el texto decimal exacto. Es EL formateador de
+ * dinero de toda la interfaz (§2 del master prompt): nada muestra importes por otra vía.
  */
 export function formatMoney(
   minor: number,
@@ -123,9 +182,29 @@ export function formatMoney(
   locale: NumberLocale | string,
   options: FormatMoneyOptions = {},
 ): string {
-  const formatter = getFormatter(locale, currency, options.signDisplay ?? 'auto')
+  const formatter = getFormatter(locale, currency, options.signDisplay ?? 'auto', !!options.compact)
   const decimal = minorToDecimalString(minor, currency)
+  if (options.privacy) {
+    // Se conservan símbolo y literales del locale; las partes numéricas se reemplazan una vez.
+    let masked = false
+    return formatter
+      .formatToParts(decimal as Intl.StringNumericLiteral)
+      .map((part) => {
+        if (part.type === 'currency' || part.type === 'literal' || part.type === 'minusSign' || part.type === 'plusSign') return part.value
+        if (masked) return ''
+        masked = true
+        return MASKED_DIGITS
+      })
+      .join('')
+  }
   return formatter.format(decimal as Intl.StringNumericLiteral)
+}
+
+/** Símbolo de la moneda en el locale (p. ej. «$», «€», «R$»). */
+export function currencySymbol(currency: CurrencyCode, locale: NumberLocale | string): string {
+  return getFormatter(locale, currency, 'auto', false)
+    .formatToParts('0' as Intl.StringNumericLiteral)
+    .find((p) => p.type === 'currency')?.value ?? currency
 }
 
 /** Separadores del formato elegido (por ejemplo es-ES usa "," para decimales). */
