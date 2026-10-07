@@ -34,7 +34,8 @@ test('borrar la caché de la app y el service worker no borra los registros fina
     return urls
   })
   expect(cached.length).toBeGreaterThan(0)
-  expect(cached.every((p) => p === '/' || /\.(html|js|css|svg|png|webmanifest|json|ico)$/.test(p))).toBe(true)
+  // Fuentes incluidas (woff2) son archivos de la app, igual que js y css.
+  expect(cached.every((p) => p === '/' || /\.(html|js|css|svg|png|webmanifest|json|ico|woff2)$/.test(p))).toBe(true)
   await page.evaluate(async () => {
     for (const key of await caches.keys()) await caches.delete(key)
     for (const reg of await navigator.serviceWorker.getRegistrations()) await reg.unregister()
