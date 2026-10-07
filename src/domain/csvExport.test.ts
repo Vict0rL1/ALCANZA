@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { signedAmount, transactionsToCsv } from './csvExport'
-import { tx } from '../test/fixtures'
+import { categoriesToCsv, csvSeparatorFor, joinCsvSections, plansToCsv, signedAmount, transactionsToCsv } from './csvExport'
+import { NOW, tx } from '../test/fixtures'
 
 const labels = { headers: ['Fecha', 'Tipo', 'Estado', 'Importe', 'Moneda', 'Categoría', 'Cuenta', 'Hacia', 'Nota', 'Comercio', 'Id'], kind: (t: ReturnType<typeof tx>) => t.kind, status: (t: ReturnType<typeof tx>) => t.status, category: (t: ReturnType<typeof tx>) => t.categoryId ?? '', account: (id?: string) => id ?? '' }
 
@@ -22,5 +22,28 @@ describe('exportación CSV', () => {
   it('el ajuste de conciliación lleva el signo de su dirección', () => {
     expect(signedAmount(tx({ kind: 'adjustment', categoryId: undefined, adjustmentDirection: 'increase', amountMinor: 300 }))).toBe(300)
     expect(signedAmount(tx({ kind: 'adjustment', categoryId: undefined, adjustmentDirection: 'decrease', amountMinor: 300 }))).toBe(-300)
+  })
+})
+
+describe('exportación CSV: categorías, planes, separador por locale y varias secciones', () => {
+  it('usa «;» con coma decimal y mantiene el punto decimal de los importes', () => {
+    expect(csvSeparatorFor(',')).toBe(';')
+    expect(csvSeparatorFor('.')).toBe(',')
+    const csv = transactionsToCsv([tx({ id: 'a', amountMinor: 1250 })], { ...labels, separator: ';' })
+    expect(csv.slice(1).split('\r\n')[1]).toBe('2026-09-28;expense;realized;-12.50;CAD;groceries;main;;;;a')
+  })
+
+  it('categorías y planes en tablas propias; «todo» las une con títulos y un solo BOM', () => {
+    const cat = { id: 'dining', kind: 'expense' as const, nameKey: 'category.dining', groupId: 'food', icon: 'utensils', color: 'orange' as const, archived: false, isCustom: false, sortOrder: 1 }
+    const cats = categoriesToCsv([cat], { headers: ['Id', 'Nombre', 'Tipo', 'Grupo', 'Color', 'Icono', 'Archivada', 'Propia'], name: () => 'Restaurantes', kind: (c) => c.kind, group: (c) => c.groupId, yes: 'sí', no: 'no' })
+    expect(cats.slice(1).split('\r\n')[1]).toBe('dining,Restaurantes,expense,food,orange,utensils,no,no')
+    const plan = { id: 'p1', kind: 'limit' as const, name: 'Comer fuera', categoryIds: ['dining'], amountMinor: 20000, currency: 'CAD' as const, periodType: 'month' as const, startDate: '2026-09-01', endDate: '2026-09-30', recurring: true, status: 'completed' as const, alertAt80: true, alertAt100: true, result: { spentMinor: 25000, achieved: false, deltaMinor: -5000, closedAt: NOW }, createdAt: NOW, updatedAt: NOW }
+    const plans = plansToCsv([plan], { headers: ['Id', 'Nombre', 'Categorías', 'Límite', 'Moneda', 'Periodo', 'Inicio', 'Fin', 'Recurrente', 'Estado', 'Gastado', 'Logrado'], name: (p) => p.name, period: (p) => p.periodType, status: (p) => p.status, categories: (p) => p.categoryIds.join(' '), yes: 'sí', no: 'no' })
+    expect(plans.slice(1).split('\r\n')[1]).toBe('p1,Comer fuera,dining,200.00,CAD,month,2026-09-01,2026-09-30,sí,completed,250.00,no')
+    const all = joinCsvSections([{ title: 'Categorías', csv: cats }, { title: 'Planes', csv: plans }])
+    expect(all.startsWith('﻿')).toBe(true)
+    expect(all.slice(1).includes('﻿')).toBe(false)
+    expect(all.slice(1).split('\r\n')[0]).toBe('Categorías')
+    expect(all.split('\r\n').filter((l) => l === 'Planes')).toHaveLength(1)
   })
 })

@@ -17,6 +17,8 @@ export interface ConfirmedEntry {
   categoryId: string
   note?: string
   merchant?: string
+  /** Foto del recibo comprimida (solo entradas desde foto). */
+  receiptUri?: string
   source: TransactionSource
 }
 
@@ -39,6 +41,7 @@ export function saveConfirmedEntries(data: AppData, entries: readonly ConfirmedE
         categoryId: e.categoryId,
         ...(e.note ? { note: e.note } : {}),
         ...(e.merchant ? { merchant: e.merchant } : {}),
+        ...(e.receiptUri ? { receiptUri: e.receiptUri } : {}),
         source: e.source,
       },
       ctx,

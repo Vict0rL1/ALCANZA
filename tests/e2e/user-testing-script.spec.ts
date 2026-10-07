@@ -124,11 +124,11 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
 
   // T9. Inglés y de vuelta.
   await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/')
   await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
   await go(page, '/ajustes')
-  await page.getByLabel('Language').selectOption('es')
+  await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await go(page, '/')
   await expect(page.getByText('Puedes gastar', { exact: true })).toBeVisible()
 })

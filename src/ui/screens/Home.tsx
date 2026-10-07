@@ -10,7 +10,7 @@ import { planProgress } from '../../domain/plans'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
-import { safeToSpend } from '../../domain/periods'
+import { committedFor, safeToSpend } from '../../domain/periods'
 import { periodLabel } from '../periodLabel'
 import { BottomSheet, CoachMark, FAB, ListRow } from '../components/base'
 import { Segmented } from '../components/fields'
@@ -76,7 +76,8 @@ export function Home() {
         : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
       : t('home.noHorizonTitle')
   // Safe to spend (§6.3) sobre el periodo de calendario: base del periodo − comprometido hasta su fin.
-  const safe = budget.period ? safeToSpend(budget.baseMinor, budget.reservedTotalMinor + budget.goalsReservedMinor, budget.period.daysLeft) : null
+  const safeSettings = data.settings.safeToSpend
+  const safe = budget.period && safeSettings.showOnHome ? safeToSpend(budget.baseMinor, committedFor(safeSettings, budget.reservedTotalMinor, budget.goalsReservedMinor), budget.period.daysLeft) : null
   const granularity = data.settings.safeToSpend?.granularity ?? 'day'
   const setGranularity = (g: 'day' | 'week' | 'period') => void run((d, c) => updateSettings(d, { safeToSpend: { ...d.settings.safeToSpend, granularity: g } }, c))
   const tourSeen = (data.settings.toursSeen ?? []).includes('home')

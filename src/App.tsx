@@ -13,6 +13,10 @@ import { ToastProvider } from './ui/components/Toasts'
 import { href, useRoute, type Route } from './ui/router'
 import { useLocalNotifications } from './ui/notifications'
 import { useScheduledJobs } from './ui/useScheduledJobs'
+import { useAutoBackup } from './ui/useAutoBackup'
+import { LockContext } from './ui/lock/lockContext'
+import { LockScreen } from './ui/lock/LockScreen'
+import { useLock } from './ui/lock/useLock'
 import { Afford } from './ui/screens/Afford'
 import { Home } from './ui/screens/Home'
 import { MovementForm } from './ui/screens/MovementForm'
@@ -24,6 +28,7 @@ const Plan = lazy(() => import('./ui/screens/Plan').then((m) => ({ default: m.Pl
 const PlanForm = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanForm })))
 const PlanDetail = lazy(() => import('./ui/screens/Plans').then((m) => ({ default: m.PlanDetail })))
 const Statistics = lazy(() => import('./ui/screens/Statistics').then((m) => ({ default: m.Statistics })))
+const Legal = lazy(() => import('./ui/screens/Legal').then((m) => ({ default: m.Legal })))
 const ScheduleForm = lazy(() => import('./ui/screens/ScheduleForm').then((m) => ({ default: m.ScheduleForm })))
 const GoalForm = lazy(() => import('./ui/screens/Goals').then((m) => ({ default: m.GoalForm })))
 const Favorites = lazy(() => import('./ui/screens/Favorites').then((m) => ({ default: m.Favorites })))
@@ -58,6 +63,7 @@ function BackgroundJobs() {
 function BackgroundJobsReady() {
   useScheduledJobs()
   useLocalNotifications()
+  useAutoBackup()
   return null
 }
 
@@ -95,7 +101,7 @@ export function App() {
             <Setup language={setupLanguage} onLanguageChange={setSetupLanguage} />
           </>
         )}
-        {state.phase === 'ready' && state.data && <Shell />}
+        {state.phase === 'ready' && state.data && <LockedShell />}
       </ToastProvider>
     </I18nContext.Provider>
   )
@@ -295,6 +301,12 @@ function SaveProblemBanner({ error }: { error: string }) {
       </div>
     </div>
   )
+}
+
+/** Con PIN configurado en este dispositivo, la app se muestra solo tras desbloquear (§7.7). */
+function LockedShell() {
+  const lock = useLock()
+  return <LockContext.Provider value={lock}>{lock.locked && lock.config ? <LockScreen config={lock.config} onUnlock={lock.unlock} /> : <Shell />}</LockContext.Provider>
 }
 
 function Shell() {
@@ -504,6 +516,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'galeria') return <Gallery key={key} />
   if (a === 'asistente') return <Assistant key={`${key}?${route.query.toString()}`} route={route} />
   if (a === 'estadisticas') return <Statistics key={`${key}?${route.query.toString()}`} route={route} />
+  if (a === 'legal') return <Legal key={key} route={route} />
   if (a === 'ajustes') return <Settings key={key} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (

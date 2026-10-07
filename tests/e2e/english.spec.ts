@@ -44,7 +44,7 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
   await expect(page.getByTestId('backup-status')).toContainText('You have never exported a backup.')
 
   await go(page, '/ajustes')
-  await page.getByLabel('Language').selectOption('es')
+  await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'es')
   await page.reload()

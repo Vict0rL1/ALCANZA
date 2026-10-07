@@ -486,6 +486,7 @@ export function validateTransaction(tx: Transaction, ctx: ValidationContext): Is
   // v9
   checkOptionalText(tx.merchant, `${p}merchant`, issues, 80)
   checkTagIds(tx.tagIds, `${p}tagIds`, issues)
+  if (tx.favoriteId !== undefined && !isValidId(tx.favoriteId)) issues.push({ path: `${p}favoriteId`, code: 'invalidId' })
   if (tx.source !== undefined && !isOneOf(TX_SOURCES, tx.source)) issues.push({ path: `${p}source`, code: 'invalidValue' })
   checkOptionalText(tx.receiptUri, `${p}receiptUri`, issues, 2_000_000)
   for (const k of ['lat', 'lng'] as const) {

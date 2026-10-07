@@ -222,7 +222,7 @@ test('búsqueda global: acentos, categorías traducidas, papelera opcional y tec
 test('English: new tools are translated and category search uses English names', async ({ page }) => {
   await startDemo(page)
   await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/buscar?q=groceries')
   await expect(page.getByRole('heading', { name: /^Categories \(1\)/ })).toBeVisible()
   await go(page, '/buscar?q=supermercado')

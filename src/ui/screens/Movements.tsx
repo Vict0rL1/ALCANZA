@@ -36,6 +36,7 @@ export function Movements({ route }: { route?: Route }) {
   const [status, setStatus] = useState<'all' | TxStatus>('all')
   const [accountId, setAccountId] = useState('all')
   const [categoryId, setCategoryId] = useState(() => route?.query.get('categoria') || 'all')
+  const [tagId, setTagId] = useState(() => route?.query.get('etiqueta') || 'all')
   const [from, setFrom] = useState(() => route?.query.get('desde') || '')
   const [to, setTo] = useState(() => route?.query.get('hasta') || '')
   const [limit, setLimit] = useState(PAGE)
@@ -45,7 +46,7 @@ export function Movements({ route }: { route?: Route }) {
   const run = useRun()
   const toast = useToast()
 
-  const filtersActive = from !== '' || to !== '' || query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all'
+  const filtersActive = from !== '' || to !== '' || query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all' || tagId !== 'all'
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
@@ -55,6 +56,7 @@ export function Movements({ route }: { route?: Route }) {
       if (accountId !== 'all' && tx.accountId !== accountId && tx.toAccountId !== accountId) return false
       // Una compra dividida aparece en cada categoría de sus líneas.
       if (categoryId !== 'all' && !txCategoryIds(tx).includes(categoryId)) return false
+      if (tagId !== 'all' && !tx.tagIds?.includes(tagId)) return false
       if (from && tx.date < from) return false
       if (to && tx.date > to) return false
       if (q) {
@@ -65,7 +67,7 @@ export function Movements({ route }: { route?: Route }) {
       }
       return true
     })
-  }, [data, query, kind, status, accountId, categoryId, from, to, t, fmt])
+  }, [data, query, kind, status, accountId, categoryId, tagId, from, to, t, fmt])
 
   const planned = filtered.filter((tx) => tx.status === 'planned').sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const realized = filtered
@@ -82,6 +84,7 @@ export function Movements({ route }: { route?: Route }) {
     setStatus('all')
     setAccountId('all')
     setCategoryId('all')
+    setTagId('all')
     setFrom('')
     setTo('')
   }
@@ -210,6 +213,9 @@ export function Movements({ route }: { route?: Route }) {
               />
             )}
             <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoryOptions} />
+            {data.tags.length > 0 && (
+              <SelectField label={t('fields.tags')} value={tagId} onChange={(e) => setTagId(e.target.value)} options={[{ value: 'all', label: t('filters.allTags') }, ...data.tags.map((tg) => ({ value: tg.id, label: tg.name }))]} />
+            )}
             <TextField label={t('filters.from')} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
             <TextField label={t('filters.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
             {filtersActive && (

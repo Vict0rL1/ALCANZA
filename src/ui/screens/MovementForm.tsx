@@ -24,6 +24,7 @@ import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
+import { CategoryChip } from '../components/base'
 import { FavoriteChips, FavoriteDialog } from '../favoritesUi'
 import { useDeleteTransaction } from '../useDeleteTransaction'
 import { SplitEditor } from '../splitEditor'
@@ -50,7 +51,7 @@ interface MovementDraft {
   splitDrafts: SplitDraft[] | null
 }
 
-const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note', 'link', 'expectRemainder', 'splits']
+const FIELD_PATHS = ['amountMinor', 'date', 'accountId', 'toAccountId', 'categoryId', 'refundOfId', 'note', 'merchant', 'link', 'expectRemainder', 'splits']
 
 export function MovementForm({ route }: { route: Route }) {
   const { t } = useT()
@@ -174,6 +175,9 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   )
   const [refundOfId, setRefundOfId] = useState(existing?.refundOfId ?? '')
   const [note, setNote] = useState(existing?.note ?? duplicateOf?.note ?? prefill?.note ?? q.get('note') ?? '')
+  const [merchant, setMerchant] = useState(existing?.merchant ?? duplicateOf?.merchant ?? '')
+  const [keepReceipt, setKeepReceipt] = useState(true)
+  const [tagIds, setTagIds] = useState<string[]>(() => existing?.tagIds ?? duplicateOf?.tagIds ?? favorite?.tagIds ?? [])
   const [alreadyInBalance, setAlreadyInBalance] = useState(() => {
     if (!existing || existing.status !== 'realized') return false
     const acc = data.accounts.find((a) => a.id === existing.accountId)
@@ -416,6 +420,10 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
         ...(splits ? { splits } : {}),
         ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
         note,
+        merchant: merchant.trim() || undefined,
+        ...(existing?.receiptUri && !keepReceipt ? { receiptUri: null } : {}),
+        tagIds: tagIds.filter((id) => d.tags.some((tg) => tg.id === id)),
+        ...(existing ? {} : favorite ? { favoriteId: favorite.id, source: 'common' as const } : { source: 'manual' as const }),
         ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
         alreadyInBalance,
       },
@@ -819,6 +827,30 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
               />
             )}
           </FieldShell>
+
+          {kind !== 'transfer' && (
+            <TextField label={t('fields.merchant')} value={merchant} maxLength={LIMITS.nameMax} onChange={(e) => setMerchant(e.target.value)} hint={t('movementForm.merchantHint')} error={fieldError(t, fmt, issues, 'merchant')} />
+          )}
+          {existing?.receiptUri && (
+            <div className="field receipt-field" data-testid="receipt-field">
+              <p className="field__label">{t('movementForm.receipt')}</p>
+              {keepReceipt ? <img className="receipt-thumb receipt-thumb--large" src={existing.receiptUri} alt={t('assistant.receiptAlt')} /> : <p className="note">{t('movementForm.receiptWillBeRemoved')}</p>}
+              <CheckboxField checked={!keepReceipt} onChange={(v) => setKeepReceipt(!v)} label={t('movementForm.removeReceipt')} />
+            </div>
+          )}
+          {data.tags.length > 0 && (
+            <fieldset className="field">
+              <legend className="field__label">{t('fields.tags')}</legend>
+              <div className="chip-wrap" data-testid="tag-chips">
+                {data.tags.map((tg) => (
+                  <CategoryChip key={tg.id} label={tg.name} icon="tag" color={tg.color} selected={tagIds.includes(tg.id)} onClick={() => setTagIds((ids) => (ids.includes(tg.id) ? ids.filter((x) => x !== tg.id) : [...ids, tg.id]))} />
+                ))}
+              </div>
+              <p className="field__hint">
+                <a href={href('/ajustes?seccion=etiquetas')}>{t('tags.manage')}</a>
+              </p>
+            </fieldset>
+          )}
 
           {(kind === 'expense' || kind === 'refund') && openPeriods.length > 0 && (
             <fieldset className="stack-sm">

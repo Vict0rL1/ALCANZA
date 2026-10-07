@@ -29,7 +29,24 @@ export interface ParsedEntry {
   hints: ParserHint[]
 }
 
-export type ParserHint = 'noAmount' | 'assumedToday' | 'assumedExpense' | 'incomeKeyword' | 'dateDetected' | 'categoryDictionary' | 'categoryLearned' | 'categoryRule' | 'amountK' | 'amountWords'
+export type ParserHint =
+  | 'noAmount'
+  | 'assumedToday'
+  | 'assumedExpense'
+  | 'incomeKeyword'
+  | 'dateDetected'
+  | 'categoryDictionary'
+  | 'categoryLearned'
+  | 'categoryRule'
+  | 'amountK'
+  | 'amountWords'
+  /* Recibos (foto) */
+  | 'receiptTotal'
+  | 'receiptLargest'
+  | 'receiptNoAmount'
+  | 'receiptDate'
+  | 'receiptMerchant'
+  | 'ocrUnavailable'
 
 export interface ParseContext {
   today: LocalDate

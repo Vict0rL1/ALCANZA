@@ -7,7 +7,7 @@ import { spendableBalance } from './balances'
 import { addDays, addMonthsClamped, daysBetween, daysInMonth, endOfMonth, parseLocalDate, startOfMonth, toLocalDate, weekday } from './dates'
 import { periodSummary } from './insights'
 import { floorDiv, mulDivFloor } from './money'
-import type { AppData, BudgetPeriodSettings, BudgetPeriodType, LocalDate, Weekday } from './types'
+import type { AppData, BudgetPeriodSettings, BudgetPeriodType, LocalDate, Weekday, SafeToSpendSettings } from './types'
 
 export interface Period {
   type: BudgetPeriodType
@@ -151,4 +151,9 @@ export function safeToSpend(availableMinor: number, committedMinor: number, days
     short: availableMinor < committedMinor,
     shortfallMinor: Math.max(committedMinor - availableMinor, 0),
   }
+}
+
+/** Comprometido que se resta del *safe to spend* según los ajustes (§7.7): pagos programados y/o apartados de metas. */
+export function committedFor(settings: SafeToSpendSettings, reservedMinor: number, goalsMinor: number): number {
+  return (settings.subtractScheduled ? reservedMinor : 0) + (settings.subtractGoalContributions ? goalsMinor : 0)
 }

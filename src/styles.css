@@ -3960,3 +3960,90 @@ li.is-selected > .item--select {
     color: #000;
   }
 }
+
+/* ---- Bloqueo (§7.7) ---- */
+.lock {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.lock__card {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  justify-items: stretch;
+  text-align: center;
+}
+.lock__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lock__title {
+  margin: 0;
+  font-size: var(--text-xl, 1.4rem);
+}
+.lock__pin {
+  text-align: center;
+  letter-spacing: 0.4em;
+  font-size: 1.4rem;
+}
+
+/* ---- Moneda ---- */
+.currency-list {
+  max-height: 60vh;
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+}
+.currency-row {
+  width: 100%;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.currency-row.is-current {
+  background: var(--surface-2);
+}
+.currency-row__code {
+  font-weight: 700;
+  min-width: 3.5ch;
+  font-variant-numeric: tabular-nums;
+}
+.note--box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--surface-2);
+}
+
+/* ---- Recibos (§8) ---- */
+.receipt-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.receipt-thumb--large {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+}
+.file-button.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}

@@ -161,7 +161,7 @@ const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
   'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef',
   'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'splits',
-  'merchant', 'tagIds', 'source', 'receiptUri', 'lat', 'lng', 'isInitialBalance', 'createdAt', 'updatedAt',
+  'merchant', 'tagIds', 'favoriteId', 'source', 'receiptUri', 'lat', 'lng', 'isInitialBalance', 'createdAt', 'updatedAt',
 ] as const
 const SPLIT_KEYS = ['id', 'categoryId', 'amountMinor', 'note'] as const
 

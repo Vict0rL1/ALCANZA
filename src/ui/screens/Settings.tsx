@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { accountBalance } from '../../domain/balances'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
-import { deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
+import { changeCurrency, deleteAccount, saveAccount, updateSettings, type AccountDraft } from '../../domain/operations'
 import { backupStatus, setBackupReminder } from '../../domain/backupReminder'
-import type { Account, AccountKind, AppData, BackupReminder, BudgetPeriodType, DateStyle, Language, NumberLocale, Weekday } from '../../domain/types'
+import type { Account, AccountKind, AppData, BackupReminder, BudgetPeriodType, CurrencyCode, DateStyle, Language, NumberLocale, Weekday } from '../../domain/types'
 import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
@@ -33,6 +33,26 @@ import { CategoriesSection } from './CategoriesSection'
 import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
+import { AssistantSection } from './settings/AssistantSection'
+import { BackupsSection } from './settings/BackupsSection'
+import { CurrencyDialog } from './settings/CurrencyDialog'
+import { ExportSection } from './settings/ExportSection'
+import { LockSection } from './settings/LockSection'
+import { SafeToSpendSection } from './settings/SafeToSpendSection'
+import { ScheduledSection } from './settings/ScheduledSection'
+import { TagsSection } from './settings/TagsSection'
+import { useLockState } from '../lock/lockContext'
+import { localBackups } from '../useAutoBackup'
+import { currencyName } from '../../domain/formatters'
+import { getPeriod } from '../../domain/periods'
+import { periodLabel } from '../periodLabel'
+import { CategoryChip } from '../components/base'
+
+/** Enlace de contacto solo si se configuró al compilar; sin dirección real no se muestra un botón que no funciona. */
+const CONTACT_URL = typeof import.meta.env.VITE_CONTACT_URL === 'string' && /^(https?:|mailto:)/.test(import.meta.env.VITE_CONTACT_URL) ? import.meta.env.VITE_CONTACT_URL : null
+const BUILD_ID = import.meta.env.MODE === 'production' ? (import.meta.env.VITE_BUILD_ID ?? 'local') : import.meta.env.MODE
+
+const LANGUAGE_FLAGS: Record<string, string> = { es: '🇪🇸', en: '🇬🇧', pt: '🇧🇷', fr: '🇫🇷' }
 
 const COMMON_TIME_ZONES = [
   'America/Toronto',
@@ -68,6 +88,9 @@ export function Settings() {
   const [importState, setImportState] = useState<{ issues: ImportIssue[] } | { data: AppData; exportedAt: string | null } | null>(null)
   const [confirm, setConfirm] = useState<'resetDemo' | 'clearAll' | 'leaveDemo' | null>(null)
   const [understood, setUnderstood] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [currencyOpen, setCurrencyOpen] = useState(false)
+  const lock = useLockState()
   const fileRef = useRef<HTMLInputElement>(null)
   const pwa = usePwaState()
 
@@ -152,8 +175,26 @@ export function Settings() {
 
   const clearAll = async () => {
     setConfirm(null)
+    // Copia local antes de borrar (operación crítica): si no se puede, igual se borra porque la persona lo confirmó dos veces.
+    try {
+      if (!data.isDemo) await localBackups()?.save(data, 'beforeDelete', new Date(), APP_VERSION)
+    } catch {
+      // Sin espacio o sin IndexedDB: la copia exportable ya se ofreció en el diálogo.
+    }
     await getStore().clearAll()
   }
+
+  const pickCurrency = async (code: CurrencyCode) => {
+    setCurrencyOpen(false)
+    const { result, saved } = await run((d, c) => changeCurrency(d, code, c))
+    if (!result.ok) {
+      toast({ message: t('currency.blocked'), tone: 'critical' })
+      return
+    }
+    if (!result.unchanged) toast({ message: saved ? t('currency.changed', { code }) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+  }
+  const canChangeCurrency = data.transactions.length === 0 && data.trash.length === 0 && data.schedules.length === 0 && data.goals.length === 0 && data.plans.length === 0 && data.periodBudgets.length === 0 && !data.favorites.some((f) => f.amountMinor !== undefined)
+  const currentPeriod = data.settings.budgetPeriod?.type && data.settings.budgetPeriod.type !== 'untilIncome' ? getPeriod(data.settings.budgetPeriod, today) : null
 
   const sample = createFormatter({ ...data.settings })
   return (
@@ -163,8 +204,9 @@ export function Settings() {
         {(
           [
             ['settings.group.general', [['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
-            ['settings.group.data', [['cuentas', 'settings.toc.accounts'], ['copia', 'settings.toc.backup'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
-            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['about-title', 'settings.toc.about'], ['galeria', 'settings.toc.gallery']]],
+            ['settings.group.expenses', [['cuentas', 'settings.toc.accounts'], ['categorias', 'settings.toc.categories'], ['favoritos', 'favorites.title'], ['etiquetas', 'tags.title'], ['programados', 'scheduled.title'], ['safe-to-spend', 'safe.title']]],
+            ['settings.group.data', [['copias-locales', 'localBackup.title'], ['copia', 'settings.toc.backup'], ['bloqueo', 'lock.sectionTitle'], ['exportar', 'export.title'], ['notificaciones', 'settings.notifications.title'], ['asistente', 'assistantSettings.title'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
+            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['legal', 'legal.title'], ['about-title', 'settings.toc.about'], ['galeria', 'settings.toc.gallery']]],
           ] as const
         ).map(([group, links]) => (
           <div key={group}>
@@ -172,7 +214,7 @@ export function Settings() {
             <ul>
               {links.map(([id, label]) => (
                 <li key={id}>
-                  <a href={id === 'galeria' ? href('/galeria') : href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
+                  <a href={id === 'galeria' ? href('/galeria') : id === 'categorias' ? href('/ajustes/categorias') : id === 'favoritos' ? href('/movimientos/favoritos') : href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
                 </li>
               ))}
             </ul>
@@ -236,23 +278,34 @@ export function Settings() {
             <TextField label={t('settings.period.customEnd')} type="date" value={data.settings.budgetPeriod.customEnd ?? ''} onChange={(e) => void setSetting({ budgetPeriod: { ...data.settings.budgetPeriod, customEnd: e.target.value } })} />
           </>
         )}
+        {currentPeriod && (
+          <p className="note note--box" data-testid="current-period">
+            {t('settings.period.current', { label: periodLabel(t, fmt, currentPeriod), from: fmt.date(currentPeriod.start, { compact: true, today }), to: fmt.date(currentPeriod.end, { compact: true, today }) })}
+          </p>
+        )}
         {data.settings.budgetPeriod?.type !== 'untilIncome' && (
           <CheckboxField label={t('settings.period.carryOver')} hint={t('settings.period.carryOverHint')} checked={data.settings.carryOverBalance !== false} onChange={(v) => void setSetting({ carryOverBalance: v })} />
         )}
         <div className="field">
           <p className="field__label">{t('settings.currency.label')}</p>
           <p>
-            <strong>{data.settings.currency}</strong>
+            <strong>{data.settings.currency}</strong> · {currencyName(data.settings.currency, data.settings.numberLocale)} · {sample.money(123456)}
           </p>
-          <p className="field__hint">{t('settings.currency.hint')}</p>
+          <button type="button" className="btn btn--secondary btn--small" onClick={() => setCurrencyOpen(true)} data-testid="change-currency">
+            <Icon name="coins" size={16} />
+            {t('currency.change')}
+          </button>
+          <p className="field__hint">{canChangeCurrency ? t('currency.canChange') : t('settings.currency.hint')}</p>
         </div>
-        <SelectField
-          label={t('settings.language.label')}
-          value={data.settings.language}
-          onChange={(e) => void setSetting({ language: e.target.value as Language })}
-          options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
-          hint={t('settings.language.hint')}
-        />
+        <fieldset className="field">
+          <legend className="field__label">{t('settings.language.label')}</legend>
+          <div className="chip-wrap" data-testid="language-chips">
+            {LANGUAGES.map((l) => (
+              <CategoryChip key={l} label={`${LANGUAGE_FLAGS[l]} ${t(`settings.language.${l}` as MessageKey)}`} icon="globe" color="sky" selected={data.settings.language === l} onClick={() => void setSetting({ language: l as Language })} />
+            ))}
+          </div>
+          <p className="field__hint">{t('settings.language.hint')}</p>
+        </fieldset>
       </Card>
 
       <PersonalizeSection />
@@ -311,6 +364,10 @@ export function Settings() {
 
       <CategoriesSection />
       <RulesSection />
+      <TagsSection />
+      <ScheduledSection />
+      <SafeToSpendSection />
+      <BackupsSection />
 
       <Card labelledBy="backup-title">
         <h2 id="copia" className="card__title">
@@ -433,7 +490,10 @@ export function Settings() {
         </a>
       </Card>
 
+      {lock && <LockSection lock={lock} />}
+      <ExportSection />
       <NotificationsSection />
+      <AssistantSection />
 
       <Card labelledBy="formulas-title">
         <h2 id="formulas" className="card__title">
@@ -472,6 +532,7 @@ export function Settings() {
           className="btn btn--danger-ghost"
           onClick={() => {
             setUnderstood(false)
+            setTyped('')
             setConfirm('clearAll')
           }}
         >
@@ -501,13 +562,32 @@ export function Settings() {
         <p className="note">{t('settings.shortcuts.note')}</p>
       </Card>
 
+      <Card labelledBy="legal-title">
+        <h2 id="legal" className="card__title">
+          <span id="legal-title">{t('legal.title')}</span>
+        </h2>
+        <p className="link-row">
+          <a href={href('/legal/terminos')}>{t('legal.terms.title')}</a>
+          <a href={href('/legal/privacidad')}>{t('legal.privacy.title')}</a>
+        </p>
+      </Card>
+
       <Card labelledBy="about-title">
         <h2 id="about-title" className="card__title">
           {t('settings.about.title')}
         </h2>
         <p>{t('settings.about.text', { version: APP_VERSION })}</p>
+        <p className="item__meta">{t('settings.about.build', { build: BUILD_ID })}</p>
+        {CONTACT_URL ? (
+          <a className="btn btn--secondary btn--small" href={CONTACT_URL} target="_blank" rel="noreferrer">
+            {t('settings.about.contact')}
+          </a>
+        ) : (
+          <p className="note">{t('settings.about.noContact')}</p>
+        )}
       </Card>
 
+      {currencyOpen && <CurrencyDialog current={data.settings.currency} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
       {accountDialog && <AccountDialog account={accountDialog === 'new' ? null : accountDialog} onClose={() => setAccountDialog(null)} />}
       {balanceFor && <UpdateBalanceDialog initialAccountId={balanceFor} onClose={() => setBalanceFor(null)} />}
 
@@ -553,10 +633,12 @@ export function Settings() {
         onConfirm={() => void clearAll()}
         onCancel={() => setConfirm(null)}
         destructive
-        confirmDisabled={!understood}
+        confirmDisabled={!understood || typed.trim().toLocaleUpperCase() !== t('settings.reset.word').toLocaleUpperCase()}
       >
         <p>{t('settings.reset.clearText')}</p>
+        <p className="note">{data.isDemo ? t('settings.reset.demoNote') : t('settings.reset.localCopyNote')}</p>
         <CheckboxField checked={understood} onChange={setUnderstood} label={t('settings.reset.understand')} />
+        <TextField label={t('settings.reset.typeWord', { word: t('settings.reset.word') })} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
       </ConfirmDialog>
     </div>
   )

@@ -125,6 +125,8 @@ export interface Transaction {
   /** Comercio o lugar (distinto de la nota). */
   merchant?: string
   tagIds?: string[]
+  /** Entrada común (favorito) desde la que se rellenó el formulario; solo para contar usos. */
+  favoriteId?: string
   /** Cómo se registró. Ausente en datos anteriores a v9 = manual. */
   source?: TransactionSource
   /** Recibo asociado (URL de datos o referencia al almacén de archivos). */

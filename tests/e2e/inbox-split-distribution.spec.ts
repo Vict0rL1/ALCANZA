@@ -141,7 +141,7 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
 
   // Inglés.
   await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/pendientes')
   await expect(page.getByRole('heading', { name: 'To review', exact: true })).toBeVisible()
   await go(page, '/movimientos/nuevo')

@@ -67,10 +67,18 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [ ] Pendiente: medir con 10 000 movimientos en la Fase 11 (hoy un solo recorrido por métrica, memoizado)
 
 ## Fase 8 — Ajustes
-- [ ] Cuenta, Pro, apariencia (moneda ≥ 45), gestión de gastos (todas las subpantallas), datos y seguridad (copias automáticas, PIN/WebAuthn, exportar, notificaciones), legal, acerca de, zona de peligro
+- [x] Apariencia: idioma con bandera (4), tema (3), selector de moneda con búsqueda y grupos (56 monedas; cambio solo sin registros, decisión 41); periodo con caja «Periodo actual»
+- [x] Gestión de gastos: categorías (enlace), entradas comunes con contador de usos, etiquetas (sección, chips en el formulario, filtro del historial), programados (lista, pausar, próximos 30 días), safe to spend (mostrar, granularidad, qué restar, explicación); comercio en el formulario
+- [x] Datos y seguridad: copias locales automáticas (24 h, últimas 10, antes de restaurar/borrar, hacer ahora, lista con fecha y tamaño, restaurar con vista previa y deshacer); bloqueo con PIN + biometría WebAuthn (al abrir y tras 60 s); exportar CSV (movimientos, categorías, planes, todo; BOM; separador por locale) e informe PDF; notificaciones con «Desactivar todas» y nota de zona horaria
+- [x] Legal (términos y privacidad en 4 idiomas), Acerca de (versión y compilación; contacto solo si está configurado), zona de peligro con casilla + palabra y copia previa
+- [ ] Tarjetas de Cuenta y Pro: Fase 10 (con `FeatureGate`)
 
 ## Fase 9 — Asistente
-- [ ] Voz (Web Speech API), foto (Tesseract.js), proveedor remoto por variable de entorno, contador de uso
+- [x] Voz: dictado con la Web Speech API (desde la Fase 4); estado visible en Ajustes › Asistente
+- [x] Foto: `domain/receipt.ts` (total, fecha, comercio, categoría, confianza; pruebas), OCR en el dispositivo con `TextDetector` si existe (decisión 45), imagen reducida adjunta al movimiento (`receiptUri`, decisión 46), vista y retirada en el formulario
+- [x] Proveedor remoto solo por variables de compilación (`VITE_AI_ENDPOINT` + `VITE_AI_KEY`); Ajustes muestra cuál está activo y el host
+- [x] Contador `aiUsage` mensual visible en Ajustes; solo cuenta el proveedor remoto (decisión 47)
+- [ ] Pendiente: `transcribe` y `parseReceipt` remotos (sin servicio no se simulan)
 
 ## Fase 10 — Cuenta, sincronización y Pro
 - [ ] `FeatureGate` y modo de desarrollo; perfil invitado; pantalla de inicio de sesión y sincronización preparadas; proveedores reales solo con credenciales

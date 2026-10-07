@@ -68,6 +68,11 @@ export function NotificationsSection() {
           <TimePickerRow label={t('settings.notifications.quietTo')} value={settings.quietTo} onChange={(v) => void set({ quietTo: v })} />
         </>
       )}
+      <button type="button" className="btn btn--ghost btn--small" onClick={() => void set({ scheduledAlerts: false, dailyReminder: false, dailySummary: false, planAlerts: false })} disabled={!settings.scheduledAlerts && !settings.dailyReminder && !settings.dailySummary && !settings.planAlerts}>
+        <Icon name="x" size={16} />
+        {t('settings.notifications.disableAll')}
+      </button>
+      <p className="note">{t('settings.notifications.timeZoneNote', { zone: data.settings.timeZone })}</p>
       <p className="field__label">{t('settings.notifications.inApp')}</p>
       {due.length === 0 ? (
         <p className="muted">{t('settings.notifications.none')}</p>

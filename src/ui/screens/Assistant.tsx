@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createAiProvider } from '../../domain/aiProvider'
 import { recordAiUsage, saveConfirmedEntries, type ConfirmedEntry } from '../../domain/assistant'
+import { parseReceiptText } from '../../domain/receipt'
+import { compressReceipt, ocrAvailable, recognizeText } from '../ocr'
 import { resolveCategories } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { parseMoney } from '../../domain/money'
@@ -35,6 +37,8 @@ interface Line {
   categoryId: string
   date: string
   note: string
+  /** Foto del recibo (data URL) cuando la línea viene de una foto. */
+  receiptUri?: string
 }
 
 type SpeechCtor = new () => { lang: string; interimResults: boolean; continuous: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null; start: () => void; stop: () => void }
@@ -65,6 +69,51 @@ export function Assistant({ route }: { route: Route }) {
   const [accountId, setAccountId] = useState(() => data.accounts.find((a) => a.id === lastUsedAccount(data, 'expense'))?.id ?? data.accounts.find((a) => a.includeInBudget)?.id ?? data.accounts[0]?.id ?? '')
 
   useEffect(() => () => recognizer.current?.stop(), [])
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const photoRef = useRef<HTMLInputElement>(null)
+  const parseCtx = () => ({ today, currency: data.settings.currency, language, categories: categories.map((c) => ({ id: c.id, kind: c.kind })), learned, rules: data.categoryRules })
+
+  /** Foto de un recibo: se comprime, se lee el texto en el dispositivo (si el navegador puede) y se propone UNA línea para revisar. */
+  const onPhoto = async (file: File | undefined) => {
+    if (photoRef.current) photoRef.current.value = ''
+    if (!file || photoBusy) return
+    setPhotoBusy(true)
+    try {
+      const receiptUri = await compressReceipt(file)
+      if (!receiptUri) {
+        toast({ message: t('assistant.photoTooBig'), tone: 'critical' })
+        return
+      }
+      const ocr = await recognizeText(file)
+      const receipt = ocr ? parseReceiptText(ocr.text, parseCtx()) : null
+      const hints: ParsedEntry['hints'] = []
+      if (!ocr) hints.push('ocrUnavailable')
+      else if (receipt?.totalMinor === null) hints.push('receiptNoAmount')
+      else if (receipt && receipt.amountsMinor.length > 0 && receipt.confidence >= 0.5) hints.push('receiptTotal')
+      else hints.push('receiptLargest')
+      if (receipt?.date) hints.push('receiptDate')
+      else hints.push('assumedToday')
+      if (receipt?.merchant) hints.push('receiptMerchant')
+      const entry: ParsedEntry = {
+        kind: 'expense',
+        amountMinor: receipt?.totalMinor ?? null,
+        description: receipt?.merchant ?? t('assistant.photoDefaultNote'),
+        ...(receipt?.merchant ? { merchant: receipt.merchant } : {}),
+        ...(receipt?.categoryId ? { categoryId: receipt.categoryId } : {}),
+        date: receipt?.date ?? today,
+        confidence: receipt?.confidence ?? 0,
+        raw: t('assistant.photoRaw', { name: file.name || 'foto' }),
+        hints,
+      }
+      const line: Line = { id: newId(), entry, kind: 'expense', amountText: entry.amountMinor === null ? '' : fmt.moneyInput(entry.amountMinor), categoryId: entry.categoryId ?? 'other_expense', date: entry.date, note: entry.description, receiptUri }
+      setLines((ls) => [...(ls ?? []), line])
+      setIssues([])
+    } catch {
+      toast({ message: t('assistant.photoFailed'), tone: 'critical' })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
 
   const analyze = async (input = text) => {
     if (!input.trim()) return
@@ -90,7 +139,7 @@ export function Assistant({ route }: { route: Route }) {
         note: entry.description,
       })),
     )
-    void run((d, c) => recordAiUsage(d, c))
+    if (provider.id === 'remote') void run((d, c) => recordAiUsage(d, c))
   }
 
   const update = (id: string, patch: Partial<Line>) => setLines((ls) => ls?.map((l) => (l.id === id ? { ...l, ...patch } : l)) ?? null)
@@ -105,7 +154,7 @@ export function Assistant({ route }: { route: Route }) {
         errs.push({ path: `entries[${i}].amountMinor`, code: 'invalidAmount' })
         return
       }
-      entries.push({ id: l.id, kind: l.kind, amountMinor: parsed.minor, date: l.date, accountId, categoryId: l.categoryId, note: l.note.trim() || undefined, merchant: l.entry.merchant, source: 'ai_text' })
+      entries.push({ id: l.id, kind: l.kind, amountMinor: parsed.minor, date: l.date, accountId, categoryId: l.categoryId, note: l.note.trim() || undefined, merchant: l.entry.merchant, ...(l.receiptUri ? { receiptUri: l.receiptUri, source: 'photo' as const } : { source: 'ai_text' as const }) })
     })
     if (errs.length) {
       setIssues(errs)
@@ -169,6 +218,11 @@ export function Assistant({ route }: { route: Route }) {
                 {listening ? t('assistant.voiceStop') : t('assistant.voice')}
               </SecondaryButton>
             ) : null}
+            <label className={`btn btn--secondary file-button${photoBusy ? ' is-disabled' : ''}`}>
+              <Icon name="camera" size={18} />
+              {photoBusy ? t('assistant.photoReading') : t('assistant.photo')}
+              <input ref={photoRef} type="file" accept="image/*" capture="environment" className="sr-only" disabled={photoBusy} onChange={(e) => void onPhoto(e.target.files?.[0])} data-testid="photo-input" />
+            </label>
             <TextButton
               onClick={() => {
                 const example = t('assistant.exampleText')
@@ -181,6 +235,7 @@ export function Assistant({ route }: { route: Route }) {
           </div>
           <p className="note">{provider.id === 'remote' ? t('assistant.remote', { endpoint: (import.meta.env as { VITE_AI_ENDPOINT?: string }).VITE_AI_ENDPOINT ?? '' }) : t('assistant.local')}</p>
           {!speech && <p className="note">{t('assistant.voiceUnavailable')}</p>}
+          <p className="note">{ocrAvailable() ? t('assistant.photoHint') : t('assistant.photoNoOcr')}</p>
           {speech && <p className="note">{t('assistant.voiceHint')}</p>}
         </form>
       </Card>
@@ -197,6 +252,7 @@ export function Assistant({ route }: { route: Route }) {
             {lines.map((l, i) => (
               <li key={l.id} className="assistant__line">
                 <div className="assistant__head">
+                  {l.receiptUri && <img className="receipt-thumb" src={l.receiptUri} alt={t('assistant.receiptAlt')} />}
                   <span className="muted">«{l.entry.raw}»</span>
                   <Badge tone={level(l.entry.confidence) === 'high' ? 'good' : level(l.entry.confidence) === 'medium' ? 'warning' : 'critical'} icon={level(l.entry.confidence) === 'high' ? 'checkCircle' : 'alert'}>
                     {t('assistant.confidence', { pct: `${fmt.percent(l.entry.confidence)} · ${t(`assistant.confidence.${level(l.entry.confidence)}` as MessageKey)}` })}

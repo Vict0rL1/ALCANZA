@@ -956,3 +956,17 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
   pesimista = 125 % con mínimos. Marcas en hoy, 30, 60 y 90 días. Oculto con menos de 14 días desde
   `trackedSince`, menos de 7 días de gasto observado o sin movimientos.
 - **PDF** = impresión del navegador de la vista (hoja de estilos `@media print`); no hay servicio.
+
+## 36. Recibos (foto → propuesta, `domain/receipt.ts`)
+
+- **Importes**: números con separadores de miles o decimales; un año (1900–2099) sin decimales y las horas no cuentan.
+  En monedas sin decimales (COP…) un número con decimales se descarta.
+- **Total** = mayor importe de una línea con «total / importe / monto / amount due / montant / a pagar…» que no sea
+  subtotal, impuesto, propina, cambio, efectivo o tarjeta; «gran total» pesa más. Sin línea de total, la cifra mayor
+  (y se avisa). Sin importes, nada: la persona lo escribe.
+- **Fecha**: `AAAA-MM-DD`, `DD/MM/AAAA` o `DD-MM-AA`; nunca posterior a hoy.
+- **Comercio**: primera de las seis primeras líneas con ≥ 60 % de mayúsculas (o capitalizada), con letras, sin importes
+  ni palabras de total/identificación fiscal. La categoría se sugiere pasando el comercio por el parser (diccionario,
+  aprendizaje y reglas); sin coincidencia, «otros gastos».
+- **Confianza** = 0,5 si el total viene de una línea «total» (0,3 si es solo la mayor) + 0,25 si hay fecha + 0,25 si hay comercio.
+- Todo es propuesta: la línea entra en la vista previa del asistente y pasa la validación normal al confirmar.

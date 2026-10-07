@@ -99,3 +99,15 @@ Probado en `src/storage/indexedDb.test.ts` y en la prueba de navegador `data-saf
 - Límite: 1000 entradas. Detalle de reglas en `docs/FORMULAS.md` §26.
 - Las versiones anteriores a v8 empiezan con historial vacío: la migración no inventa cambios
   pasados (`historyStartedAt` = última fecha de guardado conocida).
+
+## Copias locales automáticas (v2)
+
+- Base IndexedDB aparte: `clara-backups`, almacén `backups` (`storage/autoBackup.ts`). Cada registro guarda el JSON
+  completo de una copia (mismo formato que la exportación), su motivo (`auto`, `manual`, `beforeRestore`,
+  `beforeDelete`, `beforeMigration`), tamaño, `budgetId` y `updatedAt` de los datos copiados.
+- Reglas: automática cada 24 h con la app abierta solo si `updatedAt` cambió y no es la demo; antes de restaurar y
+  de borrar todo; se conservan las 10 más recientes (poda en la misma transacción que la escritura).
+- Restaurar valida el JSON como cualquier importación (`validateAppData`), guarda antes una copia de lo actual y
+  aplica con `commit(..., { source: 'replace' })`, con deshacer inmediato.
+- El bloqueo con PIN (`ui/lock/pin.ts`) vive en `localStorage` (`clara.lock.v1`), nunca en estas copias ni en
+  las exportaciones.

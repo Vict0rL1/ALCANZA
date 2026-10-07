@@ -10,7 +10,7 @@ import { defaultCollectionsV9, defaultSettingsV9 } from './defaults'
 import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
-import { sumMinor } from './money'
+import { isSupportedCurrency, sumMinor } from './money'
 import { findSettlement } from './planItems'
 import { balanceAtDate, reconciliationFingerprint } from './reconcile'
 import type {
@@ -20,6 +20,7 @@ import type {
   SplitLine,
   CardDetails,
   CategoryRule,
+  CurrencyCode,
   CustomCategory,
   Favorite,
   Goal,
@@ -78,7 +79,9 @@ function upsert<T extends { id: string }>(list: T[], item: T): T[] {
 /* Movimientos                                                         */
 /* ------------------------------------------------------------------ */
 
-export type TransactionDraft = Omit<Transaction, 'createdAt' | 'updatedAt' | 'currency' | 'realizedAt'> & {
+export type TransactionDraft = Omit<Transaction, 'createdAt' | 'updatedAt' | 'currency' | 'realizedAt' | 'receiptUri'> & {
+  /** Foto del recibo (data URL comprimida). `null` quita la existente; ausente la conserva. */
+  receiptUri?: string | null
   /**
    * Solo si la fecha coincide con la del saldo de referencia: el movimiento ya
    * estaba incluido en el saldo escrito, así que no debe volver a restarse.
@@ -139,6 +142,8 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
     ...(cleanText(draft.merchant ?? existing?.merchant) ? { merchant: cleanText(draft.merchant ?? existing?.merchant) } : {}),
     ...((draft.tagIds ?? existing?.tagIds)?.length ? { tagIds: draft.tagIds ?? existing?.tagIds } : {}),
     ...((draft.source ?? existing?.source) ? { source: draft.source ?? existing?.source } : {}),
+    ...((draft.favoriteId ?? existing?.favoriteId) ? { favoriteId: draft.favoriteId ?? existing?.favoriteId } : {}),
+    ...(draft.receiptUri === null ? {} : (draft.receiptUri ?? existing?.receiptUri) ? { receiptUri: draft.receiptUri ?? existing?.receiptUri } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
     ...(draft.scheduleId && draft.partialSettlement ? { partialSettlement: true } : {}),
     ...(realizedAt ? { realizedAt } : {}),
@@ -1007,6 +1012,23 @@ export function moveFavorite(data: AppData, id: string, direction: -1 | 1, ctx: 
 /* ------------------------------------------------------------------ */
 /* Ajustes                                                             */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Cambiar la moneda del presupuesto (§7.7). Solo sin registros con importe: los importes
+ * guardados no se convierten (no hay tipo de cambio) y cambiar la etiqueta cambiaría su
+ * significado. Con registros se rechaza con `currencyMismatch` y la interfaz explica la vía
+ * (exportar y empezar un presupuesto nuevo).
+ */
+export function changeCurrency(data: AppData, currency: CurrencyCode, ctx: OpContext): OpResult<Settings> {
+  if (!isSupportedCurrency(currency)) return fail([{ path: 'currency', code: 'invalidValue' }])
+  if (currency === data.settings.currency) return { ok: true, data, value: data.settings, unchanged: true }
+  const hasAmounts = data.transactions.length > 0 || data.trash.length > 0 || data.schedules.length > 0 || data.goals.length > 0 || data.plans.length > 0 || data.favorites.some((f) => f.amountMinor !== undefined) || data.periodBudgets.length > 0
+  if (hasAmounts) return fail([{ path: 'currency', code: 'currencyMismatch', params: { expected: data.settings.currency } }])
+  const settings: Settings = { ...data.settings, currency }
+  const issues = validateSettings(settings)
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...data, settings }, ctx.now), value: settings }
+}
 
 export function updateSettings(data: AppData, patch: Partial<Omit<Settings, 'currency'>>, ctx: OpContext): OpResult<Settings> {
   const settings: Settings = { ...data.settings, ...patch }
