@@ -494,7 +494,7 @@ export function Home() {
           {t(`privacy.next.${prefs.privacy}` as MessageKey)}
         </button>
       </PageHeader>
-      {prefs.privacy && (
+      {prefs.privacy > 0 && (
         <p className="note note--icon" role="status">
           <Icon name="lock" size={16} /> {t('privacy.banner')}
         </p>

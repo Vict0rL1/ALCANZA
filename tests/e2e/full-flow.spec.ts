@@ -171,6 +171,9 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // Una preferencia visual no cambia cifras.
   await go(page, '/')
+  // Tres niveles: oculto, discreto y de vuelta a visible.
+  await page.getByTestId('privacy-toggle').click()
+  await expect(page.getByTestId('available')).toHaveText('-$-----')
   await page.getByTestId('privacy-toggle').click()
   await page.getByTestId('privacy-toggle').click()
   await expect(page.getByTestId('available')).toHaveText('-$340.00') // 1,160 − 1,500 (previsto reservado)

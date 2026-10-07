@@ -96,4 +96,5 @@ Se marca cada punto al cumplir su criterio de aceptación. Las fases se cierran 
 - [x] Widgets: no existen en una app web (decisión 54); se declaran como no disponibles
 
 ## Fase 12 — QA final
-- [ ] Recorrido de cada pantalla contra §7 (y §3 del spec cuando exista); lista de anti-patrones §13; `docs/QA-REPORT.md`
+- [x] Recorrido de cada pantalla contra §7 con capturas (`docs/qa/`), lista de anti-patrones §13 uno por uno y definición de hecho (§12) en `docs/QA-REPORT.md`; dos hallazgos corregidos
+- [ ] Recorrido contra §3 de `spec-clara-referencia-lukas.md`: pendiente de recibir el archivo
