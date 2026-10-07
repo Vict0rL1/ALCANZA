@@ -445,9 +445,8 @@ code {
 .save-indicator--saved {
   color: var(--good-text);
 }
-.save-indicator {
-  transition: opacity 0.4s ease;
-}
+/* «Guardado» se oculta de golpe tras 2,5 s: sin transición, porque un texto a media opacidad
+   no cumple el contraste mínimo (sigue en el DOM para lectores de pantalla). */
 .save-indicator--quiet {
   opacity: 0;
 }

@@ -227,7 +227,7 @@ const NAV: { path: string; match: string; key: NavKey; icon: IconName; add?: boo
 
 function SaveIndicator({ save }: { save: SaveStatus }) {
   const { t } = useT()
-  // «Guardado» se ve 2,5 s y luego se desvanece (sigue en el DOM para lectores de pantalla);
+  // «Guardado» se ve 2,5 s y luego se oculta (sigue en el DOM para lectores de pantalla);
   // los errores no se desvanecen nunca.
   const [quietFor, setQuietFor] = useState<SaveStatus | null>(null)
   useEffect(() => {
