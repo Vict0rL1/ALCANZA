@@ -9,6 +9,7 @@ import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANG
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
+import { GROUP_TITLE_KEY, SETTINGS_GROUPS, SETTINGS_SECTIONS } from './settings/sections'
 import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '../../storage/backup'
 import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
 import { IndexedDbRepository } from '../../storage/indexedDbRepository'
@@ -247,20 +248,13 @@ export function Settings() {
     <div className="stack">
       <PageHeader title={t('settings.title')} />
       <nav className="settings-toc card" aria-label={t('settings.toc')}>
-        {(
-          [
-            ['settings.group.general', [['account-card-title', 'account.title'], ['pro-card-title', 'pro.title'], ['format-title', 'settings.format.title'], ['personalizar', 'personalize.title']]],
-            ['settings.group.expenses', [['cuentas', 'settings.toc.accounts'], ['categorias', 'settings.toc.categories'], ['favoritos', 'favorites.title'], ['etiquetas', 'tags.title'], ['programados', 'scheduled.title'], ['safe-to-spend', 'safe.title']]],
-            ['settings.group.data', [['copias-locales', 'localBackup.title'], ['copia', 'settings.toc.backup'], ['bloqueo', 'lock.sectionTitle'], ['exportar', 'export.title'], ['notificaciones', 'settings.notifications.title'], ['asistente', 'assistantSettings.title'], ['storage-title', 'settings.storage.title'], ['reset-title', 'settings.toc.reset']]],
-            ['settings.group.help', [['formulas', 'settings.toc.formulas'], ['shortcuts-title', 'settings.shortcuts.title'], ['legal', 'legal.title'], ['about-title', 'settings.toc.about'], ['galeria', 'settings.toc.gallery']]],
-          ] as const
-        ).map(([group, links]) => (
+        {SETTINGS_GROUPS.map((group) => (
           <div key={group}>
-            <p className="settings-toc__group">{t(group)}</p>
+            <p className="settings-toc__group">{t(GROUP_TITLE_KEY[group])}</p>
             <ul>
-              {links.map(([id, label]) => (
-                <li key={id}>
-                  <a href={id === 'galeria' ? href('/galeria') : id === 'categorias' ? href('/ajustes/categorias') : id === 'favoritos' ? href('/movimientos/favoritos') : href(`/ajustes?seccion=${id}`)}>{t(label)}</a>
+              {SETTINGS_SECTIONS.filter((x) => x.group === group).map((x) => (
+                <li key={x.id}>
+                  <a href={href(x.href ?? `/ajustes?seccion=${x.id}`)}>{t(x.titleKey)}</a>
                 </li>
               ))}
             </ul>
@@ -293,8 +287,8 @@ export function Settings() {
         </Card>
       )}
 
-      <Card labelledBy="format-title">
-        <h2 id="format-title" className="card__title">
+      <Card labelledBy="formato">
+        <h2 id="formato" className="card__title">
           {t('settings.format.title')}
         </h2>
         <Segmented
@@ -553,8 +547,8 @@ export function Settings() {
         )}
       </Card>
 
-      <Card labelledBy="storage-title">
-        <h2 id="storage-title" className="card__title">
+      <Card labelledBy="almacenamiento">
+        <h2 id="almacenamiento" className="card__title">
           {t('settings.storage.title')}
         </h2>
         {state.phase === 'ready' && state.storage === 'memory' && <Alert tone="critical" title={t('shell.memoryTitle')}>{t('shell.memoryText')}</Alert>}
@@ -600,8 +594,8 @@ export function Settings() {
         </ul>
       </Card>
 
-      <Card labelledBy="reset-title">
-        <h2 id="reset-title" className="card__title">
+      <Card labelledBy="reinicio">
+        <h2 id="reinicio" className="card__title">
           {t('settings.reset.title')}
         </h2>
         {data.isDemo ? (
@@ -630,8 +624,8 @@ export function Settings() {
         </button>
       </Card>
 
-      <Card labelledBy="shortcuts-title">
-        <h2 id="shortcuts-title" className="card__title">
+      <Card labelledBy="atajos">
+        <h2 id="atajos" className="card__title">
           {t('settings.shortcuts.title')}
         </h2>
         <ul className="bullets kbd-list">
@@ -661,8 +655,8 @@ export function Settings() {
         </p>
       </Card>
 
-      <Card labelledBy="about-title">
-        <h2 id="about-title" className="card__title">
+      <Card labelledBy="acerca">
+        <h2 id="acerca" className="card__title">
           {t('settings.about.title')}
         </h2>
         <p>{t('settings.about.text', { version: APP_VERSION })}</p>

@@ -42,8 +42,8 @@ export function NotificationsSection() {
   }
 
   return (
-    <Card labelledBy="notifications-title">
-      <h2 id="notifications-title" className="card__title">
+    <Card labelledBy="notificaciones">
+      <h2 id="notificaciones" className="card__title">
         {t('settings.notifications.title')}
       </h2>
       <p className="note">{t('settings.notifications.intro')}</p>

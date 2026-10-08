@@ -57,7 +57,7 @@ test('copias locales: hacer copia ahora, listar, restaurar con vista previa y de
   await page.getByRole('button', { name: 'Deshacer' }).click()
 
   // Zona de peligro: el botón solo se activa con la casilla y la palabra.
-  await go(page, '/ajustes?seccion=reset-title')
+  await go(page, '/ajustes?seccion=reinicio')
   await page.getByRole('button', { name: 'Borrar todos los datos' }).click()
   const danger = page.getByRole('dialog', { name: '¿Borrar todos los datos?' })
   const confirmBtn = danger.getByRole('button', { name: 'Borrar todo' })
