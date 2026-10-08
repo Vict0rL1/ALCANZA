@@ -4,7 +4,7 @@ import { available, go, startDemo, storedData, writeStoredData } from './helpers
 
 test('exportar, rechazar copias inválidas sin tocar datos e importar una válida', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar copia' }).click()])
   expect(download.suggestedFilename()).toMatch(/^clara-demo-copia-.*\.json$/)
@@ -27,7 +27,7 @@ test('exportar, rechazar copias inválidas sin tocar datos e importar una válid
   await expect(await available(page)).toHaveText('$136.78')
 
   // 3) Copia válida con un cambio: pide confirmación y reemplaza.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const good = structuredClone(backup)
   good.data.accounts[0].name = 'Cuenta importada'
   await page.getByTestId('import-file').setInputFiles({ name: 'buena.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(good)) })
@@ -36,11 +36,12 @@ test('exportar, rechazar copias inválidas sin tocar datos e importar una válid
   await expect(dialog.getByText('Son datos de demostración')).toBeVisible()
   await dialog.getByRole('button', { name: 'Reemplazar datos' }).click()
   await expect(page.getByText('Copia importada')).toBeVisible()
+  await go(page, '/ajustes/cuentas')
   await expect(page.getByText('Cuenta importada').first()).toBeVisible()
 
   // Tras recargar, sigue la versión importada.
   await page.reload()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await expect(page.getByText('Cuenta importada').first()).toBeVisible()
 })
 
@@ -51,7 +52,7 @@ test('copia sin fotos: aviso de tamaño, archivo sin recibos que no cuenta como 
   d.transactions[0].receiptUri = 'data:image/jpeg;base64,' + 'A'.repeat(3000)
   await writeStoredData(page, d)
   await page.reload()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
 
   await expect(page.getByTestId('backup-receipts')).toContainText('Incluye 1 recibo(s) con foto')
   await expect(page.getByText('Nunca has exportado una copia de seguridad.')).toBeVisible()

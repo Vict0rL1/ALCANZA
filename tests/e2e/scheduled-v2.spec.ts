@@ -12,7 +12,8 @@ test('programado con confirmación automática: se registra solo al abrir, avisa
   await page.getByLabel('Próxima fecha').fill('2026-09-27')
   await page.getByLabel('Registrar solo cuando venza').check()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page.getByText('Programación guardada')).toBeVisible()
+  // En el celular el aviso de registro automático sustituye a «Programación guardada» (B4: un aviso a la vez).
+  await expect(page.getByText(/Programación guardada|2 pagos programados se registraron solos/).first()).toBeVisible()
   // En cuanto existe el programado (y en cada apertura o cambio de día) se registran las ocurrencias del 27 y del 28 (hoy).
   await expect(page.getByText('2 pagos programados se registraron solos', { exact: false })).toBeVisible()
   expect(await movementCount(page)).toBe(before + 2)
@@ -53,7 +54,7 @@ test('programado personalizado cada N días genera las fechas correctas', async 
 test('notificaciones: ajustes, horas de silencio y lista dentro de la app; sin permiso no se simula nada', async ({ page, context }) => {
   await context.grantPermissions([])
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/notificaciones')
   const card = page.locator('section', { has: page.getByRole('heading', { name: 'Notificaciones' }) })
   await expect(card.getByText(/Permiso del navegador/)).toBeVisible()
   await card.getByRole('switch', { name: 'Pagos programados (vencidos, hoy y mañana)' }).click()
@@ -68,7 +69,7 @@ test('notificaciones: ajustes, horas de silencio y lista dentro de la app; sin p
   await expect(card.getByText('Ninguno por ahora.')).toBeVisible()
   // Persistencia.
   await page.reload()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/notificaciones')
   await expect(page.getByRole('switch', { name: 'Horas de silencio' })).toHaveAttribute('aria-checked', 'true')
   expect(START.getTime()).toBeGreaterThan(0)
 })

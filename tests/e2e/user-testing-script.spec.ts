@@ -114,7 +114,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   expect(await movementCount(page)).toBe(before + 2)
 
   // T8. Exportar y restaurar: mismas cifras.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar copia' }).click()
   const file = await (await download).path()
@@ -123,11 +123,11 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await expect(await available(page)).toHaveText('$605.20')
 
   // T9. Inglés y de vuelta.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/')
   await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await go(page, '/')
   await expect(page.getByText('Puedes gastar', { exact: true })).toBeVisible()

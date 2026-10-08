@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { go, openApp } from './helpers'
+import { showFullHome, go, openApp } from './helpers'
 
 test('la app funciona en inglés y se puede volver a español', async ({ page }) => {
   await openApp(page)
@@ -11,7 +11,8 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
 
   await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
   await expect(page.getByTestId('available')).toHaveText('$136.78')
-  await expect(page.getByText('Demo mode:')).toBeVisible()
+  await expect(page.locator('.banner--demo')).toContainText('Demo')
+  await showFullHome(page) // los próximos pagos están en la vista completa (C1)
   await expect(page.getByText('Room rent').filter({ visible: true }).first()).toBeVisible()
 
   for (const route of ['/', '/alcanza', '/plan/proyeccion', '/ajustes']) {
@@ -27,6 +28,7 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
   // New screens in English: trash, favorites, balance verification and backup status.
   await go(page, '/')
   await expect(page.getByRole('navigation', { name: 'Favorites' }).getByRole('link', { name: /Coffee/ })).toBeVisible()
+  await showFullHome(page)
   await expect(page.getByTestId('verification')).toContainText('Last recorded transaction')
   for (const [route, heading] of [
     ['/movimientos/papelera', 'Trash'],
@@ -40,12 +42,13 @@ test('la app funciona en inglés y se puede volver a español', async ({ page })
   }
   await go(page, '/plan/proyeccion')
   await expect(page.getByRole('group', { name: 'Variable income scenario' })).toBeVisible()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await expect(page.getByTestId('backup-status')).toContainText('You have never exported a backup.')
 
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
-  await expect(page.getByRole('heading', { name: 'Ajustes' })).toBeVisible()
+  await expect(page.locator('#page-title')).toHaveText('Formato')
+  await expect(page.getByRole('link', { name: 'Ajustes' }).first()).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'es')
   await page.reload()
   await expect(page.getByRole('link', { name: 'Movimientos' }).first()).toBeVisible()

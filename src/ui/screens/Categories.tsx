@@ -112,7 +112,7 @@ export function Categories() {
 
   return (
     <div className="stack">
-      <PageHeader title={t('categories.title')} back={{ href: href('/ajustes?seccion=categorias'), label: t('common.back') }}>
+      <PageHeader title={t('categories.title')} back={{ href: href('/ajustes'), label: t('settings.title') }}>
         <PrimaryButton icon="plus" onClick={() => setEditing('new')}>
           {t('categories.add')}
         </PrimaryButton>

@@ -16,7 +16,7 @@ async function storeAsOldV4(page: Page) {
 
 test('copia de seguridad: nunca exportada, exportación solicitada, verificación y datos nuevos sin respaldar', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const status = page.getByTestId('backup-status')
   await expect(status).toContainText('Nunca has exportado una copia de seguridad.')
   await expect(status).toContainText('Ninguna copia verificada todavía.')
@@ -44,7 +44,7 @@ test('copia de seguridad: nunca exportada, exportación solicitada, verificació
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('3')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await expect(page.getByTestId('backup-status')).toContainText('Hay datos nuevos sin respaldar.')
 })
 
@@ -55,7 +55,7 @@ test('copia de seguridad: una exportación fallida no se registra como hecha', a
     }
   })
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await page.getByRole('button', { name: 'Exportar copia' }).click()
   await expect(page.getByText('No se pudo generar la copia. No se registró ninguna exportación.')).toBeVisible()
   await expect(page.getByTestId('backup-status')).toContainText('Nunca has exportado una copia de seguridad.')
@@ -95,7 +95,7 @@ test('datos v4 del navegador se migran sin perder nada; recordatorio en Inicio, 
   await expect(page.getByText('Haz una copia de seguridad')).toHaveCount(0)
 
   // Desactivado: no se muestra aunque haya cambios.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await page.getByLabel('Recordatorio de copia').selectOption('off')
   await expect(await available(page)).toBeVisible()
   await expect(page.getByText('Haz una copia de seguridad')).toHaveCount(0)

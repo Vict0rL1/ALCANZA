@@ -11,7 +11,7 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   await form.goto('/#/movimientos/nuevo')
   await form.getByLabel('Importe', { exact: true }).fill('7.77')
 
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByRole('radio', { name: 'Oscuro' }).check()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(form.locator('html')).toHaveAttribute('data-theme', 'dark')
@@ -25,14 +25,14 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   // Se recuerda al recargar y «Sistema» lo devuelve al dispositivo.
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByRole('radio', { name: 'Claro' }).check()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   // Contraste también en claro.
   await go(page, '/')
   const light = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
   expect(light.violations.map((v) => v.id)).toEqual([])
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   // «Sistema» deja mandar al dispositivo (sin atributo) y se recuerda al recargar.
   await page.getByRole('radio', { name: 'Sistema' }).check()
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/)

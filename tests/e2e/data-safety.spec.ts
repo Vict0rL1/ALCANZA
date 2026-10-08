@@ -99,13 +99,13 @@ test('datos de una versión más nueva: se explican, no se tocan y empezar de nu
 
 test('restaurar una copia se puede deshacer en el momento', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar copia' }).click()
   const file = await (await download).path()
   await addExpense(page, '3.21', 'Después de exportar')
   const count = await movementCount(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await page.getByTestId('import-file').setInputFiles(file)
   await page.getByRole('dialog').getByRole('button', { name: 'Reemplazar datos' }).click()
   await page.getByRole('button', { name: 'Deshacer' }).click()
@@ -138,6 +138,6 @@ test('usuario de una versión anterior: sus datos de localStorage pasan a Indexe
   expect(JSON.parse(origin.copy!).transactions).toEqual(data.transactions)
   expect(JSON.parse(origin.main!).movedTo).toBe('indexeddb')
   // Ajustes muestra dónde están los datos y la copia del origen.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/almacenamiento')
   await expect(page.getByText(/IndexedDB/).first()).toBeVisible()
 })

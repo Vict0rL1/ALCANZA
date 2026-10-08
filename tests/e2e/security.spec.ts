@@ -38,7 +38,7 @@ test('notas, nombres y descripciones importadas con HTML se muestran como texto 
 test('un archivo de copia mal formado o enorme no bloquea la app ni cambia nada', async ({ page }) => {
   await startDemo(page)
   const before = await storedData(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const deep = '['.repeat(100000) + ']'.repeat(100000)
   for (const [name, text] of [
     ['profundo.json', deep],

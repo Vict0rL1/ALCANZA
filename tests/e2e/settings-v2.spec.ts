@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, openApp, openDetails, startDemo } from './helpers'
+import { applyFilters, openFilters, go, openApp, openDetails, startDemo } from './helpers'
 
 test('etiquetas: crear en Ajustes, usar en el formulario, filtrar el historial y borrar con deshacer', async ({ page }) => {
   await startDemo(page)
@@ -21,7 +21,8 @@ test('etiquetas: crear en Ajustes, usar en el formulario, filtrar el historial y
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
 
   await go(page, '/movimientos')
-  await page.getByLabel('Etiquetas').selectOption({ label: 'Viaje' })
+  await (await openFilters(page)).getByRole('group', { name: 'Etiquetas' }).getByRole('button', { name: 'Viaje' }).click()
+  await applyFilters(page)
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
   await go(page, '/ajustes?seccion=etiquetas')
   await expect(page.getByTestId('tag-list')).toContainText('1 movimiento')
@@ -105,7 +106,7 @@ test('bloqueo con PIN: se pide al recargar, rechaza el PIN incorrecto, desbloque
 
 test('apariencia y exportación: idioma con bandera, moneda bloqueada con registros y libre sin ellos, CSV de categorías, legal', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await expect(page.getByTestId('language-chips').getByRole('button', { name: /Español/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('current-period')).toHaveCount(0) // la demo usa «hasta mi próximo ingreso»
   await page.getByTestId('change-currency').click()
@@ -113,6 +114,7 @@ test('apariencia y exportación: idioma con bandera, moneda bloqueada con regist
   await page.getByRole('dialog').getByRole('button', { name: /MXN/ }).click()
   await expect(page.getByText('Ya hay registros con importe')).toBeVisible()
 
+  await go(page, '/ajustes/exportar')
   const download = page.waitForEvent('download')
   await page.getByLabel('Qué exportar').selectOption('categories')
   await page.getByTestId('export-csv').click()
@@ -136,7 +138,7 @@ test('moneda: un presupuesto nuevo sin registros puede cambiarla desde el select
   await page.getByRole('button', { name: 'Ver mi resultado ahora' }).click()
   await page.getByRole('button', { name: 'Empezar a usar Clara' }).click()
   await expect(page.getByTestId('available')).toBeVisible()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('change-currency').click()
   await page.getByRole('dialog').getByRole('button', { name: /MXN/ }).click()
   await expect(page.getByText('Moneda cambiada a MXN')).toBeVisible()

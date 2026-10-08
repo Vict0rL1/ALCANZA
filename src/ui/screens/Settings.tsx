@@ -9,7 +9,10 @@ import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANG
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
-import { GROUP_TITLE_KEY, SETTINGS_GROUPS, SETTINGS_SECTIONS } from './settings/sections'
+import { GROUP_TITLE_KEY, SETTINGS_GROUPS, SETTINGS_SECTIONS, settingsSection } from './settings/sections'
+import { SearchBar } from '../components/base'
+import { categoriesForKind } from '../../domain/categories'
+import { localDateInTimeZone } from '../../domain/dates'
 import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '../../storage/backup'
 import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
 import { IndexedDbRepository } from '../../storage/indexedDbRepository'
@@ -22,7 +25,7 @@ import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '..
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { ConfirmDialog, Dialog } from '../components/Dialog'
 import { Icon } from '../components/Icon'
-import { href } from '../router'
+import { href, navigate, type Route } from '../router'
 import { useToast } from '../components/toastContext'
 import { UpdateBalanceDialog } from '../dialogs'
 import { createFormatter, useFormat } from '../format'
@@ -30,7 +33,6 @@ import { fieldError, issueMessage } from '../labels'
 import { CardFields, CardSummaryView } from '../cardUi'
 import { useThemePreference } from '../theme'
 import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
-import { CategoriesSection } from './CategoriesSection'
 import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
@@ -78,9 +80,9 @@ const COMMON_TIME_ZONES = [
   'UTC',
 ]
 
-export function Settings() {
+export function Settings({ route }: { route: Route }) {
   const [theme, setTheme] = useThemePreference()
-  const { t } = useT()
+  const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
   const state = useAppState()
@@ -102,6 +104,13 @@ export function Settings() {
   const proActive = isPro(data.settings, { devMode: DEV_MODE })
   const aiPct = aiUsagePercent(data.settings, { today, devMode: DEV_MODE })
   const lock = useLockState()
+  // Subpantalla pedida (`/ajustes/<id>`); `?seccion=<id>` (enlaces antiguos) redirige a ella.
+  const section = settingsSection(route.segments[1])
+  const legacy = settingsSection(route.query.get('seccion'))
+  useEffect(() => {
+    if (!route.segments[1] && legacy) navigate(legacy.href ?? `/ajustes/${legacy.id}`, { replace: true })
+  }, [route.segments, legacy])
+  const [search, setSearch] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const pwa = usePwaState()
 
@@ -244,49 +253,51 @@ export function Settings() {
   const currentPeriod = data.settings.budgetPeriod?.type && data.settings.budgetPeriod.type !== 'untilIncome' ? getPeriod(data.settings.budgetPeriod, today) : null
 
   const sample = createFormatter({ ...data.settings })
+  const activeCategories = categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).length + categoriesForKind('income', data.categories, { prefs: data.categoryPrefs }).length
+  const rowValues: Partial<Record<string, string>> = {
+    formato: `${data.settings.currency} · ${t(`settings.language.${data.settings.language}` as MessageKey)}`,
+    cuentas: tn('localBackup.accounts', data.accounts.length),
+    categorias: tn('settings.value.categories', activeCategories),
+    etiquetas: tn('settings.value.tags', data.tags.length),
+    programados: tn('settings.value.scheduled', data.schedules.filter((x) => !x.paused).length),
+    copia: backup.lastExportAt ? t('settings.value.lastExport', { when: fmt.date(localDateInTimeZone(new Date(backup.lastExportAt), data.settings.timeZone), { compact: true }) }) : t('settings.value.never'),
+  }
   return (
-    <div className="stack">
-      <PageHeader title={t('settings.title')} />
-      <nav className="settings-toc card" aria-label={t('settings.toc')}>
-        {SETTINGS_GROUPS.map((group) => (
-          <div key={group}>
-            <p className="settings-toc__group">{t(GROUP_TITLE_KEY[group])}</p>
-            <ul>
-              {SETTINGS_SECTIONS.filter((x) => x.group === group).map((x) => (
-                <li key={x.id}>
-                  <a href={href(x.href ?? `/ajustes?seccion=${x.id}`)}>{t(x.titleKey)}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
-
-      <Card labelledBy="account-card-title" className="account-card">
-        <h2 id="account-card-title" className="card__title">
-          {data.profile.isGuest ? t('account.guestTitle') : (data.profile.displayName ?? data.profile.email ?? t('account.title'))}
-        </h2>
-        <p className="note">{t('account.cardText')}</p>
-        <a className="btn btn--secondary btn--small" href={href('/cuenta')} data-testid="account-link">
-          <Icon name="user" size={16} />
-          {t('account.open')}
-        </a>
-      </Card>
-
-      {!proActive && (
-        <Card labelledBy="pro-card-title" className="pro-card">
-          <h2 id="pro-card-title" className="card__title">
-            {t('pro.cardTitle')}
-          </h2>
-          <p className="note">{t('pro.cardText')}</p>
-          <p className="item__meta" data-testid="ai-usage">{t('pro.aiUsagePct', { pct: aiPct })}</p>
-          <a className="btn btn--secondary btn--small" href={href('/pro')}>
-            <Icon name="sparkles" size={16} />
-            {t('pro.discover')}
+    <div className={section ? 'stack settings-sub' : 'stack'}>
+      {section ? (
+        <PageHeader title={t(section.titleKey)} back={{ href: href('/ajustes'), label: t('settings.title') }} />
+      ) : (
+        <>
+          <PageHeader title={t('settings.title')} />
+          {/* Cuenta y Pro: filas compactas en lo alto (C3); el detalle vive en /cuenta y /pro. */}
+          <a className="list-row list-row--link account-row" href={href('/cuenta')} data-testid="account-link">
+            <span className="cat-dot" aria-hidden="true">
+              <Icon name="user" size={18} />
+            </span>
+            <span className="list-row__main">
+              <span className="list-row__title">{data.profile.isGuest ? t('account.guestTitle') : (data.profile.displayName ?? data.profile.email ?? t('account.title'))}</span>
+              <span className="list-row__subtitle">{t('account.open')}</span>
+            </span>
+            <Icon name="chevronRight" size={18} className="list-row__chevron" />
           </a>
-        </Card>
-      )}
+          {!proActive && (
+            <a className="list-row list-row--link pro-row" href={href('/pro')} data-testid="pro-link">
+              <span className="cat-dot" aria-hidden="true">
+                <Icon name="sparkles" size={18} />
+              </span>
+              <span className="list-row__main">
+                <span className="list-row__title">{t('pro.discover')}</span>
+                <span className="list-row__subtitle" data-testid="ai-usage">{t('pro.aiUsagePct', { pct: aiPct })}</span>
+              </span>
+              <Icon name="chevronRight" size={18} className="list-row__chevron" />
+            </a>
+          )}
 
+          <SearchBar value={search} onChange={setSearch} label={t('settings.search')} placeholder={t('settings.search')} clearLabel={t('common.clear')} />
+          <SettingsIndex query={search} values={rowValues} />
+        </>
+      )}
+      {section?.id === 'formato' && (
       <Card labelledBy="formato">
         <h2 id="formato" className="card__title">
           {t('settings.format.title')}
@@ -372,9 +383,11 @@ export function Settings() {
           <p className="field__hint">{t('settings.language.hint')}</p>
         </fieldset>
       </Card>
+      )}
 
-      <PersonalizeSection />
+      {section?.id === 'personalizar' && <PersonalizeSection />}
 
+      {section?.id === 'cuentas' && (
       <Card labelledBy="accounts-title">
         <h2 id="cuentas" className="card__title">
           <span id="accounts-title">{t('settings.accounts.title')}</span>
@@ -426,14 +439,15 @@ export function Settings() {
           {t('settings.accounts.cardsText')}
         </Alert>
       </Card>
+      )}
 
-      <CategoriesSection />
-      <RulesSection />
-      <TagsSection />
-      <ScheduledSection />
-      <SafeToSpendSection />
-      <BackupsSection />
+      {section?.id === 'reglas' && <RulesSection />}
+      {section?.id === 'etiquetas' && <TagsSection />}
+      {section?.id === 'programados' && <ScheduledSection />}
+      {section?.id === 'safe-to-spend' && <SafeToSpendSection />}
+      {section?.id === 'copias-locales' && <BackupsSection />}
 
+      {section?.id === 'copia' && (
       <Card labelledBy="backup-title">
         <h2 id="copia" className="card__title">
           <span id="backup-title">{t('settings.backup.title')}</span>
@@ -546,7 +560,9 @@ export function Settings() {
           </Alert>
         )}
       </Card>
+      )}
 
+      {section?.id === 'almacenamiento' && (
       <Card labelledBy="almacenamiento">
         <h2 id="almacenamiento" className="card__title">
           {t('settings.storage.title')}
@@ -572,12 +588,14 @@ export function Settings() {
           {t('history.open')}
         </a>
       </Card>
+      )}
 
-      {lock && <LockSection lock={lock} />}
-      <ExportSection />
-      <NotificationsSection />
-      <AssistantSection />
+      {section?.id === 'bloqueo' && lock && <LockSection lock={lock} />}
+      {section?.id === 'exportar' && <ExportSection />}
+      {section?.id === 'notificaciones' && <NotificationsSection />}
+      {section?.id === 'asistente' && <AssistantSection />}
 
+      {section?.id === 'formulas' && (
       <Card labelledBy="formulas-title">
         <h2 id="formulas" className="card__title">
           <span id="formulas-title">{t('settings.formulas.title')}</span>
@@ -593,7 +611,9 @@ export function Settings() {
           <li>{t('settings.formulas.rounding')}</li>
         </ul>
       </Card>
+      )}
 
+      {section?.id === 'reinicio' && (
       <Card labelledBy="reinicio">
         <h2 id="reinicio" className="card__title">
           {t('settings.reset.title')}
@@ -623,7 +643,9 @@ export function Settings() {
           {t('settings.reset.clearAll')}
         </button>
       </Card>
+      )}
 
+      {section?.id === 'atajos' && (
       <Card labelledBy="atajos">
         <h2 id="atajos" className="card__title">
           {t('settings.shortcuts.title')}
@@ -644,7 +666,9 @@ export function Settings() {
         </ul>
         <p className="note">{t('settings.shortcuts.note')}</p>
       </Card>
+      )}
 
+      {section?.id === 'legal' && (
       <Card labelledBy="legal-title">
         <h2 id="legal" className="card__title">
           <span id="legal-title">{t('legal.title')}</span>
@@ -654,7 +678,9 @@ export function Settings() {
           <a href={href('/legal/privacidad')}>{t('legal.privacy.title')}</a>
         </p>
       </Card>
+      )}
 
+      {section?.id === 'acerca' && (
       <Card labelledBy="acerca">
         <h2 id="acerca" className="card__title">
           {t('settings.about.title')}
@@ -669,6 +695,7 @@ export function Settings() {
           <p className="note">{t('settings.about.noContact')}</p>
         )}
       </Card>
+      )}
 
       {encryptOpen && (
         <PassphraseDialog
@@ -922,5 +949,49 @@ function OriginCopy() {
         <p>{t('settings.storage.originDeleteText')}</p>
       </ConfirmDialog>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Índice de Ajustes: lista agrupada con búsqueda (C3)                 */
+/* ------------------------------------------------------------------ */
+
+const fold = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
+
+function SettingsIndex({ query, values }: { query: string; values: Partial<Record<string, string>> }) {
+  const { t } = useT()
+  const q = fold(query.trim())
+  const matches = (x: (typeof SETTINGS_SECTIONS)[number]) => !q || fold(`${t(x.titleKey)} ${t(`settings.keywords.${x.id}` as MessageKey)} ${values[x.id] ?? ''}`).includes(q)
+  const row = (x: (typeof SETTINGS_SECTIONS)[number]) => (
+    <li key={x.id}>
+      <a className="list-row list-row--link settings-row" href={href(x.href ?? `/ajustes/${x.id}`)} data-testid={`settings-row-${x.id}`}>
+        <span className="list-row__icon settings-row__icon" aria-hidden="true">
+          <Icon name={x.icon} size={18} />
+        </span>
+        <span className="list-row__main">
+          <span className="list-row__title">{t(x.titleKey)}</span>
+          {values[x.id] && <span className="list-row__subtitle">{values[x.id]}</span>}
+        </span>
+        <Icon name="chevronRight" size={18} />
+      </a>
+    </li>
+  )
+  const groups = SETTINGS_GROUPS.map((g) => ({ g, items: SETTINGS_SECTIONS.filter((x) => x.group === g && matches(x)) })).filter((x) => x.items.length > 0)
+  return (
+    <nav className="settings-index" aria-label={t('settings.toc')}>
+      {groups.length === 0 && (
+        <p className="note" role="status">
+          {t('settings.searchEmpty', { q: query.trim() })}
+        </p>
+      )}
+      {groups.map(({ g, items }) => (
+        <section key={g} className="settings-group" aria-labelledby={`settings-group-${g}`}>
+          <h2 id={`settings-group-${g}`} className="settings-group__title">
+            {t(GROUP_TITLE_KEY[g])}
+          </h2>
+          <ul className="settings-group__list">{items.map(row)}</ul>
+        </section>
+      ))}
+    </nav>
   )
 }
