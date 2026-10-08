@@ -196,15 +196,17 @@ export function Movements({ route }: { route?: Route }) {
               label={t('filters.search')}
               value={query}
               placeholder={t('filters.searchPlaceholder')}
+              hint={t('filters.searchHint')}
               onChange={(v) => {
                 setQuery(v)
                 setLimit(PAGE)
               }}
               clearLabel={t('common.clear')}
             />
-            <button type="button" className="btn btn--secondary filters__open" onClick={() => setFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={filtersOpen} data-testid="open-filters">
+            <button type="button" className="btn btn--secondary filters__open" onClick={() => setFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={filtersOpen} aria-label={activeChips.length > 0 ? tn('movements.filtersCount', activeChips.length) : t('movements.filters')} data-testid="open-filters">
               <Icon name="sliders" size={16} />
-              {activeChips.length > 0 ? tn('movements.filtersCount', activeChips.length) : t('movements.filters')}
+              <span className="filters__open-text">{activeChips.length > 0 ? tn('movements.filtersCount', activeChips.length) : t('movements.filters')}</span>
+              {activeChips.length > 0 && <span className="filters__open-count" aria-hidden="true">{activeChips.length}</span>}
             </button>
           </form>
           {activeChips.length > 0 && (

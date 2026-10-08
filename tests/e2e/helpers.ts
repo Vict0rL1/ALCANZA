@@ -188,6 +188,11 @@ export async function setupFirstUse(page: Page) {
   if ((await skip.count()) > 0) await skip.click()
 }
 
+/** Abre o cierra «¿Cómo se calculó?» del héroe (en pantallas estrechas el texto visible es «¿Cómo?», G2). */
+export async function openExplain(page: Page) {
+  await page.locator('.hero .explain > summary').first().click()
+}
+
 /**
  * Sin desplazamiento horizontal (F3): el documento no es más ancho que la ventana y ningún
  * elemento visible de `main` termina más allá del borde derecho (un contenedor con
@@ -210,7 +215,8 @@ export async function expectNoHorizontalScroll(page: Page, label?: string) {
     for (const el of main.querySelectorAll<HTMLElement>('*')) {
       const r = el.getBoundingClientRect()
       if (r.width === 0 || r.height === 0 || r.right <= limit) continue
-      if (scrolls(el)) continue
+      // El contenido de un <details> cerrado no se ve, pero Chromium le da caja al medirlo.
+      if (scrolls(el) || el.closest('details:not([open])')) continue
       out.push(`${el.tagName.toLowerCase()}.${el.className && typeof el.className === 'string' ? el.className.split(' ').slice(0, 2).join('.') : ''} termina en x=${Math.round(r.right)}`)
       if (out.length >= 5) break
     }
@@ -411,6 +417,15 @@ export async function expectNoTruncatedControls(page: Page, label?: string) {
       probe.textContent = sel.selectedOptions[0]?.textContent ?? ''
       const room = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 20
       if (probe.offsetWidth > room) out.push(`select «${probe.textContent.slice(0, 30)}» (${probe.offsetWidth} > ${Math.round(room)})`)
+    }
+    // Marcadores de posición (G1): el texto de ayuda de un campo vacío tampoco se recorta.
+    for (const input of document.querySelectorAll<HTMLInputElement>('input[placeholder]')) {
+      if (!visible(input) || input.value) continue
+      const cs = getComputedStyle(input)
+      probe.style.font = cs.font
+      probe.textContent = input.placeholder
+      const room = input.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      if (probe.offsetWidth > room) out.push(`placeholder «${input.placeholder.slice(0, 30)}» (${probe.offsetWidth} > ${Math.round(room)})`)
     }
     probe.remove()
     return out

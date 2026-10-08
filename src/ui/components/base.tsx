@@ -198,15 +198,20 @@ export function Skeleton({ lines = 3, height }: { lines?: number; height?: numbe
 
 /* ---------- Barra de búsqueda ---------- */
 
-export function SearchBar({ value, onChange, label, placeholder, clearLabel, autoFocus }: { value: string; onChange: (v: string) => void; label: string; placeholder?: string; clearLabel: string; autoFocus?: boolean }) {
+export function SearchBar({ value, onChange, label, placeholder, hint, clearLabel, autoFocus }: { value: string; onChange: (v: string) => void; label: string; placeholder?: string; /** Descripción accesible (qué se puede buscar); no ocupa sitio en pantalla. */ hint?: string; clearLabel: string; autoFocus?: boolean }) {
   const id = useId()
   return (
     <div className="searchbar" role="search">
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
+      {hint && (
+        <p id={`${id}-hint`} className="sr-only">
+          {hint}
+        </p>
+      )}
       <Icon name="search" className="searchbar__icon" />
-      <input id={id} type="search" className="input searchbar__input" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} autoComplete="off" enterKeyHint="search" />
+      <input id={id} type="search" className="input searchbar__input" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-describedby={hint ? `${id}-hint` : undefined} autoFocus={autoFocus} autoComplete="off" enterKeyHint="search" />
       {value && (
         <button type="button" className="btn btn--ghost btn--icon searchbar__clear" onClick={() => onChange('')} aria-label={clearLabel}>
           <Icon name="x" size={16} />
