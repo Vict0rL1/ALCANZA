@@ -199,3 +199,53 @@ test.describe('sin desplazamiento horizontal en 13 rutas', () => {
     })
   }
 })
+
+test.describe('Bloque G · asistente y formulario', () => {
+  test('G4 · «transferencia a ahorros» se sugiere como transferencia y no se registra como gasto', async ({ page }) => {
+    await startDemo(page)
+    const before = await movementCount(page)
+    const lines = await analyze(page, 'transferencia a ahorros 200')
+    await expect(lines).toHaveCount(1)
+    await expect(lines.first()).toContainText('Parece una transferencia')
+    await expect(page.getByTestId('assistant-transfer-blocked')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Registrar 1 movimiento/ })).toBeDisabled()
+    // Al cambiar el tipo a mano, la fila vuelve a ser registrable.
+    await lines.first().getByRole('radio', { name: 'Ingreso' }).check()
+    await expect(page.getByTestId('assistant-transfer-blocked')).toHaveCount(0)
+    await page.getByRole('button', { name: /Registrar 1 movimiento/ }).click()
+    await expect(page.getByText('1 movimiento registrado')).toBeVisible()
+    expect(await movementCount(page)).toBe(before + 1)
+  })
+
+  test('G4 · «helado» va a restaurantes y café', async ({ page }) => {
+    await startDemo(page)
+    const lines = await analyze(page, 'helado 45')
+    await expect(lines.first().getByLabel('Categoría')).toHaveValue('dining')
+  })
+
+  test('G5 · un gasto de 50 000 con 136.78 disponibles pide confirmación una vez y se guarda tal cual', async ({ page }) => {
+    await startDemo(page)
+    const before = await movementCount(page)
+    await go(page, '/movimientos/nuevo')
+    await page.getByLabel('Importe', { exact: true }).fill('50000')
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: /¿Seguro\? Es 365 veces lo que puedes gastar/ })
+    await expect(dialog).toBeVisible()
+    await expect(page.getByText('Movimiento guardado')).toHaveCount(0) // nada se guarda antes de confirmar
+    await dialog.getByRole('button', { name: 'Sí, es correcto' }).click()
+    await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
+    expect(await movementCount(page)).toBe(before + 1)
+  })
+
+  test('G5 · un gasto normal no pregunta; en la vista previa del asistente la fila desproporcionada queda marcada', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos/nuevo')
+    await page.getByLabel('Importe', { exact: true }).fill('9')
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
+    // Disponible 127.78: 50 000 son 391 veces; 3 no se marca.
+    const lines = await analyze(page, 'tele 50000\ncafé 3')
+    await expect(lines.nth(0).getByTestId('assistant-implausible')).toContainText('veces lo que puedes gastar')
+    await expect(lines.nth(1).getByTestId('assistant-implausible')).toHaveCount(0)
+  })
+})
