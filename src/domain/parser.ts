@@ -31,6 +31,7 @@ export interface ParsedEntry {
 
 export type ParserHint =
   | 'noAmount'
+  | 'multipleAmounts'
   | 'assumedToday'
   | 'assumedExpense'
   | 'incomeKeyword'
@@ -332,16 +333,27 @@ function significantWords(norm: string): string[] {
 
 /* ---------- Entrada ---------- */
 
-function splitEntries(text: string): string[] {
+/** Todas las entradas del texto, sin el tope (para avisar de cuántas quedaron fuera). */
+function splitAllEntries(text: string): string[] {
   const lines = text.split(/\r?\n|;/).map((l) => l.trim()).filter(Boolean)
   const out: string[] = []
   for (const line of lines) {
     // Divide por «,» o conectores solo si cada parte tiene un número: «café 25 y uber 80».
-    const parts = line.split(/\s*,\s*|\s+(?:y|and|e|et|\+)\s+/i)
+    // Una coma entre dos dígitos («1,450», «3,50») forma parte del importe y no separa (F2).
+    const parts = line.split(/\s*(?:(?<!\d),|,(?!\d))\s*|\s+(?:y|and|e|et|\+)\s+/i)
     if (parts.length > 1 && parts.every((p) => /\d/.test(p) || /\b(cien|mil|hundred|thousand|cem|cent|mille)\b/i.test(p))) out.push(...parts.map((p) => p.trim()).filter(Boolean))
     else out.push(line)
   }
-  return out.slice(0, MAX_PARSER_LINES)
+  return out
+}
+
+function splitEntries(text: string): string[] {
+  return splitAllEntries(text).slice(0, MAX_PARSER_LINES)
+}
+
+/** Cuántas entradas hay en el texto (puede superar `MAX_PARSER_LINES`; `parseText` analiza las primeras). */
+export function countEntries(text: string): number {
+  return splitAllEntries(text).length
 }
 
 function detectMerchant(raw: string, cleaned: string): string | undefined {
@@ -374,6 +386,8 @@ export function parseEntry(raw: string, ctx: ParseContext): ParsedEntry {
   if (amount) {
     description = (working.slice(0, amount.start) + ' ' + working.slice(amount.end)).replace(/\s+/g, ' ').trim()
     if (amount.hint) hints.push(amount.hint)
+    // «café 4.50 uber 12» sin separador: se toma el primero y la fila queda marcada para revisar (F1).
+    if (findAmount(description, digits)) hints.push('multipleAmounts')
   } else hints.push('noAmount')
 
   // Tipo
@@ -430,6 +444,7 @@ export function parseEntry(raw: string, ctx: ParseContext): ParsedEntry {
   if (isIncome) confidence += 0.05
   if (hints.includes('amountWords')) confidence -= 0.1
   if (!amount) confidence = Math.min(confidence, 0.25)
+  if (hints.includes('multipleAmounts')) confidence = Math.min(confidence, 0.45)
   confidence = Math.max(0.05, Math.min(0.95, confidence))
 
   return { kind, amountMinor: amount?.minor ?? null, description, ...(merchant ? { merchant } : {}), ...(categoryId ? { categoryId } : {}), date: dateValue, confidence: Math.round(confidence * 100) / 100, raw: raw.trim(), hints }

@@ -63,6 +63,9 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   escenario mínimo por defecto. Cobros parciales con `partialSettlement`; como mucho una
   liquidación final por ocurrencia.
 - Favoritos solo rellenan el formulario; nunca registran movimientos.
+- Parser del asistente (`domain/parser.ts`): las pruebas pasan por `parseText` (lo que usa el
+  asistente), no solo por `parseEntry`; una coma entre dígitos es parte del importe. El asistente
+  escribe en un `<textarea>` (una línea por movimiento).
 - Gastos planificados = metas `kind: 'expense'` (`domain/plannedExpenses.ts`): el plan es
   solo sugerencia; solo lo apartado descuenta. Vinculados a una ocurrencia, esa ocurrencia
   no se reserva dos veces (`reserves.ts`). Pagar = gasto real + liberar reserva en una

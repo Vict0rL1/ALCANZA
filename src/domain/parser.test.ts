@@ -12,6 +12,8 @@ const ctx = (over: Partial<ParseContext> = {}): ParseContext => ({
   ...over,
 })
 
+// Los casos con comas y separadores de miles también se prueban a través de `parseText` en
+// `parser.split.test.ts` (F2): `parseEntry` leía bien «1,450» mientras `splitEntries` lo partía.
 describe('parser local (§8): importes', () => {
   it.each([
     ['café 25', 2500],
