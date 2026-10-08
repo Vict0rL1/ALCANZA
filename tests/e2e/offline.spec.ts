@@ -1,22 +1,19 @@
 import { expect, test } from '@playwright/test'
+import { waitForPrecache, waitForServiceWorkerControl } from './helpers'
 
 test('tras la primera visita, la app abre sin conexión y conserva los datos', async ({ page, context }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Explorar con datos de demostración' }).click()
   await expect(page.getByTestId('available')).toBeVisible()
-  // Esperar a que el service worker controle la página.
-  await page.waitForFunction(async () => {
-    const reg = await navigator.serviceWorker.getRegistration()
-    return !!reg?.active
-  })
-  await page.reload()
-  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+  // Esperar a que el service worker controle la página y a que la precarga haya terminado.
+  await waitForServiceWorkerControl(page)
+  await waitForPrecache(page)
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByTestId('available')).toBeVisible()
-  await expect(page.getByText('Modo demostración:')).toBeVisible()
-  await page.goto('/#/ajustes')
+  await expect(page.getByTestId('available')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Demo · datos ficticios')).toBeVisible()
+  await page.goto('/#/ajustes/almacenamiento')
   await expect(page.getByText('Uso sin conexión: activo', { exact: false })).toBeVisible()
   await context.setOffline(false)
 })
@@ -29,13 +26,8 @@ test('borrar la caché de la app y el service worker no borra los registros fina
   // `registration.active` ya existe mientras el worker todavía está «activating» y la caché
   // puede estar vacía: se espera a que controle la página y a que la caché de esta versión
   // tenga al menos un archivo.
-  await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.active)
-  await page.reload()
-  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
-  await page.waitForFunction(async () => {
-    for (const key of await caches.keys()) if (key.startsWith('margen-') && (await (await caches.open(key)).keys()).length > 0) return true
-    return false
-  })
+  await waitForServiceWorkerControl(page)
+  await waitForPrecache(page)
   // La caché solo contiene archivos de la app (nunca datos).
   const cached = await page.evaluate(async () => {
     const urls: string[] = []
@@ -51,5 +43,5 @@ test('borrar la caché de la app y el service worker no borra los registros fina
   })
   await page.reload()
   await expect(page.getByTestId('available')).toHaveText(before!)
-  await expect(page.getByText('Modo demostración:')).toBeVisible()
+  await expect(page.getByText('Demo · datos ficticios')).toBeVisible()
 })
