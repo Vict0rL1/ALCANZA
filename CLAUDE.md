@@ -107,6 +107,13 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Cada cifra principal tiene su explicación ("¿Cómo se calculó?").
 - No mostrar botones de funciones que no existen. No simular notificaciones,
   sincronización, autenticación ni integraciones.
+- Registrar tiene una sola entrada: la pestaña «+» (celular) o «Agregar» (escritorio) abren la hoja
+  `AddSheet`; nada de botones flotantes ni «Agregar» en las pantallas.
+- Inicio: la cifra principal es la primera tarjeta; vista «esencial» por defecto para quien empieza;
+  lo secundario se pliega en «Más en tu Inicio». Ajustes: cada sección es `/ajustes/<id>` y sale de
+  `SETTINGS_SECTIONS` (índice, búsqueda, enlaces antiguos `?seccion=`).
+- Guardas de maquetación (`tests/e2e/layout-guards.spec.ts`): palabras partidas, controles recortados,
+  solapamientos y lo que cabe en la primera pantalla; corren en los tres tamaños.
 - Gráficos: seguir la paleta validada (`--series-*`), etiquetas selectivas, tabla alternativa.
 
 ## Seguridad y datos

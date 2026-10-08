@@ -14,26 +14,26 @@ Rutas: `docs/screenshots/before/` y `docs/screenshots/after/`, archivo `<proyect
 
 | Pantalla | Antes (Pixel 7, oscuro) | Después | Qué cambió |
 |---|---|---|---|
-| Bienvenida | `before/celular-dark-bienvenida.png` | _pendiente_ | — |
-| Categorías (configuración) | `before/celular-dark-setup-categorias.png` | _pendiente_ | — |
-| Inicio (primer uso) | `before/celular-dark-inicio-primer-uso.png` | _pendiente_ | — |
-| Inicio (demo) | `before/celular-dark-inicio-demo.png` | _pendiente_ | — |
-| Hoja «¿Qué quieres registrar?» | `before/celular-dark-hoja-agregar.png` | _pendiente_ | — |
-| Formulario de movimiento | `before/celular-dark-formulario-movimiento.png` | _pendiente_ | — |
-| Asistente (vista previa) | `before/celular-dark-asistente-vista-previa.png` | _pendiente_ | — |
-| Movimientos | `before/celular-dark-movimientos.png` | _pendiente_ | — |
-| Plan › Planes | `before/celular-dark-plan-planes.png` | _pendiente_ | — |
-| Plan › Calendario | `before/celular-dark-plan-calendario.png` | _pendiente_ | — |
-| Plan › Metas | `before/celular-dark-plan-metas.png` | _pendiente_ | — |
-| Plan › Periodos | `before/celular-dark-plan-periodos.png` | _pendiente_ | — |
-| Plan › Proyección | `before/celular-dark-plan-proyeccion.png` | _pendiente_ | — |
-| Estadísticas | `before/celular-dark-estadisticas.png` | _pendiente_ | — |
-| Ajustes (índice) | `before/celular-dark-ajustes.png` | _pendiente_ | — |
-| Ajustes › Categorías | `before/celular-dark-ajustes-categorias.png` | _pendiente_ | — |
-| Ajustes › Copia de seguridad | `before/celular-dark-ajustes-copia.png` | _pendiente_ | — |
-| Ajustes › Notificaciones | `before/celular-dark-ajustes-notificaciones.png` | _pendiente_ | — |
-| Cuenta | `before/celular-dark-cuenta.png` | _pendiente_ | — |
-| Pro | `before/celular-dark-pro.png` | _pendiente_ | — |
+| Bienvenida | `before/celular-dark-bienvenida.png` | `after/celular-dark-bienvenida.png` | Insignia «Prototipo local» solo aquí, en Cuenta y Acerca (C4). |
+| Categorías (configuración) | `before/celular-dark-setup-categorias.png` | `after/celular-dark-setup-categorias.png` | Fichas verticales con icono de 40 px y nombre en hasta 3 líneas sin partir palabras (B1). |
+| Inicio (primer uso) | `before/celular-dark-inicio-primer-uso.png` | `after/celular-dark-inicio-primer-uso.png` | La cifra «Puedes gastar» es la primera tarjeta; el primer uso es una línea bajo ella (C1); sin botón flotante (B3). |
+| Inicio (demo) | `before/celular-dark-inicio-demo.png` | `after/celular-dark-inicio-demo.png` | Avatar en la cabecera (C4); héroe compacto con INGRESOS/GASTOS y «Disponible · N %» (D2), línea «por día», «¿Me alcanza?» + «¿Cómo se calculó?»; primer aviso en la primera pantalla; vista esencial por defecto (C1). |
+| Hoja «¿Qué quieres registrar?» | `before/celular-dark-hoja-agregar.png` | `after/celular-dark-hoja-agregar.png` | Única entrada para registrar, desde la pestaña «+» (B3). |
+| Formulario de movimiento | `before/celular-dark-formulario-movimiento.png` | `after/celular-dark-formulario-movimiento.png` | Sin cambios de maquetación en este bloque (D5/D6 pendientes). |
+| Asistente (vista previa) | `before/celular-dark-asistente-vista-previa.png` | `after/celular-dark-asistente-vista-previa.png` | Sin cambios de maquetación en este bloque. |
+| Movimientos | `before/celular-dark-movimientos.png` | `after/celular-dark-movimientos.png` | Búsqueda + «Filtros» en una fila, resumen del mes plegado, menú «⋯», sin botón «Agregar» (C2); tres filas en la primera pantalla. |
+| Plan › Planes | `before/celular-dark-plan-planes.png` | `after/celular-dark-plan-planes.png` | «Nuevo plan» en la página en vez del botón flotante (B3); abre en la última pestaña (B11). |
+| Plan › Calendario | `before/celular-dark-plan-calendario.png` | `after/celular-dark-plan-calendario.png` | Pestañas sin recorte a 320 px (B10). |
+| Plan › Metas | `before/celular-dark-plan-metas.png` | `after/celular-dark-plan-metas.png` | Pestañas sin recorte a 320 px (B10). |
+| Plan › Periodos | `before/celular-dark-plan-periodos.png` | `after/celular-dark-plan-periodos.png` | Pestañas sin recorte a 320 px (B10). |
+| Plan › Proyección | `before/celular-dark-plan-proyeccion.png` | `after/celular-dark-plan-proyeccion.png` | Pestañas sin recorte a 320 px (B10). |
+| Estadísticas | `before/celular-dark-estadisticas.png` | `after/celular-dark-estadisticas.png` | Se abre desde el enlace del héroe o el menú «⋯» de Movimientos (C1/C2). |
+| Ajustes (índice) | `before/celular-dark-ajustes.png` | `after/celular-dark-ajustes.png` | Índice agrupado (icono, título, valor, flecha), cuenta y Pro como filas, búsqueda (C3); ≈ 2 pantallas. |
+| Ajustes › Categorías | `before/celular-dark-ajustes-categorias.png` | `after/celular-dark-ajustes-categorias.png` | Botones de cada fila en una segunda línea en pantallas estrechas; nombres sin partir (B1). |
+| Ajustes › Copia de seguridad | `before/celular-dark-ajustes-copia.png` | `after/celular-dark-ajustes-copia.png` | Subpantalla propia con vuelta al índice (C3). |
+| Ajustes › Notificaciones | `before/celular-dark-ajustes-notificaciones.png` | `after/celular-dark-ajustes-notificaciones.png` | Subpantalla propia; el enlace antiguo `?seccion=notificaciones` redirige (B6/C3). |
+| Cuenta | `before/celular-dark-cuenta.png` | `after/celular-dark-cuenta.png` | Avatar de la cabecera la abre (D3). |
+| Pro | `before/celular-dark-pro.png` | `after/celular-dark-pro.png` | Fila «Descubrir Pro» en el índice de Ajustes (C3). |
 
 ## Hallazgos del «antes» (medidos por las guardas)
 
@@ -50,3 +50,19 @@ Rutas: `docs/screenshots/before/` y `docs/screenshots/after/`, archivo `<proyect
 - **C2** · En Movimientos el cuadro de búsqueda queda a 1013 px (segunda pantalla) y no se ve
   ninguna fila sin desplazarse.
 - **C3** · Ajustes es una sola página de más de 12 pantallas; `/ajustes/<id>` no existe.
+
+## Resultado del «después» (medido por las mismas guardas)
+
+Las guardas pasan en los tres tamaños (`npm run test:e2e -- layout-guards`). Medidas en Pixel 7 (412×915,
+primera pantalla = 764 px por encima de la barra inferior):
+
+- **Inicio (demo)**: héroe de 457 px (cabecera, cifra, horizonte, INGRESOS/GASTOS, «Disponible · 6 %»,
+  «Por día $22.79», «¿Me alcanza?» + «¿Cómo se calculó?»); el primer aviso termina en 743 px. Vista
+  esencial 1,6 pantallas; completa 2,1 (a 320 px: 2,4 y 2,9).
+- **Movimientos**: título, búsqueda + «Filtros», resumen del mes plegado (50 px) y la línea de resultados
+  antes de 343 px; tres filas visibles (la tercera termina en 759 px). A 320 px cabe la primera fila.
+- **Ajustes**: índice de 2,1 pantallas (cuenta y Pro como filas, cuatro grupos de 22 filas); a 320 px, 2,8.
+  Cada subpantalla probada (copia, notificaciones, cuentas, programados) queda por debajo de 4.
+- **Categorías**: los nombres ya no se parten (los botones de cada fila bajan a una segunda línea).
+
+Lo que la guarda no exige a 320 × 640 queda anotado en DECISIONS 83 (primer aviso, ≥ 1 fila, ≤ 3 pantallas).

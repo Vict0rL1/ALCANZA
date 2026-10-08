@@ -45,6 +45,10 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.getByTestId('available')).toHaveText('$400.00')
   await expect(page.locator('.hero__sub')).toContainText('10 días')
   await expect(page.locator('.stat__value').first()).toHaveText('$40.00')
+  // Cajas INGRESOS / GASTOS y «Disponible · N %»: 400 ÷ (1 200 + 0) = 33 %.
+  await expect(page.getByTestId('period-income')).toContainText('$0.00')
+  await expect(page.getByTestId('period-expenses')).toContainText('$0.00')
+  await expect(page.getByTestId('available-pct')).toContainText('Disponible · 33 %')
   await page.reload()
   await expect(page.getByTestId('available')).toHaveText('$400.00')
 
@@ -70,6 +74,13 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(privacy).toHaveText('Mostrar todo')
   await privacy.click()
   await expect(page.getByTestId('available')).toHaveText('$400.00')
+
+  // B5. Avatar en la cabecera → Cuenta. B6. Sin botón flotante: solo la pestaña «+».
+  await page.getByTestId('avatar').click()
+  await expect(page.getByText('Modo invitado').first()).toBeVisible()
+  await nav(page, 'Inicio').click()
+  await expect(page.getByTestId('available')).toHaveText('$400.00')
+  await expect(page.locator('.fab')).toHaveCount(0)
 
   // C1. Gasto manual de 25: 375 en 10 días = 37.50 por día.
   await openAddSheet(page)
@@ -122,8 +133,21 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await nav(page, 'Inicio').click()
   await expect(page.getByTestId('available')).toHaveText('$359.50')
   await nav(page, 'Movimientos').click()
-  const [csv] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar CSV' }).click()])
+  await page.getByTestId('movements-more').click()
+  const [csv] = await Promise.all([page.waitForEvent('download'), page.getByRole('dialog').getByRole('button', { name: 'Exportar CSV' }).click()])
   expect(csv.suggestedFilename()).toMatch(/\.csv$/)
+
+  // D4. Hoja «Filtros» con fichas; el filtro activo se quita desde su ficha; resumen del mes plegado.
+  await page.getByTestId('open-filters').click()
+  await page.getByRole('dialog', { name: 'Filtros' }).getByRole('group', { name: 'Tipo' }).getByRole('button', { name: 'Gasto', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Filtros' }).getByRole('button', { name: 'Ver resultados' }).click()
+  await expect(page.getByTestId('active-filters')).toContainText('Gasto')
+  await expect(page.locator('.summary-line')).toContainText('3 movimientos')
+  await page.getByRole('button', { name: 'Quitar filtro: Gasto' }).click()
+  await expect(page.getByTestId('active-filters')).toHaveCount(0)
+  await expect(page.locator('.month-summary__toggle')).toContainText('Gasto neto $40.50')
+  await page.locator('.month-summary__toggle').click()
+  await expect(page.locator('.month-summary').getByRole('heading', { name: /Resumen de/ })).toBeVisible()
 
   // E1. Plan de gasto: 25 + 12 + 3.50 = 40.50 de 100 (40 %, quedan 59.50) en el mes en curso.
   await nav(page, 'Plan').click()
@@ -157,6 +181,7 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
 
   // G1–G4. Ajustes: idioma y tema al instante, copia local, borrar con doble confirmación.
   await nav(page, 'Ajustes').click()
+  await page.getByTestId('settings-row-formato').click()
   await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   const mainNav = page.getByRole('navigation', { name: 'Main navigation' })
   await expect(mainNav).toContainText('Home')
@@ -164,21 +189,35 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await mainNav.getByRole('link', { name: 'Home' }).click()
   await expect(page.locator('.hero__label')).toHaveText('You can spend')
   await mainNav.getByRole('link', { name: 'Settings' }).click()
+  await page.getByTestId('settings-row-formato').click()
   await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await expect(nav(page, 'Inicio')).toBeVisible()
   await page.getByRole('radio', { name: 'Claro' }).check()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await page.getByRole('radio', { name: 'Oscuro' }).check()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  // G3. Copias locales: fila «Copias locales automáticas» del índice.
+  await page.getByRole('link', { name: 'Ajustes' }).first().click()
+  await page.getByTestId('settings-row-copias-locales').click()
   await page.getByRole('button', { name: 'Hacer copia ahora' }).click()
   await expect(page.getByText('Copia local guardada')).toBeVisible()
   await expect(page.getByTestId('local-backup-list').locator('li').first()).toContainText('3 movimientos · 1 cuenta')
+  // G4. Borrado con doble confirmación: fila «Demostración y borrado».
+  await page.getByRole('link', { name: 'Ajustes' }).first().click()
+  await page.getByTestId('settings-row-reinicio').click()
   await page.getByRole('button', { name: 'Borrar todos los datos' }).click()
   const danger = page.getByRole('dialog', { name: '¿Borrar todos los datos?' })
   await expect(danger.getByRole('button', { name: 'Borrar todo' })).toBeDisabled()
   await danger.getByRole('button', { name: 'Cancelar' }).click()
+  // G5. Búsqueda del índice por título y palabras clave.
+  await page.getByRole('link', { name: 'Ajustes' }).first().click()
+  await page.getByRole('searchbox', { name: 'Buscar en Ajustes' }).fill('tema')
+  await expect(page.getByTestId('settings-row-formato')).toBeVisible()
+  await expect(page.getByTestId('settings-row-galeria')).toHaveCount(0)
+  await page.getByRole('searchbox', { name: 'Buscar en Ajustes' }).fill('')
 
-  // H1–H2. Cuenta de invitado y Pro sin precio ni compra.
+  // H1–H2. Cuenta de invitado y Pro sin precio ni compra (filas en lo alto de Ajustes).
+  await page.getByRole('link', { name: 'Ajustes' }).first().click()
   await page.getByTestId('account-link').click()
   await expect(page.getByText('Modo invitado').first()).toBeVisible()
   await expect(page.getByText('No se muestran botones de Google o Apple', { exact: false })).toBeVisible()
