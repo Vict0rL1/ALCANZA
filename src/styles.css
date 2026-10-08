@@ -1000,6 +1000,22 @@ html {
 
 .explain--inline > summary {
   padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* G2: en pantallas estrechas la explicación del héroe muestra «¿Cómo?» (nombre accesible completo). */
+.explain__summary-short {
+  display: none;
+}
+
+@media (max-width: 479px) {
+  .explain--inline .explain__summary-long {
+    display: none;
+  }
+
+  .explain--inline .explain__summary-short {
+    display: inline;
+  }
 }
 
 .explain--inline {
@@ -3872,8 +3888,25 @@ button.cat-chip:hover {
    escribir los nombres de las cuatro lenguas sin partir palabras. */
 .cat-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-8);
+}
+
+/* G3: tres columnas desde 360 px (etiquetas de dos líneas, sin partir palabras). */
+@media (min-width: 360px) {
+  .cat-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 399px) {
+  .cat-option {
+    padding: 10px 4px 8px;
+  }
+
+  .cat-option__label {
+    font-size: 0.75rem;
+  }
 }
 
 .cat-option {
@@ -4781,6 +4814,27 @@ html.is-discreet .item:focus-within .item__title {
 
 .filters__open {
   white-space: nowrap;
+}
+
+.filters__open-count {
+  display: none;
+}
+
+/* A 320 px el botón «Filtros» queda solo con el icono (y el nº de filtros activos) para que el
+   marcador «Buscar movimientos» no se recorte (G1). */
+@media (max-width: 359px) {
+  .filters__open-text {
+    display: none;
+  }
+
+  .filters__open-count {
+    display: inline;
+    font-weight: 700;
+  }
+
+  .filters__open {
+    padding-inline: 9px;
+  }
 }
 
 .filters__chips {
