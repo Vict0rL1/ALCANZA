@@ -8,7 +8,7 @@ import type { Account, AccountKind, AppData, BackupReminder, BudgetPeriodType, C
 import { ACCOUNT_KINDS, BACKUP_REMINDERS, BUDGET_PERIOD_TYPES, DATE_STYLES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { formatMoney } from '../../domain/money'
 import { createDemoData } from '../../demo/demoData'
-import { useT, type MessageKey } from '../../i18n'
+import { loadLanguage, translate, useT, type MessageKey } from '../../i18n'
 import { GROUP_TITLE_KEY, SETTINGS_GROUPS, SETTINGS_SECTIONS, settingsSection } from './settings/sections'
 import { SearchBar } from '../components/base'
 import { categoriesForKind } from '../../domain/categories'
@@ -119,7 +119,12 @@ export function Settings({ route }: { route: Route }) {
 
   const setSetting = async (patch: Parameters<typeof updateSettings>[1]) => {
     const { saved } = await run((d, c) => updateSettings(d, patch, c))
-    toast({ message: saved ? t('settings.saved') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    // F4: al cambiar el idioma, el aviso se traduce con el diccionario nuevo (el `t` de este
+    // cierre es el del idioma anterior).
+    const next = patch.language
+    const say = (key: MessageKey) => (next && next !== data.settings.language ? translate(next, key) : t(key))
+    if (saved && next && next !== data.settings.language) await loadLanguage(next)
+    toast({ message: saved ? say('settings.saved') : say('save.error.generic'), tone: saved ? 'good' : 'critical' })
   }
 
   const exportData = useExportBackup()
