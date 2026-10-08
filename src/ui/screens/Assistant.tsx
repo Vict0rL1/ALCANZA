@@ -14,6 +14,8 @@ import { resolveCategories } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { parseMoney } from '../../domain/money'
 import { countEntries, learnCategories, MAX_PARSER_LINES, type ParsedEntry } from '../../domain/parser'
+import { computeBudget } from '../../domain/budget'
+import { implausibilityRatio, isImplausibleAmount } from '../../domain/plausibility'
 import { lastUsedAccount } from '../../domain/quickEntry'
 import type { Issue } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -36,6 +38,8 @@ interface Line {
   id: string
   entry: ParsedEntry
   kind: 'expense' | 'income'
+  /** El parser sugirió una transferencia: no se registra hasta cambiar el tipo (G4). */
+  review?: 'transfer'
   amountText: string
   categoryId: string
   date: string
@@ -141,7 +145,8 @@ export function Assistant({ route }: { route: Route }) {
       entries.map((entry) => ({
         id: newId(),
         entry,
-        kind: entry.kind,
+        kind: entry.kind === 'transfer' ? 'expense' : entry.kind,
+        ...(entry.kind === 'transfer' ? { review: 'transfer' as const } : {}),
         amountText: entry.amountMinor === null ? '' : fmt.moneyInput(entry.amountMinor),
         categoryId: entry.categoryId ?? (entry.kind === 'income' ? 'salary' : 'other_expense'),
         date: entry.date,
@@ -153,8 +158,17 @@ export function Assistant({ route }: { route: Route }) {
 
   const update = (id: string, patch: Partial<Line>) => setLines((ls) => ls?.map((l) => (l.id === id ? { ...l, ...patch } : l)) ?? null)
 
+  const transferRows = lines?.filter((l) => l.review === 'transfer').length ?? 0
+  const availableMinor = useMemo(() => computeBudget(data, today).availableMinor, [data, today])
+  const implausibleTimes = (l: Line): number | null | false => {
+    if (l.kind !== 'expense') return false
+    const parsed = parseMoney(l.amountText, data.settings.currency, data.settings.numberLocale)
+    if (!parsed.ok || !isImplausibleAmount(parsed.minor, availableMinor, data.settings.currency)) return false
+    return implausibilityRatio(parsed.minor, availableMinor)
+  }
+
   const confirm = async () => {
-    if (!lines?.length || busy) return
+    if (!lines?.length || busy || transferRows > 0) return
     const entries: ConfirmedEntry[] = []
     const errs: Issue[] = []
     lines.forEach((l, i) => {
@@ -290,11 +304,16 @@ export function Assistant({ route }: { route: Route }) {
                     {t('assistant.confidence', { pct: `${fmt.percent(l.entry.confidence)} · ${t(`assistant.confidence.${level(l.entry.confidence)}` as MessageKey)}` })}
                   </Badge>
                 </div>
-                <Segmented legend={t('fields.kind')} name={`kind-${l.id}`} value={l.kind} onChange={(k) => update(l.id, { kind: k, categoryId: k === 'income' ? 'salary' : 'other_expense' })} options={[{ value: 'expense', label: t('txKind.expense') }, { value: 'income', label: t('txKind.income') }]} />
+                <Segmented legend={t('fields.kind')} name={`kind-${l.id}`} value={l.kind} onChange={(k) => update(l.id, { kind: k, review: undefined, categoryId: k === 'income' ? 'salary' : 'other_expense' })} options={[{ value: 'expense', label: t('txKind.expense') }, { value: 'income', label: t('txKind.income') }]} />
                 <MoneyField label={t('fields.amount')} value={l.amountText} onChange={(v) => update(l.id, { amountText: v })} fmt={fmt} error={lineError(i, 'amountMinor') ? (moneyErrorMessage(t, parseMoney(l.amountText, data.settings.currency, data.settings.numberLocale)) ?? t('issue.invalidAmount')) : null} />
                 <SelectField label={t('fields.category')} value={l.categoryId} onChange={(e) => update(l.id, { categoryId: e.target.value })} options={categories.filter((c) => c.kind === l.kind).map((c) => ({ value: c.id, label: c.name ?? categoryLabel(t, c.id) }))} />
                 <TextField label={t('fields.date')} type="date" value={l.date} max={today} onChange={(e) => update(l.id, { date: e.target.value })} error={lineError(i, 'date') ? issueMessage(t, fmt, lineError(i, 'date')!) : undefined} />
                 <TextField label={t('fields.noteOptional')} value={l.note} maxLength={120} onChange={(e) => update(l.id, { note: e.target.value })} />
+                {implausibleTimes(l) !== false && (
+                  <p className="field__error" role="alert" data-testid="assistant-implausible">
+                    {implausibleTimes(l) === null ? t('assistant.implausibleNoAvailable') : t('assistant.implausible', { times: implausibleTimes(l) as number })}
+                  </p>
+                )}
                 <ul className="bullets assistant__hints">
                   {l.entry.hints.map((h) => (
                     <li key={h}>{t(`assistant.hint.${h}` as MessageKey)}</li>
@@ -325,7 +344,12 @@ export function Assistant({ route }: { route: Route }) {
           )}
           <p className="note">{t('assistant.allOrNothing')}</p>
           <p className="note">{t('assistant.noAi')}</p>
-          <PrimaryButton large icon="check" onClick={() => void confirm()} disabled={busy || lines.length === 0}>
+          {transferRows > 0 && (
+            <p className="field__error" role="alert" data-testid="assistant-transfer-blocked">
+              {t('assistant.transferBlocked')}
+            </p>
+          )}
+          <PrimaryButton large icon="check" onClick={() => void confirm()} disabled={busy || lines.length === 0 || transferRows > 0}>
             {tn('assistant.record', lines.length)}
           </PrimaryButton>
         </Card>

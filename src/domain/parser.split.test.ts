@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { countEntries, parseEntry, parseText, type ParseContext } from './parser'
+import { countEntries, entryToDraft, parseEntry, parseText, type ParseContext } from './parser'
 import { EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS } from './categories'
 
 /**
@@ -61,5 +61,31 @@ describe('varios importes en una línea y tope de líneas (F1)', () => {
     expect(countEntries(text)).toBe(205)
     expect(parseText(text, ctx('MXN', 'es'))).toHaveLength(200)
     expect(countEntries('café 4.50\nuber 12\nsupermercado 45.20')).toBe(3)
+  })
+})
+
+describe('diccionario (G4): helados y transferencias a ahorros', () => {
+  it.each([
+    ['helado 45', 'MXN', 'es'],
+    ['ice cream 5', 'CAD', 'en'],
+    ['sorvete 8', 'BRL', 'pt'],
+    ['glace 4', 'EUR', 'fr'],
+    ['gelato 6', 'EUR', 'es'],
+  ] as const)('«%s» → restaurantes y café', (text, currency, language) => {
+    expect(parseText(text, ctx(currency, language))[0]!.categoryId).toBe('dining')
+  })
+
+  it.each([
+    ['transferencia a ahorros 200', 'MXN', 'es'],
+    ['transfer to savings 200', 'CAD', 'en'],
+    ['transferência para poupança 200', 'BRL', 'pt'],
+    ['virement épargne 200', 'EUR', 'fr'],
+  ] as const)('«%s» sugiere Transferencia con confianza < 0,6 y marca de revisión; nunca un gasto', (text, currency, language) => {
+    const [entry] = parseText(text, ctx(currency, language))
+    expect(entry!.kind).toBe('transfer')
+    expect(entry!.amountMinor).toBe(20000)
+    expect(entry!.confidence).toBeLessThan(0.6)
+    expect(entry!.hints).toContain('transferKeyword')
+    expect(entryToDraft(entry!)).toBeNull()
   })
 })

@@ -14,7 +14,8 @@ import { normalizeText } from './rules'
 import type { AppData, Language, LocalDate, Transaction } from './types'
 
 export interface ParsedEntry {
-  kind: 'expense' | 'income'
+  /** «transfer» es solo una sugerencia: el asistente no registra transferencias como gasto (G4). */
+  kind: 'expense' | 'income' | 'transfer'
   /** null si no se encontró un importe: la vista previa lo pide. */
   amountMinor: number | null
   description: string
@@ -32,6 +33,7 @@ export interface ParsedEntry {
 export type ParserHint =
   | 'noAmount'
   | 'multipleAmounts'
+  | 'transferKeyword'
   | 'assumedToday'
   | 'assumedExpense'
   | 'incomeKeyword'
@@ -76,9 +78,17 @@ const INCOME_WORDS = [
   'recu', 'salaire', 'paie', 'virement recu', 'on m a paye', 'gagne', 'bourse', 'prime',
 ]
 
+/** Frases que describen un movimiento entre cuentas propias: se sugiere «Transferencia», nunca un gasto (G4). */
+const TRANSFER_WORDS = [
+  'transferencia a ahorros', 'transferencia a mi', 'transferi a', 'pase a ahorros', 'pase a mi cuenta', 'mande a ahorros', 'a mi cuenta de ahorros',
+  'transfer to savings', 'transferred to savings', 'moved to savings', 'move to savings', 'transfer to my',
+  'transferencia para poupanca', 'transferi para', 'passei para a poupanca',
+  'virement epargne', 'virement vers', 'virement sur mon', 'vire sur mon',
+]
+
 const CATEGORY_WORDS: Record<string, readonly string[]> = {
   groceries: ['super', 'supermercado', 'mercado', 'despensa', 'walmart', 'costco', 'soriana', 'chedraui', 'exito', 'carulla', 'd1', 'lidl', 'aldi', 'carrefour', 'mercadona', 'groceries', 'grocery', 'supermarket', 'loblaws', 'metro', 'sobeys', 'feira', 'epicerie', 'courses'],
-  dining: ['cafe', 'coffee', 'starbucks', 'tim hortons', 'restaurante', 'restaurant', 'comida', 'almuerzo', 'cena', 'desayuno', 'lunch', 'dinner', 'breakfast', 'pizza', 'burger', 'hamburguesa', 'tacos', 'sushi', 'bar', 'cerveza', 'beer', 'uber eats', 'rappi', 'didi food', 'doordash', 'ifood', 'lanche', 'cafeteria', 'resto', 'dejeuner', 'diner'],
+  dining: ['helado', 'heladeria', 'nieve', 'ice cream', 'sorvete', 'sorveteria', 'glace', 'gelato', 'cafe', 'coffee', 'starbucks', 'tim hortons', 'restaurante', 'restaurant', 'comida', 'almuerzo', 'cena', 'desayuno', 'lunch', 'dinner', 'breakfast', 'pizza', 'burger', 'hamburguesa', 'tacos', 'sushi', 'bar', 'cerveza', 'beer', 'uber eats', 'rappi', 'didi food', 'doordash', 'ifood', 'lanche', 'cafeteria', 'resto', 'dejeuner', 'diner'],
   transport: ['uber', 'didi', 'cabify', 'taxi', 'bus', 'metro', 'transporte', 'transport', 'pasaje', 'peaje', 'estacionamiento', 'parking', 'tren', 'train', 'bolt', 'lyft', 'onibus', 'passagem', 'transit', 'presto'],
   fuel: ['gasolina', 'gas', 'combustible', 'nafta', 'fuel', 'petrol', 'gasoline', 'diesel', 'gasolinera', 'essence', 'carburant', 'posto'],
   housing: ['renta', 'alquiler', 'arriendo', 'rent', 'hipoteca', 'mortgage', 'aluguel', 'loyer', 'condominio', 'administracion'],
@@ -392,9 +402,10 @@ export function parseEntry(raw: string, ctx: ParseContext): ParsedEntry {
 
   // Tipo
   const normDesc = normalizeText(working)
-  const isIncome = INCOME_WORDS.some((w) => new RegExp(`(^|\\W)${w}(\\W|$)`).test(normDesc))
+  const isTransfer = TRANSFER_WORDS.some((w) => normDesc.includes(w))
+  const isIncome = !isTransfer && INCOME_WORDS.some((w) => new RegExp(`(^|\\W)${w}(\\W|$)`).test(normDesc))
   const kind: 'expense' | 'income' = isIncome ? 'income' : 'expense'
-  hints.push(isIncome ? 'incomeKeyword' : 'assumedExpense')
+  hints.push(isTransfer ? 'transferKeyword' : isIncome ? 'incomeKeyword' : 'assumedExpense')
 
   // Categoría: regla de la persona > aprendizaje > diccionario
   const allowed = new Set(ctx.categories.filter((c) => c.kind === kind).map((c) => c.id))
@@ -445,9 +456,10 @@ export function parseEntry(raw: string, ctx: ParseContext): ParsedEntry {
   if (hints.includes('amountWords')) confidence -= 0.1
   if (!amount) confidence = Math.min(confidence, 0.25)
   if (hints.includes('multipleAmounts')) confidence = Math.min(confidence, 0.45)
+  if (isTransfer) confidence = Math.min(confidence, 0.5)
   confidence = Math.max(0.05, Math.min(0.95, confidence))
 
-  return { kind, amountMinor: amount?.minor ?? null, description, ...(merchant ? { merchant } : {}), ...(categoryId ? { categoryId } : {}), date: dateValue, confidence: Math.round(confidence * 100) / 100, raw: raw.trim(), hints }
+  return { kind: isTransfer ? 'transfer' : kind, amountMinor: amount?.minor ?? null, description, ...(merchant ? { merchant } : {}), ...(categoryId ? { categoryId } : {}), date: dateValue, confidence: Math.round(confidence * 100) / 100, raw: raw.trim(), hints }
 }
 
 /** Texto libre → entradas (máximo 200). */
@@ -457,6 +469,6 @@ export function parseText(text: string, ctx: ParseContext): ParsedEntry[] {
 
 /** Convierte una entrada confirmada en un borrador de movimiento (sin id ni cuenta: los pone el formulario). */
 export function entryToDraft(entry: ParsedEntry, source: Transaction['source'] = 'ai_text'): Pick<Transaction, 'kind' | 'amountMinor' | 'date' | 'note' | 'categoryId' | 'merchant' | 'source'> | null {
-  if (entry.amountMinor === null || entry.amountMinor <= 0) return null
+  if (entry.amountMinor === null || entry.amountMinor <= 0 || entry.kind === 'transfer') return null
   return { kind: entry.kind, amountMinor: entry.amountMinor, date: entry.date, note: entry.description, ...(entry.categoryId ? { categoryId: entry.categoryId } : {}), ...(entry.merchant ? { merchant: entry.merchant } : {}), source }
 }
