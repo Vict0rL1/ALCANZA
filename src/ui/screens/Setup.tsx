@@ -277,29 +277,33 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
                       <legend className="field__label">
                         {t(k === 'expense' ? 'setup.categories.expense' : 'setup.categories.income')} · {tn('setup.categories.selected', count)}
                       </legend>
-                      <div className="cat-grid">
+                      {/* Fichas verticales: icono, nombre (sin partir palabras) y marca de elegida arriba a la derecha. */}
+                      <div className="cat-tiles">
                         {ids.map((id) => {
                           const meta = systemCategoryMeta(id)!
                           const checked = categoryIds.includes(id)
                           return (
                             <label key={id} className="cat-option">
-                              <input type="checkbox" checked={checked} onChange={(e) => setCategoryIds((list) => (e.target.checked ? [...list, id] : list.filter((x) => x !== id)))} />
-                              <span className={`cat-dot cat-dot--${meta.color}`} aria-hidden="true">
-                                <Icon name={meta.icon} size={16} />
+                              <input type="checkbox" className="cat-option__input" checked={checked} onChange={(e) => setCategoryIds((list) => (e.target.checked ? [...list, id] : list.filter((x) => x !== id)))} />
+                              <span className={`cat-dot cat-dot--lg cat-dot--${meta.color}`} aria-hidden="true">
+                                <Icon name={meta.icon} size={20} />
                               </span>
                               <span className="cat-option__label">{categoryLabel(t, id)}</span>
+                              <span className="cat-option__check" aria-hidden="true">
+                                <Icon name="check" size={14} />
+                              </span>
                             </label>
                           )
                         })}
                         {ownCategories
                           .filter((o) => o.kind === k)
                           .map((o) => (
-                            <span key={o.id} className="cat-option">
-                              <span className="cat-dot" aria-hidden="true">
-                                <Icon name="tag" size={16} />
+                            <span key={o.id} className="cat-option cat-option--own">
+                              <span className="cat-dot cat-dot--lg" aria-hidden="true">
+                                <Icon name="tag" size={20} />
                               </span>
                               <span className="cat-option__label">{o.name}</span>
-                              <button type="button" className="btn btn--ghost btn--icon" onClick={() => setOwnCategories((list) => list.filter((x) => x.id !== o.id))} aria-label={t('setup.categories.ownRemove', { name: o.name })}>
+                              <button type="button" className="btn btn--ghost btn--icon cat-option__remove" onClick={() => setOwnCategories((list) => list.filter((x) => x.id !== o.id))} aria-label={t('setup.categories.ownRemove', { name: o.name })}>
                                 <Icon name="x" size={16} />
                               </button>
                             </span>

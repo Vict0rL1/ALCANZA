@@ -300,7 +300,7 @@ code {
   background: var(--surface-2);
   padding: 0 4px;
   border-radius: 4px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 :focus-visible {
@@ -512,6 +512,11 @@ html {
 }
 
 .nav__item {
+  /* También es un <button> (la pestaña «+»): sin fondo ni borde del navegador. */
+  font: inherit;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1405,13 +1410,13 @@ fieldset.bill-row {
 
 .item__title {
   font-weight: 650;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .item__meta {
   color: var(--muted);
   font-size: 0.88rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .item__badges {
@@ -1502,7 +1507,7 @@ fieldset.bill-row {
 }
 
 .goal-mini__name {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Barra de progreso: la pista es un tono claro de la misma familia. */
@@ -2015,8 +2020,14 @@ fieldset.bill-row {
     display: none;
   }
 
+  /* Cinco pestañas caben desde 360 px; por debajo, la fila se desplaza con fundido. */
+  .tabs {
+    gap: 2px;
+  }
+
   .tabs__tab {
-    padding: 6px 4px;
+    padding: 6px 3px;
+    font-size: 0.85rem;
   }
 }
 
@@ -2224,6 +2235,22 @@ fieldset.bill-row {
 .toast--critical {
   background: #7d1b1f;
 }
+
+/* Acción conservada de un aviso que fue sustituido por otro (solo el botón, sin texto). */
+.toast--held {
+  align-self: flex-end;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.plans__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
 
 .toast__message {
   /* Con una acción larga en pantallas estrechas, la acción baja de línea y el texto se ve. */
@@ -2438,7 +2465,7 @@ fieldset.bill-row {
 .bars__label {
   grid-area: label;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .bars__count {
@@ -2581,7 +2608,7 @@ fieldset.bill-row {
 }
 
 .chip > span {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .chip:hover {
@@ -3177,7 +3204,7 @@ progress {
 .fab {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: calc(var(--nav-height, 64px) + 16px + var(--safe-bottom));
+  bottom: calc(var(--nav-h) + 16px + var(--safe-bottom));
   width: var(--fab);
   height: var(--fab);
   border: 0;
@@ -3320,7 +3347,7 @@ button.cat-chip:hover {
 }
 
 .cat-chip__label {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cat-chip__count {
@@ -3376,9 +3403,24 @@ button.cat-chip:hover {
   gap: 2px;
 }
 
+/* Filas de categorías: en pantallas estrechas los cuatro botones bajan a una segunda línea para
+   que el nombre disponga de todo el ancho y no se parta a media palabra (B1). */
+@media (max-width: 599px) {
+  .list-row:has(> .cat-row__actions) {
+    flex-wrap: wrap;
+  }
+
+  .cat-row__actions {
+    flex: 1 0 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+}
+
 .list-row__title {
   font-weight: 600;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .list-row__subtitle {
@@ -3563,39 +3605,104 @@ button.cat-chip:hover {
   gap: var(--sp-8);
 }
 
+/* Fichas de categoría de la configuración inicial: 3 columnas desde ≈ 408 px, 2 por debajo;
+   cada ficha es una columna (icono arriba, nombre debajo) con un ancho mínimo que permite
+   escribir los nombres de las cuatro lenguas sin partir palabras. */
+.cat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-8);
+}
+
 .cat-option {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  min-height: 52px;
-  padding: 6px 10px;
+  min-height: 96px;
+  padding: 12px 6px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  color: var(--muted);
+  text-align: center;
   cursor: pointer;
 }
 
-.cat-option input {
-  width: 20px;
-  height: 20px;
+/* La casilla real cubre toda la ficha (zona de toque y teclado); se ve la marca de la esquina. */
+.cat-option__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
-  accent-color: var(--accent);
-  flex: none;
+  opacity: 0;
+  cursor: pointer;
 }
 
-.cat-option span.cat-option__label {
+.cat-option .cat-dot {
+  opacity: 0.6;
+}
+
+.cat-option__label {
   font-weight: 600;
-  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.cat-option__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--primary-ink);
 }
 
 .cat-option:has(input:checked) {
   border-color: var(--accent);
   background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.cat-option:has(input:checked) .cat-dot {
+  opacity: 1;
+}
+
+.cat-option:has(input:checked) .cat-option__check {
+  display: inline-flex;
 }
 
 .cat-option:has(input:focus-visible) {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+.cat-option--own {
+  color: var(--ink);
+}
+
+.cat-option--own .cat-dot {
+  opacity: 1;
+}
+
+.cat-option__remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.cat-dot--lg {
+  width: 40px;
+  height: 40px;
 }
 
 .icon-picker {
@@ -3819,7 +3926,7 @@ li.is-selected > .item--select {
   flex: 1 1 auto;
 }
 .plan-card__title strong {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .plans-onboarding__card {
   text-align: center;
@@ -3983,7 +4090,7 @@ li.is-selected > .item--select {
 }
 .donut__name {
   grid-area: name;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .donut__amount {
   grid-area: amount;
@@ -4128,7 +4235,7 @@ li.is-selected > .item--select {
 }
 .top-list__name {
   grid-area: name;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .top-list__meta {
   grid-area: meta;

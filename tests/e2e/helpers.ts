@@ -210,6 +210,8 @@ export async function expectNoMidWordBreaks(locator: Locator, label?: string) {
     const out: string[] = []
     for (const el of els) {
       if (!(el instanceof HTMLElement) || el.getClientRects().length === 0) continue
+      // Texto solo para lectores de pantalla (1 px de ancho) se parte en cada letra a propósito.
+      if (el.getBoundingClientRect().width < 12) continue
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
       let node: Node | null
       while ((node = walker.nextNode())) {
