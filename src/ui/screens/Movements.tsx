@@ -8,7 +8,7 @@ import { restoreFromTrashMany, trashTransactions } from '../../domain/operations
 import { useRun } from '../../state/hooks'
 import { downloadText } from '../backupActions'
 import { useDeleteTransaction } from '../useDeleteTransaction'
-import { SwipeRow } from '../components/base'
+import { BottomSheet, ListRow, SearchBar, SwipeRow } from '../components/base'
 import { ConfirmDialog } from '../components/Dialog'
 import { useToast } from '../components/toastContext'
 import type { Transaction, TxKind, TxStatus } from '../../domain/types'
@@ -43,10 +43,21 @@ export function Movements({ route }: { route?: Route }) {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [confirmBulk, setConfirmBulk] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const run = useRun()
   const toast = useToast()
 
-  const filtersActive = from !== '' || to !== '' || query !== '' || kind !== 'all' || status !== 'all' || accountId !== 'all' || categoryId !== 'all' || tagId !== 'all'
+  // Filtros activos como fichas con «quitar» (la búsqueda tiene su propio campo).
+  const activeChips: { key: string; label: string; clear: () => void }[] = [
+    ...(kind !== 'all' ? [{ key: 'kind', label: t(`txKind.${kind}` as MessageKey), clear: () => setKind('all') }] : []),
+    ...(status !== 'all' ? [{ key: 'status', label: t(status === 'realized' ? 'status.realized' : 'status.planned'), clear: () => setStatus('all') }] : []),
+    ...(accountId !== 'all' ? [{ key: 'account', label: accountName(data.accounts, accountId, t), clear: () => setAccountId('all') }] : []),
+    ...(categoryId !== 'all' ? [{ key: 'category', label: categoryLabel(t, categoryId), clear: () => setCategoryId('all') }] : []),
+    ...(tagId !== 'all' ? [{ key: 'tag', label: data.tags.find((x) => x.id === tagId)?.name ?? tagId, clear: () => setTagId('all') }] : []),
+    ...(from ? [{ key: 'from', label: t('filters.from.chip', { date: fmt.date(from, { compact: true, today }) }), clear: () => setFrom('') }] : []),
+    ...(to ? [{ key: 'to', label: t('filters.to.chip', { date: fmt.date(to, { compact: true, today }) }), clear: () => setTo('') }] : []),
+  ]
 
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
@@ -139,36 +150,31 @@ export function Movements({ route }: { route?: Route }) {
   return (
     <div className="stack">
       <PageHeader title={t('movements.title')}>
-        <a className="btn btn--secondary" href={href('/movimientos/importar')}>
-          <Icon name="upload" />
-          {t('movements.import')}
-        </a>
-        <a className="btn btn--primary" href={href('/movimientos/nuevo')}>
-          <Icon name="plus" />
-          {t('movements.add')}
-        </a>
+        {/* Registrar va por la pestaña «+»; lo secundario (estadísticas, favoritos, plantillas, papelera, importar) en «⋯». */}
+        <button type="button" className="btn btn--ghost btn--icon" onClick={() => setMoreOpen(true)} aria-label={t('movements.more')} aria-haspopup="dialog" aria-expanded={moreOpen} data-testid="movements-more">
+          <Icon name="more" />
+        </button>
       </PageHeader>
-      <p className="link-row link-row--chips">
-        <a href={href('/estadisticas')}>
-          <Icon name="chart" size={16} />
-          {t('stats.title')}
-        </a>
-        <a href={href('/movimientos/favoritos')}>
-          <Icon name="star" size={16} />
-          {t('favorites.title')}
-          {data.favorites.length > 0 ? ` (${data.favorites.length})` : ''}
-        </a>
-        <a href={href('/movimientos/plantillas')}>
-          <Icon name="list" size={16} />
-          {t('templates.title')}
-          {data.templates.length > 0 ? ` (${data.templates.length})` : ''}
-        </a>
-        <a href={href('/movimientos/papelera')}>
-          <Icon name="trash" size={16} />
-          {t('trash.link')}
-          {data.trash.length > 0 ? ` (${data.trash.length})` : ''}
-        </a>
-      </p>
+      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title={t('movements.more')}>
+        <div className="stack-sm" onClick={(e) => (e.target as HTMLElement).closest('a') && setMoreOpen(false)}>
+          <ListRow icon="chart" title={t('stats.title')} href={href('/estadisticas')} chevron />
+          <ListRow icon="star" title={`${t('favorites.title')}${data.favorites.length > 0 ? ` (${data.favorites.length})` : ''}`} href={href('/movimientos/favoritos')} chevron />
+          <ListRow icon="list" title={`${t('templates.title')}${data.templates.length > 0 ? ` (${data.templates.length})` : ''}`} href={href('/movimientos/plantillas')} chevron />
+          <ListRow icon="trash" title={`${t('trash.link')}${data.trash.length > 0 ? ` (${data.trash.length})` : ''}`} href={href('/movimientos/papelera')} chevron />
+          <ListRow icon="upload" title={t('movements.import')} href={href('/movimientos/importar')} chevron />
+          {data.transactions.length > 0 && (
+            <button type="button" className="list-row list-row--link" onClick={() => { setMoreOpen(false); exportCsv() }} disabled={filtered.length === 0} title={t('movements.exportCsvHint', { count: filtered.length })}>
+              <span className="cat-dot" aria-hidden="true">
+                <Icon name="download" size={18} />
+              </span>
+              <span className="list-row__main">
+                <span className="list-row__title">{t('movements.exportCsv')}</span>
+                <span className="list-row__subtitle">{t('movements.exportCsvHint', { count: filtered.length })}</span>
+              </span>
+            </button>
+          )}
+        </div>
+      </BottomSheet>
 
       {data.transactions.length === 0 ? (
         <EmptyState
@@ -184,67 +190,82 @@ export function Movements({ route }: { route?: Route }) {
         </EmptyState>
       ) : (
         <>
-          <MonthSummary />
-
-          <form className="filters" role="search" onSubmit={(e) => e.preventDefault()} aria-label={t('filters.aria')}>
-            <TextField
+          <div className="movements__top">
+          <form className="filters filters--compact" onSubmit={(e) => e.preventDefault()} aria-label={t('filters.aria')}>
+            <SearchBar
               label={t('filters.search')}
-              type="search"
               value={query}
               placeholder={t('filters.searchPlaceholder')}
-              onChange={(e) => {
-                setQuery(e.target.value)
+              onChange={(v) => {
+                setQuery(v)
                 setLimit(PAGE)
               }}
-              className="filters__search"
+              clearLabel={t('common.clear')}
             />
-            <SelectField
-              label={t('filters.kind')}
-              value={kind}
-              onChange={(e) => setKind(e.target.value as typeof kind)}
-              options={[{ value: 'all', label: t('filters.allKinds') }, ...(['expense', 'income', 'transfer', 'refund', 'adjustment'] as const).map((k) => ({ value: k, label: t(`txKind.${k}` as MessageKey) }))]}
-            />
-            <SelectField
-              label={t('filters.status')}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as typeof status)}
-              options={[
-                { value: 'all', label: t('filters.allStatuses') },
-                { value: 'realized', label: t('status.realized') },
-                { value: 'planned', label: t('status.planned') },
-              ]}
-            />
-            {data.accounts.length > 1 && (
-              <SelectField
-                label={t('fields.account')}
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                options={[{ value: 'all', label: t('filters.allAccounts') }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]}
-              />
-            )}
-            <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoryOptions} />
-            {data.tags.length > 0 && (
-              <SelectField label={t('fields.tags')} value={tagId} onChange={(e) => setTagId(e.target.value)} options={[{ value: 'all', label: t('filters.allTags') }, ...data.tags.map((tg) => ({ value: tg.id, label: tg.name }))]} />
-            )}
-            <TextField label={t('filters.from')} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
-            <TextField label={t('filters.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
-            {filtersActive && (
-              <button type="button" className="btn btn--ghost filters__clear" onClick={clear}>
-                <Icon name="x" size={16} />
+            <button type="button" className="btn btn--secondary filters__open" onClick={() => setFiltersOpen(true)} aria-haspopup="dialog" aria-expanded={filtersOpen} data-testid="open-filters">
+              <Icon name="sliders" size={16} />
+              {activeChips.length > 0 ? tn('movements.filtersCount', activeChips.length) : t('movements.filters')}
+            </button>
+          </form>
+          {activeChips.length > 0 && (
+            <div className="chip-wrap filters__chips" data-testid="active-filters">
+              {activeChips.map((c) => (
+                <button key={c.key} type="button" className="chip chip--selected" onClick={c.clear} aria-label={t('filters.remove', { label: c.label })}>
+                  <span>{c.label}</span>
+                  <Icon name="x" size={14} />
+                </button>
+              ))}
+              <button type="button" className="btn btn--ghost btn--small filters__clear" onClick={clear}>
                 {t('filters.clear')}
               </button>
-            )}
-          </form>
+            </div>
+          )}
+          <BottomSheet
+            open={filtersOpen}
+            onClose={() => setFiltersOpen(false)}
+            title={t('movements.filters')}
+            footer={
+              <button type="button" className="btn btn--primary btn--large" onClick={() => setFiltersOpen(false)}>
+                {t('filters.apply')}
+              </button>
+            }
+          >
+            <div className="stack" data-testid="filters-sheet">
+              <ChipGroup legend={t('filters.kind')} value={kind} onChange={(v) => setKind(v as typeof kind)} options={[{ value: 'all', label: t('filters.allKinds') }, ...(['expense', 'income', 'transfer', 'refund', 'adjustment'] as const).map((k) => ({ value: k, label: t(`txKind.${k}` as MessageKey) }))]} />
+              <ChipGroup
+                legend={t('filters.status')}
+                value={status}
+                onChange={(v) => setStatus(v as typeof status)}
+                options={[
+                  { value: 'all', label: t('filters.allStatuses') },
+                  { value: 'realized', label: t('status.realized') },
+                  { value: 'planned', label: t('status.planned') },
+                ]}
+              />
+              {data.accounts.length > 1 && <ChipGroup legend={t('fields.account')} value={accountId} onChange={setAccountId} options={[{ value: 'all', label: t('filters.allAccounts') }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]} />}
+              <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoryOptions} />
+              {data.tags.length > 0 && <ChipGroup legend={t('fields.tags')} value={tagId} onChange={setTagId} options={[{ value: 'all', label: t('filters.allTags') }, ...data.tags.map((tg) => ({ value: tg.id, label: tg.name }))]} />}
+              <div className="form-row">
+                <TextField label={t('filters.from')} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+                <TextField label={t('filters.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+              </div>
+            </div>
+          </BottomSheet>
 
-          <p className="summary-line" aria-live="polite">
-            {tn('movements.count', filtered.length)} · {t('movements.incomeTotal', { amount: fmt.money(incomeTotal) })} · {t('movements.spentTotal', { amount: fmt.money(spentTotal) })}
-          </p>
-          <div className="button-row" data-testid="history-tools">
-            <button type="button" className="btn btn--secondary btn--small" onClick={exportCsv} disabled={filtered.length === 0} title={t('movements.exportCsvHint', { count: filtered.length })}>
-              <Icon name="download" size={16} />
-              {t('movements.exportCsv')}
-            </button>
-            <button type="button" className="btn btn--secondary btn--small" aria-pressed={selecting} onClick={() => { setSelecting((v) => !v); setSelected(new Set()) }}>
+          <MonthSummary />
+
+          <div className="movements__toolbar" data-testid="history-tools">
+            {/* Sin filtros, solo el total; con filtros, también las sumas del resultado (C2). */}
+            <p className="summary-line" aria-live="polite">
+              {tn('movements.count', filtered.length)}
+              {(activeChips.length > 0 || query !== '') && (
+                <>
+                  {' · '}
+                  {t('movements.incomeTotal', { amount: fmt.money(incomeTotal) })} · {t('movements.spentTotal', { amount: fmt.money(spentTotal) })}
+                </>
+              )}
+            </p>
+            <button type="button" className="btn btn--ghost btn--small" aria-pressed={selecting} onClick={() => { setSelecting((v) => !v); setSelected(new Set()) }}>
               <Icon name="check" size={16} />
               {selecting ? t('movements.selectDone') : t('movements.select')}
             </button>
@@ -261,7 +282,7 @@ export function Movements({ route }: { route?: Route }) {
               </>
             )}
           </div>
-          {!selecting && <p className="note">{t('movements.swipeHint')}</p>}
+          </div>
           <ConfirmDialog open={confirmBulk} title={t('movements.bulkTrashTitle', { count: selected.size })} confirmLabel={t('movements.bulkTrash')} destructive onCancel={() => setConfirmBulk(false)} onConfirm={() => void bulkTrash()}>
             <p>{t('movements.bulkTrashText')}</p>
           </ConfirmDialog>
@@ -273,9 +294,8 @@ export function Movements({ route }: { route?: Route }) {
           {planned.length > 0 && (
             <section aria-labelledby="planned-title" className="stack-sm">
               <h2 id="planned-title" className="section-title">
-                {t('movements.plannedSection')}
+                {t('movements.plannedSection')} <span className="section-title__note">· {t('movements.plannedNote')}</span>
               </h2>
-              <p className="note">{t('movements.plannedNote')}</p>
               <TxList txs={planned} today={today} selecting={selecting} selected={selected} onToggle={toggleSelected} />
             </section>
           )}
@@ -291,6 +311,7 @@ export function Movements({ route }: { route?: Route }) {
                   {t('movements.showMore', { count: realized.length - shownRealized.length })}
                 </button>
               )}
+              {!selecting && <p className="note">{t('movements.swipeHint')}</p>}
             </section>
           )}
         </>
@@ -402,3 +423,19 @@ const TxRow = memo(function TxRow({
     </li>
   )
 })
+
+/** Grupo de fichas excluyentes (sustituye a los <select> que se recortaban a 320 px, B10/C2). */
+function ChipGroup({ legend, value, onChange, options }: { legend: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <fieldset className="field">
+      <legend className="field__label">{legend}</legend>
+      <div className="chip-wrap" role="group" aria-label={legend}>
+        {options.map((o) => (
+          <button key={o.value} type="button" className={`chip${o.value === value ? ' chip--selected' : ''}`} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
+            <span>{o.label}</span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  )
+}

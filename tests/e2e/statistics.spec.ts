@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { applyFilters, openFilters, go, startDemo } from './helpers'
 
 test('estadísticas: periodo, tres cifras, donut con enlace al historial, barras con tooltip, tendencia, top 5, promedio y saldo futuro', async ({ page }) => {
   await startDemo(page)
@@ -14,9 +14,13 @@ test('estadísticas: periodo, tres cifras, donut con enlace al historial, barras
   const dining = page.getByRole('button', { name: /Restaurantes y café/ })
   await expect(dining).toContainText('$37.05')
   await dining.click()
-  await expect(page.getByLabel('Categoría', { exact: true })).toHaveValue('dining')
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-09-01')
-  await expect(page.getByLabel('Hasta')).toHaveValue('2026-09-30')
+  // Los filtros llegan como fichas activas y, dentro de la hoja «Filtros», con sus valores (C2).
+  await expect(page.getByTestId('active-filters')).toContainText('Restaurantes y café')
+  const sheet = await openFilters(page)
+  await expect(sheet.getByLabel('Categoría', { exact: true })).toHaveValue('dining')
+  await expect(sheet.getByLabel('Desde')).toHaveValue('2026-09-01')
+  await expect(sheet.getByLabel('Hasta')).toHaveValue('2026-09-30')
+  await applyFilters(page)
 
   await go(page, '/estadisticas')
   // Barras: el tooltip muestra el periodo activo con formatMoney (nunca «Proyectado en d»).

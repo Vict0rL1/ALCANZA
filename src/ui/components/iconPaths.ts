@@ -2,6 +2,7 @@
 export const PATHS = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   list: 'M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
   calendar: 'M4 5h16v16H4zM16 3v4M8 3v4M4 10h16',
   sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
   plus: 'M12 5v14M5 12h14',

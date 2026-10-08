@@ -17,6 +17,16 @@ import { Icon } from './Icon'
 
 const TOP = 5
 
+const OPEN_KEY = 'clara.movements.summary'
+const readOpen = () => {
+  try {
+    return localStorage.getItem(OPEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Plegado por defecto (C2): una línea «Mes · Gasto neto»; se recuerda si se abre, por dispositivo. */
 export function MonthSummary() {
   const { t, tn } = useT()
   const fmt = useFormat()
@@ -24,13 +34,33 @@ export function MonthSummary() {
   const today = useToday()
   const [month, setMonth] = useState(() => startOfMonth(today))
   const [showAll, setShowAll] = useState(false)
+  const [open, setOpen] = useState(readOpen)
   const summary = useMemo(() => periodSummary(data, month, endOfMonth(month)), [data, month])
   const max = Math.max(1, ...summary.categories.map((c) => c.netMinor))
   const monthLabel = fmt.monthYear(month)
   const isCurrent = month === startOfMonth(today)
 
   return (
-    <section className="card month-summary" aria-labelledby="summary-title">
+    <details
+      className="card month-summary"
+      open={open}
+      onToggle={(e) => {
+        const next = (e.currentTarget as HTMLDetailsElement).open
+        setOpen(next)
+        try {
+          localStorage.setItem(OPEN_KEY, next ? '1' : '0')
+        } catch {
+          /* sin almacenamiento: no se recuerda */
+        }
+      }}
+      data-testid="month-summary"
+    >
+      <summary className="month-summary__toggle">
+        <Icon name="chart" size={16} />
+        <span className="sr-only">{t('movements.summaryToggle')}: </span>
+        {t('movements.summaryHeader', { month: fmt.monthYearShort(month), amount: fmt.money(summary.netSpendingMinor) })}
+        <Icon name="down" size={16} className="month-summary__chevron" />
+      </summary>
       <div className="month-nav">
         <button
           type="button"
@@ -96,6 +126,6 @@ export function MonthSummary() {
         <a href={href('/plan/planes')}>{t('summary.plansLink')}</a>
       </p>
       <p className="note">{t('summary.note')}</p>
-    </section>
+    </details>
   )
 }

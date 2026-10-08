@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, movementCount, startDemo } from './helpers'
+import { applyFilters, openFilters, openMoreMenu, go, movementCount, startDemo } from './helpers'
 
 test('historial: selección múltiple a la papelera (con restauración) y exportación CSV del filtro', async ({ page }) => {
   await startDemo(page)
@@ -21,10 +21,11 @@ test('historial: selección múltiple a la papelera (con restauración) y export
 
   // CSV del filtro: tantas filas como movimientos filtrados, importes con signo.
   await go(page, '/movimientos')
-  await page.getByLabel('Tipo', { exact: true }).selectOption('income')
+  await (await openFilters(page)).getByRole('group', { name: 'Tipo' }).getByRole('button', { name: 'Ingreso', exact: true }).click()
+  await applyFilters(page)
   const count = Number(/(\d+) movimiento/.exec((await page.locator('.summary-line').textContent()) ?? '')?.[1])
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exportar CSV' }).click()
+  await (await openMoreMenu(page)).getByRole('button', { name: 'Exportar CSV' }).click()
   const file = await download
   expect(file.suggestedFilename()).toMatch(/^clara-movimientos-\d{4}-\d{2}-\d{2}\.csv$/)
   const text = await (await import('node:fs/promises')).readFile(await file.path(), 'utf8')

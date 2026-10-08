@@ -22,6 +22,8 @@ export interface Formatter {
   decimalSeparator: string
   date: (date: LocalDate, options?: { weekday?: boolean; compact?: boolean; today?: LocalDate }) => string
   monthYear: (date: LocalDate) => string
+  /** «Sept 2026»: mes abreviado con inicial mayúscula, para cabeceras de una línea. */
+  monthYearShort: (date: LocalDate) => string
   weekdayShort: (date: LocalDate) => string
   timestamp: (ts: Timestamp) => string
   time: (ts: Timestamp) => string
@@ -83,6 +85,10 @@ export function createFormatter(settings: Settings, options: { privacy?: boolean
       }).format(d)
     },
     monthYear: (date) => dtf('monthYear', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(localDateToDisplayDate(date)),
+    monthYearShort: (date) => {
+      const text = dtf('monthYearShort', { timeZone: 'UTC', month: 'short', year: 'numeric' }).format(localDateToDisplayDate(date))
+      return text.charAt(0).toLocaleUpperCase(lang) + text.slice(1)
+    },
     weekdayShort: (date) => dtf('wdshort', { timeZone: 'UTC', weekday: 'short' }).format(localDateToDisplayDate(date)),
     timestamp: (ts) =>
       dtf('ts', { timeZone: settings.timeZone, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(ts)),

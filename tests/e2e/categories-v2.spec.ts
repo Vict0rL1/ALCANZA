@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { applyFilters, openFilters, go, startDemo } from './helpers'
 
 test('categorías v2: crear con icono y color, renombrar una de Clara, archivar con reasignación, reordenar y grupos', async ({ page }) => {
   await startDemo(page)
@@ -48,7 +48,8 @@ test('categorías v2: crear con icono y color, renombrar una de Clara, archivar 
   await expect(page.getByTestId('category-groceries')).toContainText('0 usos')
   await go(page, '/movimientos')
   expect(await page.locator('.item').count()).toBe(before)
-  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Supermercado' })).toHaveCount(1) // el filtro incluye archivadas
+  await expect((await openFilters(page)).getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Supermercado' })).toHaveCount(1) // el filtro incluye archivadas
+  await applyFilters(page)
 
   // Restaurar y reordenar.
   await go(page, '/ajustes/categorias')

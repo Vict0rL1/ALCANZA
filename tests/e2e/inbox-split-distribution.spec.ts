@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { applyFilters, openFilters, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function newExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
@@ -37,7 +37,8 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   await expect(await available(page)).toHaveText('$16.78')
   await go(page, '/movimientos')
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toContainText('Dividida en 3 categorías')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda y alquiler' })
+  await (await openFilters(page)).getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda y alquiler' })
+  await applyFilters(page)
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toBeVisible()
 
   // Cambiar el total pide ajustar; quitar la división conserva el movimiento.
@@ -140,7 +141,7 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   expect(results.violations.map((v) => v.id)).toEqual([])
 
   // Inglés.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/pendientes')
   await expect(page.getByRole('heading', { name: 'To review', exact: true })).toBeVisible()

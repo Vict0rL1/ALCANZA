@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { openMoreMenu, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function openCoffee(page: Page) {
   await go(page, '/movimientos')
@@ -22,7 +22,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   // Persistente: tras recargar sigue en la papelera con sus detalles.
   await page.reload()
   await go(page, '/movimientos')
-  await page.getByRole('link', { name: /Papelera \(1\)/ }).click()
+  await (await openMoreMenu(page)).getByRole('link', { name: /Papelera \(1\)/ }).click()
   await expect(page.getByRole('heading', { name: 'Papelera' })).toBeVisible()
   const entry = page.locator('.item', { hasText: 'Café' })
   await expect(entry).toContainText('Eliminado el')
@@ -67,7 +67,7 @@ test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas
   await expect(await available(page)).toHaveText('$116.78')
 
   // Ahorros también recuperó los 20.00 (el otro lado de la transferencia).
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await expect(page.locator('.item', { hasText: 'Ahorros' }).locator('.item__amount')).toHaveText('$420.00')
 })
 

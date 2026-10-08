@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { openMonthSummary, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 test('agregar, buscar, editar y eliminar con deshacer', async ({ page }) => {
   await startDemo(page)
@@ -96,7 +96,9 @@ test('devolución parcial: no puede superar lo que queda por devolver', async ({
 test('resumen del mes: gasto por categoría ordenado y navegación entre meses', async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
+  // Cerrado por defecto: la cabecera resume el mes y el gasto neto (C2).
+  await expect(page.locator('.month-summary__toggle')).toContainText(/2026 · Gasto neto \$1,243\.18/)
+  const summary = await openMonthSummary(page)
   await expect(summary.getByRole('heading', { name: /Resumen de septiembre de 2026/i })).toBeVisible()
   // La renta (650.00) es el mayor gasto; el supermercado suma 243.90 en septiembre.
   await expect(summary.locator('.bars__row').first()).toContainText('Vivienda')
@@ -111,7 +113,7 @@ test('resumen del mes: gasto por categoría ordenado y navegación entre meses',
 test('el resumen del mes enlaza a Planes (los límites viven allí desde v10)', async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
+  const summary = await openMonthSummary(page)
   await summary.getByRole('link', { name: /ver Planes/ }).click()
   await expect(page.getByRole('button', { name: 'Nuevo plan' })).toBeVisible()
   await expect(page.getByTestId('plan-list')).toBeVisible()
