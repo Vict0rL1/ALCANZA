@@ -2,7 +2,7 @@
 
 Clara es un **prototipo local** de finanzas personales (React + TypeScript + Vite).
 Sin backend, sin cuentas de usuario, sin conexión bancaria y sin IA dentro del producto.
-Interfaz en español e inglés (`src/i18n/es.ts` y `en.ts`). Antes se llamaba «Margen»: las
+Interfaz en español, inglés, portugués y francés (`src/i18n/es.ts`, `en.ts`, `pt.ts`, `fr.ts`). Antes se llamaba «Margen»: las
 claves internas (`margen.data.v1`, `margen-backup`, cachés `margen-`) NO se renombran.
 
 ## Comandos (ejecutar antes de cada commit)
@@ -28,8 +28,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   `domain/operations.ts`; no calcula dinero.
 - `src/ui/` — pantallas y componentes. Solo muestran y llaman operaciones.
 - `src/i18n/` — todos los textos visibles. **Nunca** escribir texto de interfaz
-  directamente en componentes: añadir la clave a `es.ts` **y** a `en.ts` (el tipo de
-  `en.ts` obliga a tener todas las claves).
+  directamente en componentes: añadir cada clave a `es.ts`, `en.ts`, `pt.ts` **y** `fr.ts`
+  (el tipo compartido obliga a tener todas las claves en los cuatro).
 
 ## Reglas financieras (ver `docs/FORMULAS.md`)
 

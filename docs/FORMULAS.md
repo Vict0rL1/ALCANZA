@@ -970,3 +970,12 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
   aprendizaje y reglas); sin coincidencia, «otros gastos».
 - **Confianza** = 0,5 si el total viene de una línea «total» (0,3 si es solo la mayor) + 0,25 si hay fecha + 0,25 si hay comercio.
 - Todo es propuesta: la línea entra en la vista previa del asistente y pasa la validación normal al confirmar.
+
+## 37. Formato compacto de importes y versiones de ICU
+
+`formatMoney(…, { compact: true })` es solo para mostrar (etiquetas de gráficos): delega en
+`Intl.NumberFormat` con `notation: 'compact'`. El orden entre símbolo y cifra en esa notación
+depende de los datos CLDR de la versión de ICU del navegador o de Node (`$1.3 M` en unas,
+`1.3 M$` en otras), así que ninguna prueba fija ese texto: se compara con lo que `Intl` devuelve en
+la misma máquina y se exige la cifra abreviada y el símbolo. Los importes reales nunca se muestran
+compactos ni se redondean para calcular.

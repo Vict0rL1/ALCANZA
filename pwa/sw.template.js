@@ -3,7 +3,7 @@
  * - Guarda en caché la app completa de ESTA versión para usarla sin conexión.
  * - Sirve siempre desde la caché de su versión (coherencia entre HTML y archivos).
  * - Una versión nueva se instala en segundo plano y la app muestra «Actualizar».
- * - Nunca guarda datos financieros: esos viven en localStorage.
+ * - Nunca guarda datos financieros: esos viven en IndexedDB (localStorage solo como respaldo).
  */
 const VERSION = '__VERSION__'
 // Prefijo con el nombre anterior («Margen») para limpiar también las cachés ya instaladas.
