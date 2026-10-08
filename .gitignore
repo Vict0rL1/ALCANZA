@@ -32,3 +32,16 @@ blob-report
 .env
 .env.*
 !.env.example
+
+# Capturas de QA visual: se versionan las de Pixel 7 (ambos temas) y unas pocas de 320 px y
+# escritorio; el resto se regenera con `npm run shots -- --label=<etiqueta>`.
+test-results-visual
+docs/screenshots/*/celular-pequeno-*
+docs/screenshots/*/escritorio-*
+!docs/screenshots/*/celular-pequeno-dark-setup-categorias.png
+!docs/screenshots/*/celular-pequeno-dark-movimientos.png
+!docs/screenshots/*/celular-pequeno-dark-plan-planes.png
+!docs/screenshots/*/celular-pequeno-dark-ajustes.png
+!docs/screenshots/*/escritorio-dark-inicio-demo.png
+!docs/screenshots/*/escritorio-dark-inicio-primer-uso.png
+!docs/screenshots/*/escritorio-dark-ajustes.png
