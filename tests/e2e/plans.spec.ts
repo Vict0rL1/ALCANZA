@@ -63,7 +63,8 @@ test('planes: un periodo personalizado ya vencido se cierra solo con resultado y
   await page.getByLabel('Inicio del periodo personalizado').fill('2026-09-01')
   await page.getByLabel('Fin del periodo personalizado').fill('2026-09-07')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page.getByText('Plan guardado')).toBeVisible()
+  // En el celular solo se ve un aviso: «Plan guardado» puede quedar sustituido de inmediato por el del cierre.
+  await expect(page.getByText(/Plan guardado|Se cerró 1 plan/).first()).toBeVisible()
   // El cierre corre al tener planes: 1-7 sep terminó antes de hoy. Gasto de todas las categorías en esa semana:
   // 650.00 + 52.30 + 11.99 + 3.35 + 14.75 + 28.00 = 760.39 → dentro del límite por 39.61.
   await expect(page.getByText('Se cerró 1 plan')).toBeVisible()

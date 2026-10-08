@@ -70,9 +70,11 @@ test('oscuro es el tema predeterminado; la galería de componentes pasa la audit
 test('navegación: «Agregar» a un toque y sección activa marcada (no solo por color)', async ({ page }) => {
   await startDemo(page)
   const nav = page.getByRole('navigation', { name: 'Navegación principal' })
-  await nav.getByRole('link', { name: 'Agregar' }).click()
+  // «Agregar» abre la hoja con las opciones; «Gasto» lleva al formulario y la pestaña queda marcada.
+  await nav.getByRole('button', { name: 'Agregar' }).click()
+  await page.getByRole('dialog', { name: '¿Qué quieres registrar?' }).getByRole('link', { name: /^Gasto/ }).click()
   await expect(page.getByRole('heading', { name: 'Nuevo movimiento' })).toBeVisible()
-  await expect(nav.getByRole('link', { name: 'Agregar' })).toHaveAttribute('aria-current', 'page')
+  await expect(nav.getByRole('button', { name: 'Agregar' })).toHaveAttribute('aria-current', 'page')
   await expect(nav.getByRole('link', { name: 'Movimientos' })).not.toHaveAttribute('aria-current', 'page')
   await go(page, '/movimientos')
   const active = nav.getByRole('link', { name: 'Movimientos' })

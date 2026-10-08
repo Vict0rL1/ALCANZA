@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { nav, openApp } from './helpers'
+import { nav, openAddSheet, openApp } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -72,7 +72,7 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.getByTestId('available')).toHaveText('$400.00')
 
   // C1. Gasto manual de 25: 375 en 10 días = 37.50 por día.
-  await page.locator('.fab').click()
+  await openAddSheet(page)
   const sheet = page.getByRole('dialog', { name: '¿Qué quieres registrar?' })
   for (const option of ['Gasto', 'Ingreso', 'Transferencia', 'Escribir o dictar']) await expect(sheet.getByRole('link', { name: new RegExp(`^${option}`) })).toBeVisible()
   await sheet.getByRole('link', { name: /^Gasto/ }).click()
@@ -87,7 +87,7 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.locator('.stat__value').first()).toHaveText('$37.50')
 
   // C2. Asistente: nada se guarda antes de confirmar; luego 375 − 12 − 3.50 = 359.50.
-  await page.locator('.fab').click()
+  await openAddSheet(page)
   await page.getByRole('dialog', { name: '¿Qué quieres registrar?' }).getByRole('link', { name: /Escribir o dictar/ }).click()
   await page.getByLabel('Texto').fill('taxi 12 y café 3.50')
   await page.getByRole('button', { name: 'Analizar' }).click()
@@ -99,7 +99,7 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(lines.nth(1).getByLabel('Categoría')).toHaveValue('dining')
   await nav(page, 'Inicio').click()
   await expect(page.getByTestId('available')).toHaveText('$375.00')
-  await page.locator('.fab').click()
+  await openAddSheet(page)
   await page.getByRole('dialog', { name: '¿Qué quieres registrar?' }).getByRole('link', { name: /Escribir o dictar/ }).click()
   await page.getByLabel('Texto').fill('taxi 12 y café 3.50')
   await page.getByRole('button', { name: 'Analizar' }).click()
@@ -127,7 +127,14 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
 
   // E1. Plan de gasto: 25 + 12 + 3.50 = 40.50 de 100 (40 %, quedan 59.50) en el mes en curso.
   await nav(page, 'Plan').click()
-  await page.getByRole('navigation', { name: 'Secciones del plan' }).getByRole('link', { name: 'Planes' }).click()
+  // Primera vez en Plan: abre en «Planes» con la introducción de 3 pantallas; «Omitir» y no vuelve.
+  await expect(page.getByTestId('plans-onboarding')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dos tipos de planes' })).toBeVisible()
+  await page.getByRole('button', { name: 'Omitir' }).click()
+  await expect(page.getByTestId('plans-onboarding')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('#page-title')).toBeVisible()
+  await expect(page.getByTestId('plans-onboarding')).toHaveCount(0)
   await page.getByRole('button', { name: 'Nuevo plan' }).click()
   await page.getByTestId('plan-create-sheet').getByRole('link', { name: /Controlar un gasto/ }).click()
   await page.getByLabel('Límite máximo').fill('100')
@@ -138,8 +145,6 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.getByText('Plan guardado')).toBeVisible()
   await expect(page.getByTestId('plan-spent')).toHaveText('$40.50 / $100.00')
   await expect(page.getByText('Quedan $59.50').first()).toBeVisible()
-  // E2 (hallazgo): la introducción de 3 pantallas de Planes no se mostró porque la reserva cuenta como meta.
-  await expect(page.getByTestId('plans-onboarding')).toHaveCount(0)
 
   // F1. Estadísticas del mes.
   await nav(page, 'Inicio').click()

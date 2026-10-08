@@ -13,7 +13,7 @@ import { BUDGET_PERIOD_TYPES, LIMITS, type Issue } from '../../domain/validation
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { BottomSheet, CategoryChip, FAB, ListRow, PrimaryButton, ProgressBar, SecondaryButton, TextButton, Toggle, type ProgressState } from '../components/base'
+import { BottomSheet, CategoryChip, ListRow, PrimaryButton, ProgressBar, SecondaryButton, TextButton, Toggle, type ProgressState } from '../components/base'
 import { Alert, Badge, Card, EmptyState, PageHeader } from '../components/common'
 import { ConfirmDialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
@@ -63,7 +63,6 @@ export function Plans({ route }: { route: Route }) {
   )
   const goals = useMemo(() => data.goals.filter((g) => g.kind !== 'expense').filter((g) => (goalProgress(g).complete ? view === 'completed' : view === 'active')), [data, view])
   const tourSeen = (data.settings.toursSeen ?? []).includes(TOUR_ID)
-  const empty = data.plans.length === 0 && data.goals.filter((g) => g.kind !== 'expense').length === 0
   const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== TOUR_ID), TOUR_ID] }, c))
 
   const news: string[] = []
@@ -71,7 +70,9 @@ export function Plans({ route }: { route: Route }) {
   if (summary.near > 0) news.push(tn('plans.summary.near', summary.near))
   if (summary.goalsPercent !== null && summary.goals > 0) news.push(t('plans.summary.goals', { pct: summary.goalsPercent, done: summary.goalsComplete, total: summary.goals }))
 
-  if (!tourSeen && !data.isDemo && empty) return <PlansOnboarding onDone={endTour} />
+  // Introducción de 3 pantallas la primera vez que se abre Planes (no en la demo); una reserva
+  // creada en la configuración inicial ya no la esconde (B5).
+  if (!tourSeen && !data.isDemo) return <PlansOnboarding onDone={endTour} />
 
   return (
     <div className="stack plans">
@@ -84,18 +85,25 @@ export function Plans({ route }: { route: Route }) {
           </ul>
         </Alert>
       )}
-      <Segmented
-        legend={t('plans.view')}
-        name="plans-view"
-        value={view}
-        onChange={(v) => {
-          window.location.hash = href(withQuery('/plan/planes', v === 'completed' ? { vista: 'completados' } : {}))
-        }}
-        options={[
-          { value: 'active', label: t('plans.view.active') },
-          { value: 'completed', label: t('plans.view.completed') },
-        ]}
-      />
+      <div className="plans__toolbar">
+        <Segmented
+          legend={t('plans.view')}
+          name="plans-view"
+          value={view}
+          onChange={(v) => {
+            window.location.hash = href(withQuery('/plan/planes', v === 'completed' ? { vista: 'completados' } : {}))
+          }}
+          options={[
+            { value: 'active', label: t('plans.view.active') },
+            { value: 'completed', label: t('plans.view.completed') },
+          ]}
+        />
+        {/* Botón en la página, no flotante: nunca tapa una tarjeta (B2/B3). */}
+        <button type="button" className="btn btn--primary" onClick={() => setSheet(true)}>
+          <Icon name="plus" size={18} />
+          {t('plans.new')}
+        </button>
+      </div>
       {plans.length === 0 && goals.length === 0 ? (
         <EmptyState icon="target" title={t(view === 'completed' ? 'plans.empty.completed' : 'plans.empty.title')} action={view === 'active' ? <PrimaryButton onClick={() => setSheet(true)}>{t('plans.empty.cta')}</PrimaryButton> : undefined}>
           {view === 'active' && <p>{t('plans.empty.text')}</p>}
@@ -144,7 +152,6 @@ export function Plans({ route }: { route: Route }) {
         </ul>
       )}
       <p className="note">{t('plans.note')}</p>
-      <FAB label={t('plans.new')} onClick={() => setSheet(true)} />
       <BottomSheet open={sheet} onClose={() => setSheet(false)} title={t('plans.create.title')}>
         <div className="stack-sm" data-testid="plan-create-sheet">
           <a className="list-row list-row--link" href={href('/plan/planes/nuevo')} onClick={() => setSheet(false)}>

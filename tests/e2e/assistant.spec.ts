@@ -1,14 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo, movementCount, storedData } from './helpers'
+import { go, openAddSheet, startDemo, movementCount, storedData } from './helpers'
 
 test('asistente: texto → vista previa editable → registro todo o nada; nada se guarda antes de confirmar', async ({ page }) => {
   await startDemo(page)
   const before = await movementCount(page)
   await go(page, '/')
-  // FAB → hoja → asistente.
-  await page.getByRole('button', { name: 'Agregar movimiento' }).click()
+  // Pestaña «+» → hoja → asistente.
+  await openAddSheet(page)
   const sheet = page.getByRole('dialog', { name: '¿Qué quieres registrar?' })
-  await expect(sheet).toBeVisible()
   await sheet.getByRole('link', { name: /Escribir o dictar/ }).click()
   await expect(page.getByRole('heading', { name: 'Asistente de registro' })).toBeVisible()
 

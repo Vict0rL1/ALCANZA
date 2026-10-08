@@ -62,7 +62,7 @@ test('personalizar Inicio: orden con botones, ocultar secciones, vista esencial 
   await go(page, '/')
   await expect(page.getByTestId('available')).toHaveText('$136.78')
   await expect(page.getByText('¿Cómo se calculó?').first()).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Agregar movimiento' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: '¿Me alcanza?' }).first()).toBeVisible()
   await expect(page.getByTestId('home-sections')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Más herramientas' })).toBeVisible()
 

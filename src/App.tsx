@@ -1,4 +1,6 @@
 import { useGlobalShortcuts } from './ui/shortcuts'
+import { AddSheet } from './ui/components/AddSheet'
+import { settingsSection } from './ui/screens/settings/sections'
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Language } from './domain/types'
 import { I18nContext, createTranslator, useLoadedLanguage, useT } from './i18n'
@@ -219,9 +221,11 @@ type NavKey = 'nav.home' | 'nav.movements' | 'nav.add' | 'nav.plan' | 'nav.setti
 const NAV: { path: string; match: string; key: NavKey; icon: IconName; add?: boolean }[] = [
   { path: '/', match: '', key: 'nav.home', icon: 'home' },
   { path: '/movimientos', match: 'movimientos', key: 'nav.movements', icon: 'list' },
-  // Registrar es la acción más frecuente: siempre a un toque, sin botón flotante que tape contenido.
+  // Registrar es la acción más frecuente: siempre a un toque desde la barra (celular) o el lateral
+  // (escritorio), sin botón flotante que tape contenido. Abre la hoja «¿Qué quieres registrar?».
   { path: '/movimientos/nuevo', match: '', key: 'nav.add', icon: 'plus', add: true },
-  { path: '/plan/calendario', match: 'plan', key: 'nav.plan', icon: 'calendar' },
+  // «/plan» abre la última pestaña visitada (Planes la primera vez).
+  { path: '/plan', match: 'plan', key: 'nav.plan', icon: 'calendar' },
   { path: '/ajustes', match: 'ajustes', key: 'nav.settings', icon: 'sliders' },
 ]
 
@@ -364,7 +368,8 @@ function Shell() {
     let frame = 0
     let tries = 0
     const settle = () => {
-      const target = section ? document.getElementById(section) : null
+      // Ids antiguos de Ajustes (p. ej. «reset-title» en un marcador) siguen llegando a su sección.
+      const target = section ? document.getElementById(settingsSection(section)?.id ?? section) : null
       if (target) {
         target.scrollIntoView()
         return
@@ -389,9 +394,16 @@ function Shell() {
     return () => cancelAnimationFrame(frame)
   }, [route.path, route.query])
 
+  // Hoja «¿Qué quieres registrar?» (única entrada para registrar). Se guarda la ruta en la que se
+  // abrió: al cambiar de pantalla (p. ej. al elegir «Gasto») deja de estar abierta sin un efecto.
+  const [addOpenAt, setAddOpenAt] = useState<string | null>(null)
+  const addOpen = addOpenAt === route.path
+  const setAddOpen = (open: boolean) => setAddOpenAt(open ? route.path : null)
+
   if (state.phase !== 'ready' || !state.data) return null
   const data = state.data
   const top = route.segments[0] ?? ''
+  const adding = route.segments[0] === 'movimientos' && route.segments[1] === 'nuevo'
 
   return (
     <div className="shell">
@@ -412,7 +424,7 @@ function Shell() {
           <span className="banner__text">
             <strong>{t('shell.demoTitle')}</strong> <span className="banner__extra">{t('shell.demoText')}</span>
           </span>
-          <a className="btn btn--small btn--inverse banner__action" href={href('/ajustes?seccion=reset-title')}>
+          <a className="btn btn--small btn--inverse banner__action" href={href('/ajustes?seccion=reinicio')}>
             {t('shell.leaveDemoShort')}
           </a>
         </div>
@@ -448,22 +460,38 @@ function Shell() {
             const active = item.add
               ? adding
               : !adding && (item.match === top || (item.match === '' && (top === '' || top === 'alcanza' || top === 'revision' || top === 'pendientes')))
-            return (
-              <a
-                key={item.path}
-                className={`nav__item${item.add ? ' nav__item--add' : ''}${active ? ' is-active' : ''}`}
-                href={href(item.path)}
-                aria-current={active ? 'page' : undefined}
-                aria-keyshortcuts={item.add ? 'N' : undefined}
-              >
+            const inner = (
+              <>
                 <span className="nav__icon">
                   <Icon name={item.icon} size={22} />
                 </span>
                 <span className="nav__label">{t(item.key)}</span>
+              </>
+            )
+            if (item.add) {
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  className={`nav__item nav__item--add${active ? ' is-active' : ''}`}
+                  onClick={() => setAddOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={addOpen}
+                  aria-current={active ? 'page' : undefined}
+                  aria-keyshortcuts="N"
+                >
+                  {inner}
+                </button>
+              )
+            }
+            return (
+              <a key={item.path} className={`nav__item${active ? ' is-active' : ''}`} href={href(item.path)} aria-current={active ? 'page' : undefined}>
+                {inner}
               </a>
             )
           })}
         </nav>
+        <AddSheet open={addOpen} onClose={() => setAddOpen(false)} returnTo={adding ? '/' : route.path} />
         <main className="main" id="main" ref={mainRef} tabIndex={-1}>
           <ScreenBoundary key={route.path}>
             <Suspense fallback={<ScreenSkeleton />}>

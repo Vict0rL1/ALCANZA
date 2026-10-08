@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { backupStatus, SNOOZE_OPTIONS } from '../../domain/backupReminder'
+import { FavoriteChips } from '../favoritesUi'
 import { computeBudget, upcomingItems } from '../../domain/budget'
 import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
-import { FavoriteChips } from '../favoritesUi'
 import { cardPaymentReminders } from '../../domain/cards'
 import { localDateInTimeZone } from '../../domain/dates'
 import { planProgress } from '../../domain/plans'
@@ -12,7 +12,7 @@ import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
 import { committedFor, safeToSpend } from '../../domain/periods'
 import { periodLabel } from '../periodLabel'
-import { BottomSheet, CoachMark, CountUp, FAB, ListRow } from '../components/base'
+import { CoachMark, CountUp } from '../components/base'
 import { haptic } from '../haptics'
 import { Segmented } from '../components/fields'
 import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
@@ -83,7 +83,6 @@ export function Home() {
   const setGranularity = (g: 'day' | 'week' | 'period') => void run((d, c) => updateSettings(d, { safeToSpend: { ...d.settings.safeToSpend, granularity: g } }, c))
   const tourSeen = (data.settings.toursSeen ?? []).includes('home')
   const [tourStep, setTourStep] = useState(0)
-  const [fabOpen, setFabOpen] = useState(false)
   const isEmpty = data.transactions.length === 0 && !data.isDemo
   const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== 'home'), 'home'] }, c))
 
@@ -529,10 +528,6 @@ export function Home() {
                   <Icon name="sparkles" />
                   {t('home.empty.try')}
                 </a>
-                <a className="btn btn--secondary" href={href('/movimientos/nuevo')}>
-                  <Icon name="plus" />
-                  {t('home.addMovement')}
-                </a>
               </div>
             </Card>
           )}
@@ -705,18 +700,14 @@ export function Home() {
               </a>
             </p>
 
+            {/* Una sola acción secundaria («¿Me alcanza?»); registrar va por la pestaña «+» (B3). */}
             <div className="button-row button-row--main">
-              <a className="btn btn--primary btn--large" href={href('/movimientos/nuevo')}>
-                <Icon name="plus" />
-                {t('home.addMovement')}
-              </a>
-              {!essential &&
-                prefs.quickActions.map((a) => (
-                  <a key={a} className="btn btn--secondary btn--large" href={href(QUICK[a].href)}>
-                    <Icon name={QUICK[a].icon} />
-                    {QUICK[a].label}
-                  </a>
-                ))}
+              {(essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
+                <a key={a} className="btn btn--secondary btn--large" href={href(QUICK[a].href)}>
+                  <Icon name={QUICK[a].icon} />
+                  {QUICK[a].label}
+                </a>
+              ))}
             </div>
             {!essential && <FavoriteChips returnTo="/" limit={4} />}
           </Card>
@@ -791,21 +782,6 @@ export function Home() {
 
       {payItem && <MarkPaidDialog key={payItem.key} item={payItem} onClose={() => setPayItem(null)} />}
       {balanceOpen && <UpdateBalanceDialog onClose={() => setBalanceOpen(false)} />}
-      <FAB label={t('home.addMovement')} onClick={() => setFabOpen(true)} />
-      <BottomSheet open={fabOpen} onClose={() => setFabOpen(false)} title={t('fab.title')}>
-        <div data-testid="fab-sheet">
-          <ListRow icon="arrowDown" color="red" title={t('fab.expense')} href={href(withQuery('/movimientos/nuevo', { kind: 'expense', returnTo: '/' }))} chevron />
-          <ListRow icon="arrowUp" color="emerald" title={t('fab.income')} href={href(withQuery('/movimientos/nuevo', { kind: 'income', returnTo: '/' }))} chevron />
-          <ListRow icon="transfer" color="blue" title={t('fab.transfer')} href={href(withQuery('/movimientos/nuevo', { kind: 'transfer', returnTo: '/' }))} chevron />
-          <ListRow icon="sparkles" color="violet" title={t('fab.assistant')} subtitle={t('assistant.placeholder')} href={href(withQuery('/asistente', { returnTo: '/' }))} chevron />
-          {data.favorites.length > 0 && (
-            <>
-              <p className="cat-group__title">{t('fab.common')}</p>
-              <FavoriteChips returnTo="/" limit={6} />
-            </>
-          )}
-        </div>
-      </BottomSheet>
     </div>
   )
 }
