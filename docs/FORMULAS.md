@@ -992,3 +992,12 @@ compactos ni se redondean para calcular.
 - **N %** = ⌊disponible × 100 ÷ base⌋ acotado a 0–100; **0 si la base no es positiva** (nunca se
   divide entre cero ni se muestra un porcentaje negativo). La línea «¿Cómo se calculó?» repite las tres
   cifras y el periodo.
+
+## 39. Importes inverosímiles (`domain/plausibility.ts`, G5)
+
+- Un **gasto** es inverosímil si `importe ≥ 20 × max(0, disponible)` **y** `importe ≥ 1 000` en la unidad mayor
+  de la moneda (1 000,00 en CAD/MXN; 1 000 en COP, sin decimales). Por debajo de 1 000 nunca se pregunta.
+- Se pide confirmación una sola vez por movimiento («¿Seguro? Es N veces lo que puedes gastar»,
+  N = ⌊importe ÷ disponible⌋; sin disponible positivo, «más de lo que puedes gastar ahora»). Confirmar
+  guarda el importe tal cual: no se corrige ni se bloquea. En la vista previa del asistente la fila queda
+  marcada con el mismo aviso.

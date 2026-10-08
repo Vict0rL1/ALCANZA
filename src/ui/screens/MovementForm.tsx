@@ -4,6 +4,9 @@ import { addDays, isValidLocalDate } from '../../domain/dates'
 import { favoritePrefill, type FavoritePrefill } from '../../domain/favorites'
 import { newId } from '../../domain/ids'
 import { sumMinor } from '../../domain/money'
+import { computeBudget } from '../../domain/budget'
+import { implausibilityRatio, isImplausibleAmount } from '../../domain/plausibility'
+import { ConfirmDialog } from '../components/Dialog'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
 import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
 import { inferRefundSplit, refundableByCategory, suggestSplitFromHistory } from '../../domain/splits'
@@ -188,6 +191,11 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const [busy, setBusy] = useState(false)
   const [favoriteOpen, setFavoriteOpen] = useState(false)
   const submitting = useRef(false)
+  // G5: un gasto desproporcionado pide confirmación una vez por movimiento.
+  const [implausible, setImplausible] = useState<number | null | false>(false)
+  const implausibleOk = useRef(false)
+  const pendingAnother = useRef(false)
+  const availableMinor = useMemo(() => computeBudget(data, today).availableMinor, [data, today])
   // Regla de categoría: solo propone mientras la persona no elija la categoría a mano.
   const [categoryTouched, setCategoryTouched] = useState(() => !!existing || !!duplicateOf || !!q.get('category') || !!prefill)
   const [ruleApplied, setRuleApplied] = useState<CategoryRule | undefined>(undefined)
@@ -319,6 +327,11 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     setAmountError(moneyErrorMessage(t, parsed))
     // Evita un segundo envío por doble clic antes de que React vuelva a pintar.
     if (!parsed.ok || submitting.current) return
+    if (kind === 'expense' && !implausibleOk.current && isImplausibleAmount(parsed.minor, availableMinor, data.settings.currency)) {
+      pendingAnother.current = another
+      setImplausible(implausibilityRatio(parsed.minor, availableMinor))
+      return
+    }
     // División: las líneas deben ser válidas y sumar exactamente el total (también lo valida el dominio).
     let splits: SplitLine[] | undefined
     const splitActive = (kind === 'expense' || refundSplitMode) && splitDrafts
@@ -506,6 +519,19 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
         </Alert>
       )}
 
+      <ConfirmDialog
+        open={implausible !== false}
+        title={implausible === null ? t('form.implausibleNoAvailable') : t('form.implausibleTitle', { times: implausible === false ? 0 : implausible })}
+        confirmLabel={t('form.implausibleConfirm')}
+        onCancel={() => setImplausible(false)}
+        onConfirm={() => {
+          implausibleOk.current = true
+          setImplausible(false)
+          void submit(pendingAnother.current)
+        }}
+      >
+        <p>{t('form.implausibleText', { available: fmt.money(Math.max(0, availableMinor)) })}</p>
+      </ConfirmDialog>
       <form
         className="form card"
         noValidate
