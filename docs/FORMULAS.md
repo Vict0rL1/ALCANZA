@@ -979,3 +979,16 @@ depende de los datos CLDR de la versión de ICU del navegador o de Node (`$1.3 M
 `1.3 M$` en otras), así que ninguna prueba fija ese texto: se compara con lo que `Intl` devuelve en
 la misma máquina y se exige la cifra abreviada y el símbolo. Los importes reales nunca se muestran
 compactos ni se redondean para calcular.
+
+## 38. Cifras del héroe: ingresos, gastos y «Disponible · N %» (`domain/heroFigures.ts`)
+
+- **Periodo** = el periodo de presupuesto configurado; con «hasta mi próximo ingreso» (sin periodo de
+  calendario), el mes natural de hoy (el mismo que abre Estadísticas).
+- **Ingresos** y **gastos** = `periodSummary` del periodo: solo realizados, transferencias y ajustes
+  fuera, devoluciones restadas del gasto. Son las mismas sumas que Estadísticas.
+- **Saldo al empezar** = saldo del presupuesto hoy − (ingresos − gastos) del periodo transcurrido
+  (reconstruido hacia atrás; no se guarda).
+- **Base** = saldo al empezar + ingresos del periodo.
+- **N %** = ⌊disponible × 100 ÷ base⌋ acotado a 0–100; **0 si la base no es positiva** (nunca se
+  divide entre cero ni se muestra un porcentaje negativo). La línea «¿Cómo se calculó?» repite las tres
+  cifras y el periodo.
