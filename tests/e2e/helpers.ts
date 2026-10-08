@@ -188,7 +188,48 @@ export async function setupFirstUse(page: Page) {
   if ((await skip.count()) > 0) await skip.click()
 }
 
-/** Abre la hoja «¿Qué quieres registrar?» por la entrada que exista (botón flotante o pestaña «+»). */
+/**
+ * Sin desplazamiento horizontal (F3): el documento no es más ancho que la ventana y ningún
+ * elemento visible de `main` termina más allá del borde derecho (un contenedor con
+ * `overflow: hidden` esconde el desbordamiento sin que el documento crezca). Los elementos dentro
+ * de una franja que se desplaza a propósito (pestañas, fichas) no cuentan.
+ */
+export async function expectNoHorizontalScroll(page: Page, label?: string) {
+  const result = await page.evaluate(() => {
+    const limit = window.innerWidth + 1
+    const docOverflow = document.documentElement.scrollWidth - window.innerWidth
+    const main = document.getElementById('main') ?? document.body
+    const scrolls = (el: Element | null) => {
+      for (let n = el; n && n !== main; n = n.parentElement) {
+        const o = getComputedStyle(n).overflowX
+        if (o === 'auto' || o === 'scroll') return true
+      }
+      return false
+    }
+    const out: string[] = []
+    for (const el of main.querySelectorAll<HTMLElement>('*')) {
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0 || r.right <= limit) continue
+      if (scrolls(el)) continue
+      out.push(`${el.tagName.toLowerCase()}.${el.className && typeof el.className === 'string' ? el.className.split(' ').slice(0, 2).join('.') : ''} termina en x=${Math.round(r.right)}`)
+      if (out.length >= 5) break
+    }
+    return { docOverflow, out }
+  })
+  expect(result.docOverflow, `${label ?? page.url()}: desplazamiento horizontal de ${result.docOverflow}px`).toBeLessThanOrEqual(0)
+  expect(result.out, `${label ?? page.url()}: elementos más allá del borde derecho`).toEqual([])
+}
+
+export type UiLanguage = 'Español' | 'English' | 'Português' | 'Français'
+const LANG_CODE: Record<UiLanguage, string> = { Español: 'es', English: 'en', Português: 'pt', Français: 'fr' }
+
+/** Cambia el idioma desde Ajustes › Formato (la demo arranca en español) y espera al diccionario. */
+export async function setLanguage(page: Page, language: UiLanguage) {
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: new RegExp(language) }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', LANG_CODE[language])
+}
+
 /**
  * C1: Inicio arranca en vista esencial; las secciones secundarias (semana, metas, datos,
  * recordatorios) viven en la vista completa, plegadas en «Más en tu Inicio». Pasa a completa (si
@@ -227,6 +268,7 @@ export async function openMonthSummary(page: Page) {
   return summary
 }
 
+/** Abre la hoja «¿Qué quieres registrar?» por la entrada que exista (botón flotante o pestaña «+»). */
 export async function openAddSheet(page: Page) {
   const fab = page.locator('.fab')
   if ((await fab.count()) > 0) await fab.first().click()

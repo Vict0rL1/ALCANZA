@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectAboveFold, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setupFirstUse, startDemo, tabBarHeight } from './helpers'
+import { expectAboveFold, expectNoHorizontalScroll, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setLanguage, setupFirstUse, startDemo, tabBarHeight } from './helpers'
 
 /**
  * Guardas de maquetación y jerarquía (ronda 2 de pulido). Cada prueba corresponde a un punto
@@ -57,6 +57,25 @@ test.describe('B10 · ningún control recorta su texto', () => {
       await startDemo(page)
       await go(page, route)
       await expectNoTruncatedControls(page, route)
+    })
+  }
+})
+
+const PLAN_ROUTES = ['/plan/planes', '/plan/calendario', '/plan/metas', '/plan/periodos', '/plan/proyeccion']
+
+test.describe('F3 · Plan sin desplazamiento horizontal ni controles recortados, en los cuatro idiomas', () => {
+  for (const language of LANGUAGES) {
+    test(language, async ({ page }) => {
+      test.setTimeout(120_000)
+      await startDemo(page)
+      await setLanguage(page, language)
+      await go(page, '/plan/planes')
+      const detail = (await page.locator('a.plan-card').first().getAttribute('href'))?.replace(/^#/, '')
+      for (const route of [...PLAN_ROUTES, ...(detail ? [detail] : [])]) {
+        await go(page, route)
+        await expectNoHorizontalScroll(page, `${language} ${route}`)
+        await expectNoTruncatedControls(page, `${language} ${route}`)
+      }
     })
   }
 })

@@ -3747,6 +3747,7 @@ button.cat-chip:hover {
 
 .progress__text {
   display: flex;
+  flex-wrap: wrap; /* a 320 px el estado baja a su propia línea en vez de ensanchar la tarjeta (F3) */
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
@@ -3762,7 +3763,8 @@ button.cat-chip:hover {
 .progress__text > .progress__state {
   /* Bloque con el icono en línea: si el texto se parte, el icono acompaña a la primera línea. */
   display: block;
-  flex: 0 1 auto;
+  flex: 1 1 11rem;
+  margin-left: auto;
   min-width: 0;
   text-align: right;
 }
@@ -4155,6 +4157,10 @@ li.is-selected > .item--select {
   padding: 0;
   display: grid;
   gap: 12px;
+}
+/* Los elementos de una rejilla nacen con `min-width: auto`: el contenido ancho desbordaba (F3). */
+.plan-cards > li {
+  min-width: 0;
 }
 .plan-card {
   display: block;
