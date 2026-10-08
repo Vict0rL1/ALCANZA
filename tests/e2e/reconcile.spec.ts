@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, startDemo } from './helpers'
+import { showFullHome, available, go, startDemo } from './helpers'
 
 async function compare(page: Page, observed: string) {
   await page.getByLabel(/Saldo que ves|Deuda que muestra/).fill(observed)
@@ -20,12 +20,14 @@ async function netSpending(page: Page) {
 
 test('conciliación: coincidencia exacta, diferencia con ajuste explícito y cambios retroactivos', async ({ page }) => {
   await startDemo(page)
+  await showFullHome(page)
   const verification = page.getByTestId('verification')
   await expect(verification).toContainText('Último movimiento registrado:')
   await expect(verification).toContainText('2 cuentas sin verificar con tu banco')
   const spendingBefore = await netSpending(page)
 
   await go(page, '/')
+  await showFullHome(page)
   await page.getByRole('link', { name: 'Verificar saldo' }).click()
   await expect(page.getByRole('heading', { name: 'Verificar saldo' })).toBeVisible()
   await expect(page.getByText('¿Qué saldo usar?')).toBeVisible()
@@ -39,6 +41,7 @@ test('conciliación: coincidencia exacta, diferencia con ajuste explícito y cam
   await expect(page.getByText('Saldo verificado')).toBeVisible()
   await expect(page.locator('.item', { hasText: 'Coincidía' })).toBeVisible()
   await expect(await available(page)).toHaveText('$136.78')
+  await showFullHome(page)
   await expect(page.getByTestId('verification')).toContainText('1 cuenta sin verificar con tu banco')
 
   // Diferencia: el banco muestra 5.00 menos. Se revisan cercanos y se crea un ajuste confirmado.
@@ -67,6 +70,7 @@ test('conciliación: coincidencia exacta, diferencia con ajuste explícito y cam
   await page.getByLabel('Importe').fill('5.25')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await go(page, '/')
+  await showFullHome(page)
   await expect(page.getByTestId('verification')).toContainText('1 verificación necesita revisión')
   await go(page, '/conciliar')
   await expect(page.getByText('Pendiente de revisión: cambiaron movimientos de ese periodo').first()).toBeVisible()
@@ -74,7 +78,7 @@ test('conciliación: coincidencia exacta, diferencia con ajuste explícito y cam
 
 test('conciliación de tarjeta: se compara la deuda (saldo negativo), nunca el crédito disponible', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const accountDialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await accountDialog.getByLabel('Nombre').fill('Visa')
@@ -85,7 +89,7 @@ test('conciliación de tarjeta: se compara la deuda (saldo negativo), nunca el c
   await accountDialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   await go(page, '/conciliar')
-  await page.getByLabel('Cuenta').selectOption({ label: 'Visa' })
+  await page.getByLabel('Cuenta', { exact: true }).selectOption({ label: 'Visa' })
   await expect(page.getByText(/nunca el crédito disponible/).first()).toBeVisible()
   await compare(page, '310')
   await expect(page.getByTestId('reconcile-result')).toContainText('Debes $310.00')
@@ -98,7 +102,7 @@ test('conciliación de tarjeta: se compara la deuda (saldo negativo), nunca el c
   await dialog.getByLabel('Motivo del ajuste').fill('Intereses del mes')
   await dialog.getByRole('button', { name: 'Crear ajuste' }).click()
   await expect(page.getByText('Ajuste creado y saldo verificado')).toBeVisible()
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await expect(page.locator('.item', { hasText: 'Visa' }).locator('.item__amount').first()).toHaveText('Debes $310.00')
   // La tarjeta no está en el presupuesto: el disponible no cambia.
   await expect(await available(page)).toHaveText('$136.78')

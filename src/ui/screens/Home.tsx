@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { backupStatus, SNOOZE_OPTIONS } from '../../domain/backupReminder'
+import { heroFigures } from '../../domain/heroFigures'
 import { FavoriteChips } from '../favoritesUi'
 import { computeBudget, upcomingItems } from '../../domain/budget'
 import { verificationSummary } from '../../domain/reconcile'
@@ -21,7 +22,7 @@ import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { CompositionBar } from '../components/charts'
-import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, StatTile } from '../components/common'
+import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter } from '../components/common'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
@@ -30,6 +31,24 @@ import { planItemName, planTitle } from '../labels'
 import { href, withQuery } from '../router'
 import { nextPrivacyLevel, usePreferences, type HomeSection, type QuickAction } from '../preferences'
 import type { IconName } from '../components/Icon'
+
+/** Secciones que siguen a la vista en la vista completa; el resto se pliega en «Más en tu Inicio». */
+const PRIMARY_SECTIONS: ReadonlySet<HomeSection> = new Set<HomeSection>(['inbox', 'upcoming'])
+const HINT_KEY = 'clara.hint.view'
+function readHintSeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1'
+  } catch {
+    return true
+  }
+}
+function writeHintSeen() {
+  try {
+    localStorage.setItem(HINT_KEY, '1')
+  } catch {
+    /* sin almacenamiento: la pista volverá a verse */
+  }
+}
 
 export function Home() {
   const { t, tn } = useT()
@@ -40,8 +59,14 @@ export function Home() {
   const toast = useToast()
   const [prefs, setPrefs] = usePreferences()
   const essential = prefs.view === 'essential'
+  // Pista de una sola vez sobre la vista esencial (preferencia del dispositivo, como el tema).
+  const [hintSeen, setHintSeen] = useState(() => readHintSeen())
+  const dismissHint = () => {
+    setHintSeen(true)
+    writeHintSeen()
+  }
   const budget = useMemo(() => computeBudget(data, today), [data, today])
-  const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 6), [data, today])
+  const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 4), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
   const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
   const overLimits = useMemo(
@@ -84,6 +109,7 @@ export function Home() {
   const tourSeen = (data.settings.toursSeen ?? []).includes('home')
   const [tourStep, setTourStep] = useState(0)
   const isEmpty = data.transactions.length === 0 && !data.isDemo
+  const hero = useMemo(() => heroFigures(data, budget, today), [data, budget, today])
   const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== 'home'), 'home'] }, c))
 
   const goalsForHome = data.goals.filter((g) => !g.plan?.paidAt).slice(0, 3)
@@ -209,7 +235,9 @@ export function Home() {
       </h2>
       <ul className="tool-links">
         <li>
-          <a href={href('/pendientes')}>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</a>
+          <a href={href('/pendientes')} data-testid="inbox-link">
+            {pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}
+          </a>
         </li>
         <li>
           <a href={href('/plan/calendario')}>{t('home.seeCalendar')}</a>
@@ -227,12 +255,14 @@ export function Home() {
           <a href={href('/alcanza/escenarios')}>{t('scenario.title')}</a>
         </li>
       </ul>
-      <button type="button" className="btn btn--secondary" onClick={() => setPrefs((p) => ({ ...p, view: 'full' }))}>
+      <button type="button" className="btn btn--secondary" onClick={() => setPrefs((p) => ({ ...p, view: 'full' }))} data-testid="show-full-home">
         {t('home.tools.showFull')}
       </button>
     </Card>
   )
 
+  const visibleSections = prefs.sections.filter((x) => x.visible && !(x.id === 'weekly' && !week) && !(x.id === 'reminders' && otherReminders.length === 0 && cardReminders.length === 0))
+  const secondarySections = visibleSections.filter((x) => !PRIMARY_SECTIONS.has(x.id))
   const sectionNodes: Record<HomeSection, React.ReactNode> = {
     inbox: (
     <>
@@ -476,23 +506,10 @@ export function Home() {
 
   return (
     <div className="stack">
-      <PageHeader title={t('home.title')}>
-        <button
-          type="button"
-          className="btn btn--ghost"
-          aria-pressed={prefs.privacy > 0}
-          title={t(`privacy.levelHint.${prefs.privacy}` as MessageKey)}
-          onClick={() => {
-            haptic('tick')
-            setPrefs((p) => ({ ...p, privacy: nextPrivacyLevel(p.privacy) }))
-          }}
-          data-testid="privacy-toggle"
-          data-privacy-level={prefs.privacy}
-        >
-          <Icon name="lock" />
-          {t(`privacy.next.${prefs.privacy}` as MessageKey)}
-        </button>
-      </PageHeader>
+      {/* Sin título visible: la cabecera ya identifica la app y la cifra principal es lo primero (C1). */}
+      <h1 id="page-title" className="sr-only" tabIndex={-1}>
+        {t('home.title')}
+      </h1>
       {prefs.privacy > 0 && (
         <p className="note note--icon" role="status">
           <Icon name="lock" size={16} /> {t('privacy.banner')}
@@ -514,28 +531,33 @@ export function Home() {
       )}
       <div className="home-grid">
         <div className="stack">
-          {isEmpty && (
-            <Card labelledBy="empty-title">
-              <h2 id="empty-title" className="card__title">
-                {t('home.empty.title')}
-              </h2>
-              <p>{t('home.empty.text')}</p>
-              <p>
-                <code className="assistant__example">{t('assistant.exampleText')}</code>
-              </p>
-              <div className="button-row">
-                <a className="btn btn--primary" href={href(withQuery('/asistente', { texto: t('assistant.exampleText'), returnTo: '/' }))} data-testid="try-assistant">
-                  <Icon name="sparkles" />
-                  {t('home.empty.try')}
-                </a>
-              </div>
-            </Card>
-          )}
-          {/* Cifra principal */}
+          {/* Cifra principal: siempre la primera tarjeta (C1). */}
           <Card className="hero" labelledBy="hero-label">
-            <p className="hero__label" id="hero-label">
-              {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
-            </p>
+            <div className="hero__head">
+              <p className="hero__label" id="hero-label">
+                {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
+              </p>
+              <span className="hero__tools">
+                <a className="hero__stats" href={href('/estadisticas')} data-testid="stats-link">
+                  <Icon name="chart" size={16} /> {t('stats.title')}
+                </a>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--icon hero__privacy"
+                  aria-pressed={prefs.privacy > 0}
+                  title={t(`privacy.levelHint.${prefs.privacy}` as MessageKey)}
+                  onClick={() => {
+                    haptic('tick')
+                    setPrefs((p) => ({ ...p, privacy: nextPrivacyLevel(p.privacy) }))
+                  }}
+                  data-testid="privacy-toggle"
+                  data-privacy-level={prefs.privacy}
+                >
+                  <Icon name="lock" />
+                  <span className="sr-only">{t(`privacy.next.${prefs.privacy}` as MessageKey)}</span>
+                </button>
+              </span>
+            </div>
             <p className="hero__value" data-testid="available">
               <CountUp valueMinor={budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor} format={(m) => fmt.money(m)} animate={!fmt.privacy} />
             </p>
@@ -548,6 +570,28 @@ export function Home() {
                 </>
               )}
             </p>
+            {budget.status === 'ok' && (
+              <>
+                <div className="hero__boxes">
+                  <div className="hero__box" data-testid="period-income">
+                    <span className="hero__box-label">
+                      <Icon name="arrowUp" size={14} /> {t('home.hero.income')}
+                    </span>
+                    <span className="hero__box-value hero__box-value--income">{fmt.money(hero.incomeMinor, { sign: true })}</span>
+                  </div>
+                  <div className="hero__box" data-testid="period-expenses">
+                    <span className="hero__box-label">
+                      <Icon name="arrowDown" size={14} /> {t('home.hero.expenses')}
+                    </span>
+                    <span className="hero__box-value hero__box-value--expenses">{fmt.money(-hero.expensesMinor, { sign: true })}</span>
+                  </div>
+                </div>
+                <div className="hero__pct" data-testid="available-pct">
+                  <Meter fraction={hero.availablePct / 100} label={t('home.hero.availablePct', { pct: hero.availablePct })} valueText={t('home.hero.availablePct', { pct: hero.availablePct })} />
+                  <span className="hero__pct-text">{t('home.hero.availablePct', { pct: hero.availablePct })}</span>
+                </div>
+              </>
+            )}
             {budget.status === 'ok' && budget.availableMinor < 0 && (
               <Alert tone="critical" title={t('home.negativeTitle', { amount: fmt.money(-budget.availableMinor) })}>
                 {t('home.negativeText')}{' '}
@@ -556,8 +600,13 @@ export function Home() {
             )}
             {budget.status === 'needsHorizon' && <HorizonPicker />}
 
+            {/* Línea «por día»: una sola fila; las ayudas y el reparto del saldo viven en «¿Cómo se calculó?» (C1). */}
             {budget.status === 'ok' && safe && (
-              <div className="safe" data-testid="safe-to-spend">
+              <div className="safe safe--compact" data-testid="safe-to-spend">
+                <p className="hero__daily">
+                  <span className="stat__label">{granularity === 'day' ? t('home.daily') : granularity === 'week' ? t('home.weekly') : t('home.safe.period')}</span>{' '}
+                  <strong className="stat__value">{fmt.money(granularity === 'day' ? safe.perDayMinor : granularity === 'week' ? safe.perWeekMinor : safe.perPeriodMinor)}</strong>
+                </p>
                 <Segmented
                   legend={t('home.safe.granularity')}
                   name="safe-granularity"
@@ -569,35 +618,47 @@ export function Home() {
                     { value: 'period', label: t('home.safe.period') },
                   ]}
                 />
-                <StatTile
-                  label={granularity === 'day' ? t('home.daily') : granularity === 'week' ? t('home.weekly') : t('home.safe.period')}
-                  value={fmt.money(granularity === 'day' ? safe.perDayMinor : granularity === 'week' ? safe.perWeekMinor : safe.perPeriodMinor)}
-                  hint={t(granularity === 'day' ? 'home.safe.perDayHint' : granularity === 'week' ? 'home.safe.perWeekHint' : 'home.safe.perPeriodHint')}
-                />
-                <p className="note">{t('home.safe.committed', { amount: fmt.money(safe.committedMinor) })}</p>
               </div>
             )}
             {budget.status === 'ok' && !safe && budget.dailyMinor !== null && budget.weeklyMinor !== null && (
-              <div className="stats">
-                <StatTile label={t('home.daily')} value={fmt.money(budget.dailyMinor)} hint={t('home.dailyHint')} />
-                <StatTile
-                  label={budget.weeklyDays === 7 ? t('home.weekly') : tn('home.weeklyShort', budget.weeklyDays ?? 0)}
-                  value={fmt.money(budget.weeklyMinor)}
-                  hint={t('home.weeklyHint')}
-                />
-              </div>
+              <p className="hero__daily" data-testid="daily-line">
+                <span className="stat__label">{t('home.daily')}</span> <strong className="stat__value">{fmt.money(budget.dailyMinor)}</strong>
+                <span className="hero__daily-sep" aria-hidden="true">
+                  {' · '}
+                </span>
+                <span className="stat__label">{budget.weeklyDays === 7 ? t('home.weekly') : tn('home.weeklyShort', budget.weeklyDays ?? 0)}</span>{' '}
+                <strong className="stat__value">{fmt.money(budget.weeklyMinor)}</strong>
+              </p>
             )}
 
-            <CompositionBar
-              spendableMinor={budget.spendableMinor}
-              reservedMinor={budget.reservedTotalMinor}
-              goalsMinor={budget.goalsReservedMinor}
-              availableMinor={budget.availableMinor}
-              fmt={fmt}
-            />
-
-            <Explain>
+            <div className="hero__actions">
+              {/* Una sola acción secundaria («¿Me alcanza?»); registrar va por la pestaña «+» (B3). */}
+              {(essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
+                <a key={a} className="btn btn--secondary" href={href(QUICK[a].href)}>
+                  {QUICK[a].label}
+                </a>
+              ))}
+            <Explain className="explain--inline">
               <div className="calc">
+                {budget.status === 'ok' && (
+                  <CompositionBar
+                    spendableMinor={budget.spendableMinor}
+                    reservedMinor={budget.reservedTotalMinor}
+                    goalsMinor={budget.goalsReservedMinor}
+                    availableMinor={budget.availableMinor}
+                    fmt={fmt}
+                  />
+                )}
+                {safe && (
+                  <p className="calc__detail">
+                    {t(granularity === 'day' ? 'home.safe.perDayHint' : granularity === 'week' ? 'home.safe.perWeekHint' : 'home.safe.perPeriodHint')} {t('home.safe.committed', { amount: fmt.money(safe.committedMinor) })}
+                  </p>
+                )}
+                {!safe && budget.dailyMinor !== null && (
+                  <p className="calc__detail">
+                    {t('home.dailyHint')} {t('home.weeklyHint')}
+                  </p>
+                )}
                 {budget.periodBalance && (
                   <>
                     {budget.periodBalance.carryOver ? (
@@ -685,32 +746,31 @@ export function Home() {
                   <li>{t('explain.glossary.goals')}</li>
                   <li>{t('explain.glossary.card')}</li>
                 </ul>
-                <p className="calc__detail">
-                  <a href={href('/ajustes?seccion=formulas')}>{t('explain.moreInfo')}</a>
+                <p className="calc__detail" data-testid="explain-pct">
+                  {t('explain.hero.pct', { available: fmt.money(budget.availableMinor), start: fmt.money(hero.startBalanceMinor), income: fmt.money(hero.incomeMinor), pct: hero.availablePct })}{' '}
+                  {t('home.hero.periodNote', { from: fmt.date(hero.start, { compact: true }), to: fmt.date(hero.end, { compact: true }) })}
+                </p>
+                <p className="link-row">
+                  <a href={href('/cambios')} data-testid="what-changed-link">
+                    <Icon name="clock" size={16} /> {t('changes.link')}
+                  </a>
+                  <a href={href('/ajustes/formulas')}>{t('explain.moreInfo')}</a>
                 </p>
               </div>
             </Explain>
-
-            <p className="link-row">
-              <a href={href('/cambios')} data-testid="what-changed-link">
-                <Icon name="clock" size={16} /> {t('changes.link')}
-              </a>
-              <a href={href('/estadisticas')} data-testid="stats-link">
-                <Icon name="chart" size={16} /> {t('stats.title')}
-              </a>
-            </p>
-
-            {/* Una sola acción secundaria («¿Me alcanza?»); registrar va por la pestaña «+» (B3). */}
-            <div className="button-row button-row--main">
-              {(essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
-                <a key={a} className="btn btn--secondary btn--large" href={href(QUICK[a].href)}>
-                  <Icon name={QUICK[a].icon} />
-                  {QUICK[a].label}
-                </a>
-              ))}
             </div>
-            {!essential && <FavoriteChips returnTo="/" limit={4} />}
           </Card>
+          {isEmpty && (
+            <div className="first-use" data-testid="first-use">
+              <Icon name="sparkles" size={18} />
+              <span className="first-use__text">
+                <strong>{t('home.empty.title')}</strong> {t('home.firstUse.line')}
+              </span>
+              <a className="btn btn--primary btn--small" href={href(withQuery('/asistente', { texto: t('assistant.exampleText'), returnTo: '/' }))} data-testid="try-assistant">
+                {t('home.empty.try')}
+              </a>
+            </div>
+          )}
           {/* Ingresos sin confirmar: explican por qué no se suman a la cifra principal */}
           {budget.overdueIncomes.map((item) => (
             <Alert
@@ -764,18 +824,51 @@ export function Home() {
               </div>
             </details>
           )}
+          {/* Favoritos: atajos para registrar; en ambas vistas, tras el primer aviso (C1). */}
+          <FavoriteChips returnTo="/" limit={4} />
           {essential ? toolsCard : null}
+          {essential && !hintSeen && (
+            <div className="note note--box view-hint" data-testid="view-hint">
+              <p>
+                <strong>{t('home.viewHint.title')}</strong> {t('home.viewHint.text')}
+              </p>
+              <div className="button-row">
+                <a className="btn btn--secondary btn--small" href={href('/ajustes?seccion=personalizar')}>
+                  {t('home.viewHint.action')}
+                </a>
+                <button type="button" className="btn btn--ghost btn--small" onClick={dismissHint}>
+                  {t('home.viewHint.dismiss')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {!essential && (
           <div className="stack" data-testid="home-sections">
-            {prefs.sections
-              .filter((x) => x.visible && !(x.id === 'weekly' && !week) && !(x.id === 'reminders' && otherReminders.length === 0 && cardReminders.length === 0))
+            {visibleSections
+              .filter((x) => PRIMARY_SECTIONS.has(x.id))
               .map((x) => (
                 <div key={x.id} className="home-section" data-section={x.id}>
                   {sectionNodes[x.id]}
                 </div>
               ))}
+            {/* Lo secundario (semana, metas, datos, recordatorios) se pliega en una sola tarjeta (C1). */}
+            {secondarySections.length > 0 && (
+              <details className="explain home-more" data-testid="home-more">
+                <summary>
+                  <Icon name="list" size={16} />
+                  {t('home.more.title')} · {tn('home.more.count', secondarySections.length)}
+                </summary>
+                <div className="explain__body stack">
+                  {secondarySections.map((x) => (
+                    <div key={x.id} className="home-section" data-section={x.id}>
+                      {sectionNodes[x.id]}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         )}
       </div>

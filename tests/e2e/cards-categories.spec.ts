@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { applyFilters, openFilters, go, startDemo } from './helpers'
 
 test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await dialog.getByLabel('Nombre').fill('Visa estudiante')
@@ -24,6 +24,9 @@ test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async
   await expect(page.getByText('aprox. $5.00')).toBeVisible() // 300 × 19.99 % / 12 = 4.9975 → 5.00
 
   await go(page, '/')
+  // El recordatorio es una sección secundaria: vista completa y «Más en tu Inicio» (C1).
+  await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
+  await page.getByTestId('home-more').locator('summary').click()
   await expect(page.getByText('Pago de tarjeta')).toBeVisible()
   await expect(page.getByText(/Visa estudiante: vence el .* mínimo estimado \$10\.00/)).toBeVisible()
   // La deuda de una tarjeta del presupuesto se descuenta: 136.78 − 300.
@@ -51,7 +54,8 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
   await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Acuario' })
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Acuario' })
+  await (await openFilters(page)).getByLabel('Categoría', { exact: true }).selectOption({ label: 'Acuario' })
+  await applyFilters(page)
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
 
   // Archivar: desaparece de formularios pero el movimiento la conserva.

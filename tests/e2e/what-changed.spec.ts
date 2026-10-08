@@ -15,6 +15,7 @@ test('¿Qué cambió?: desglose exacto desde el inicio del historial y sin inven
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$124.28')
 
+  await page.getByText('¿Cómo se calculó?').first().click()
   await page.getByTestId('what-changed-link').click()
   await expect(page.getByRole('heading', { name: '¿Qué cambió?' })).toBeVisible()
   // El historial empezó hoy: «inicio de ayer» no se puede reconstruir y se dice.

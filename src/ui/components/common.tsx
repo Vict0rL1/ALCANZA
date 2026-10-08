@@ -103,10 +103,10 @@ export function EmptyState({ icon, title, children, action }: { icon: IconName; 
 }
 
 /** "¿Cómo se calculó?": explicación desplegable nativa (accesible con teclado). */
-export function Explain({ summary, children }: { summary?: string; children: ReactNode }) {
+export function Explain({ summary, children, className }: { summary?: string; children: ReactNode; className?: string }) {
   const { t } = useT()
   return (
-    <details className="explain">
+    <details className={`explain${className ? ` ${className}` : ''}`}>
       <summary>
         <Icon name="info" size={16} />
         {summary ?? t('common.howCalculated')}

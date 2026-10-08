@@ -5,8 +5,8 @@ import { baseData } from '../test/fixtures'
 
 describe('preferencias de presentación', () => {
   it('repara lo guardado: ids desconocidos fuera, secciones nuevas al final y como mucho 3 accesos', () => {
-    const p = normalizePreferences({ view: 'essential', sections: [{ id: 'goals', visible: false }, { id: 'nope' }, { id: 'goals' }], quickActions: ['search', 'x', 'search', 'calendar', 'income', 'afford'], privacy: 'yes' })
-    expect(p.view).toBe('essential')
+    const p = normalizePreferences({ view: 'full', sections: [{ id: 'goals', visible: false }, { id: 'nope' }, { id: 'goals' }], quickActions: ['search', 'x', 'search', 'calendar', 'income', 'afford'], privacy: 'yes' })
+    expect(p.view).toBe('full')
     expect(p.sections[0]).toEqual({ id: 'goals', visible: false })
     expect(p.sections.map((s) => s.id).sort()).toEqual([...HOME_SECTIONS].sort())
     expect(p.quickActions).toEqual(['search', 'calendar', 'income'])

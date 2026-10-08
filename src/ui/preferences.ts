@@ -32,7 +32,8 @@ export type PrivacyLevel = 0 | 1 | 2
 export const PRIVACY_LEVELS: readonly PrivacyLevel[] = [0, 1, 2]
 
 export const DEFAULT_PREFERENCES: UiPreferences = {
-  view: 'full',
+  // Quien empieza ve lo esencial; quien ya eligió «completa» conserva su elección (C1).
+  view: 'essential',
   sections: HOME_SECTIONS.map((id) => ({ id, visible: true })),
   quickActions: ['afford'],
   privacy: 0,
@@ -54,7 +55,7 @@ export function normalizePreferences(raw: unknown): UiPreferences {
   // Antes era booleano: `true` pasa a nivel 1.
   const rawPrivacy = (r as { privacy?: unknown }).privacy
   const privacy: PrivacyLevel = rawPrivacy === true ? 1 : rawPrivacy === 2 ? 2 : rawPrivacy === 1 ? 1 : 0
-  return { view: r.view === 'essential' ? 'essential' : 'full', sections, quickActions, privacy }
+  return { view: r.view === 'full' ? 'full' : 'essential', sections, quickActions, privacy }
 }
 
 let cache: { raw: string | null; value: UiPreferences } | null = null

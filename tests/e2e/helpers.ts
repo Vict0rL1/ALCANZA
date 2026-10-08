@@ -189,6 +189,44 @@ export async function setupFirstUse(page: Page) {
 }
 
 /** Abre la hoja «¿Qué quieres registrar?» por la entrada que exista (botón flotante o pestaña «+»). */
+/**
+ * C1: Inicio arranca en vista esencial; las secciones secundarias (semana, metas, datos,
+ * recordatorios) viven en la vista completa, plegadas en «Más en tu Inicio». Pasa a completa (si
+ * hace falta) y despliega esa tarjeta.
+ */
+export async function showFullHome(page: Page) {
+  const full = page.getByTestId('show-full-home')
+  if (await full.count()) await full.click()
+  const more = page.getByTestId('home-more')
+  if ((await more.count()) && !(await more.evaluate((el) => (el as HTMLDetailsElement).open))) await more.locator('summary').click()
+}
+
+/** C2: abre la hoja «Filtros» de Movimientos (los filtros ya no están en la página). */
+export async function openFilters(page: Page) {
+  await page.getByTestId('open-filters').click()
+  await page.getByTestId('filters-sheet').waitFor()
+  return page.getByRole('dialog', { name: 'Filtros' })
+}
+
+/** Cierra la hoja de filtros con «Ver resultados». */
+export async function applyFilters(page: Page) {
+  await page.getByRole('dialog', { name: 'Filtros' }).getByRole('button', { name: 'Ver resultados' }).click()
+  await page.getByTestId('filters-sheet').waitFor({ state: 'hidden' })
+}
+
+/** C2: menú «⋯» de Movimientos (Estadísticas, Favoritos, Plantillas, Papelera, Importar CSV). */
+export async function openMoreMenu(page: Page) {
+  await page.getByTestId('movements-more').click()
+  return page.getByRole('dialog', { name: 'Más opciones' })
+}
+
+/** C2: el resumen del mes es un desplegable cerrado por defecto. */
+export async function openMonthSummary(page: Page) {
+  const summary = page.locator('.month-summary')
+  if (!(await summary.evaluate((el) => (el as HTMLDetailsElement).open))) await summary.locator('summary').click()
+  return summary
+}
+
 export async function openAddSheet(page: Page) {
   const fab = page.locator('.fab')
   if ((await fab.count()) > 0) await fab.first().click()
@@ -341,4 +379,36 @@ export async function expectNoTruncatedControls(page: Page, label?: string) {
 /** Altura de la página en pantallas (1 = cabe sin desplazarse). */
 export async function pageHeightInScreens(page: Page): Promise<number> {
   return page.evaluate(() => document.scrollingElement!.scrollHeight / window.innerHeight)
+}
+
+/* ------------------------------------------------------------------ */
+/* Service worker                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Deja la página CONTROLADA por el service worker. `registration.active` existe mientras el
+ * worker aún se activa, y una recarga iniciada en ese instante puede quedar sin controlar: se
+ * espera a `ready` y se recarga, comprobando `controller`, hasta un máximo de intentos.
+ */
+export async function waitForServiceWorkerControl(page: Page) {
+  await page.waitForFunction(async () => !!(await navigator.serviceWorker.ready)?.active, undefined, { timeout: 60_000 })
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await page.reload()
+    await page.locator('#page-title, [data-testid="available"]').first().waitFor({ timeout: 30_000 })
+    if (await page.evaluate(() => !!navigator.serviceWorker.controller)) return
+    await page.waitForTimeout(500 * (attempt + 1))
+  }
+  throw new Error('La página no quedó controlada por el service worker tras varias recargas')
+}
+
+/** La caché de ESTA versión ya tiene archivos (la precarga terminó). */
+export async function waitForPrecache(page: Page) {
+  await page.waitForFunction(
+    async () => {
+      for (const key of await caches.keys()) if (key.startsWith('margen-') && (await (await caches.open(key)).keys()).length > 0) return true
+      return false
+    },
+    undefined,
+    { timeout: 60_000 },
+  )
 }

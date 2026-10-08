@@ -9,7 +9,7 @@
  * una preferencia visual no cambia cifras; simular no toca registros; reintentar no duplica.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, openApp, openDetails, storedData } from './helpers'
+import { showFullHome, available, go, movementCount, openApp, openDetails, storedData } from './helpers'
 
 /** Saldo consolidado de las cuentas del presupuesto, según lo guardado (independiente de la UI). */
 async function consolidated(page: Page): Promise<number> {
@@ -137,6 +137,7 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // 6. Pagar la renta (apartada por la distribución): sale del saldo y deja de reservarse.
   await go(page, '/')
+  await showFullHome(page) // los próximos pagos están en la vista completa (C1)
   await page.getByRole('button', { name: /Marcar pagado.*Renta/ }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar pago' }).click()
   await expect(await available(page)).toHaveText('$1,160.00') // no se resta dos veces

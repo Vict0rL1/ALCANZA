@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 test('gasto planificado: vinculado al calendario, aporte confirmado y pago distinto de lo apartado', async ({ page }) => {
   await startDemo(page)
@@ -103,6 +103,7 @@ test('presupuesto por periodo: asignar no cambia el disponible; gastos asociados
 
 test('revisión semanal: tarjeta en Inicio, semanas anteriores, observaciones y preferencia', async ({ page }) => {
   await startDemo(page)
+  await showFullHome(page)
   await expect(page.getByTestId('week-home')).toContainText('Gastado esta semana')
   await page.getByRole('link', { name: 'Ver revisión semanal' }).click()
   await expect(page.getByRole('heading', { name: 'Revisión semanal' })).toBeVisible()
@@ -124,11 +125,13 @@ test('revisión semanal: tarjeta en Inicio, semanas anteriores, observaciones y 
 
   // Ocultar en Inicio, con deshacer; y volver a mostrar desde Ajustes.
   await go(page, '/')
+  await showFullHome(page)
   await page.getByRole('button', { name: 'Ocultar', exact: true }).click()
   await expect(page.getByTestId('week-home')).toHaveCount(0)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/personalizar')
   await page.getByLabel('Mostrar la revisión semanal en Inicio').check()
   await go(page, '/')
+  await showFullHome(page)
   await expect(page.getByTestId('week-home')).toBeVisible()
 })
 
@@ -221,7 +224,7 @@ test('búsqueda global: acentos, categorías traducidas, papelera opcional y tec
 
 test('English: new tools are translated and category search uses English names', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/formato')
   await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/buscar?q=groceries')
   await expect(page.getByRole('heading', { name: /^Categories \(1\)/ })).toBeVisible()
@@ -281,7 +284,7 @@ test('búsqueda por importe y compra simulada en otra cuenta', async ({ page }) 
   await go(page, '/alcanza/escenarios/nuevo')
   await page.getByLabel('Nombre').fill('Pagar con ahorro')
   await page.getByLabel('Precio').fill('100')
-  await page.getByLabel('Cuenta').selectOption({ label: 'Ahorros' })
+  await page.getByLabel('Cuenta', { exact: true }).selectOption({ label: 'Ahorros' })
   await page.getByRole('button', { name: 'Guardar escenario' }).click()
   await expect(page.getByText(/Compra de \$100\.00.*Ahorros/)).toBeVisible()
   // El ahorro no cuenta para el presupuesto: el disponible del escenario no cambia.
@@ -305,10 +308,15 @@ test('periodo: sugerencias por fecha con deshacer; movimientos filtrados por ran
 
   await go(page, '/revision')
   await page.getByRole('link', { name: 'Ver movimientos' }).click()
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-09-28')
-  await expect(page.getByLabel('Hasta')).toHaveValue('2026-09-28')
+  // Las fechas llegan como filtros activos; sus valores se ven en la hoja «Filtros» (C2).
+  let sheet = await openFilters(page)
+  await expect(sheet.getByLabel('Desde')).toHaveValue('2026-09-28')
+  await expect(sheet.getByLabel('Hasta')).toHaveValue('2026-09-28')
+  await applyFilters(page)
   await page.getByRole('button', { name: 'Quitar filtros' }).first().click()
-  await expect(page.getByLabel('Desde')).toHaveValue('')
+  sheet = await openFilters(page)
+  await expect(sheet.getByLabel('Desde')).toHaveValue('')
+  await applyFilters(page)
 })
 
 test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotético solo cambia la proyección', async ({ page }) => {

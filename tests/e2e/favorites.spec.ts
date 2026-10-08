@@ -40,7 +40,7 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   await expect(page.getByText('Favorito guardado').first()).toBeVisible()
 
   // Cuenta nueva sin movimientos para poder eliminarla después.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const accountDialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await accountDialog.getByLabel('Nombre').fill('Tarjeta regalo')
@@ -61,7 +61,7 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   await expect(page.locator('.item__title')).toHaveText(['Café', 'Pasaje de autobús', 'Regalo', 'Lavandería'])
 
   // Se elimina la cuenta: el favorito se conserva, avisa y pide elegir otra.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: /Editar.*Tarjeta regalo/ }).click()
   await page.getByRole('dialog', { name: 'Editar cuenta' }).getByRole('button', { name: 'Eliminar' }).click()
   await expect(page.getByText('Cuenta eliminada')).toBeVisible()
@@ -69,11 +69,11 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   await expect(page.locator('.item', { hasText: 'Regalo' })).toContainText('Cuenta o categoría no disponible')
   await page.getByRole('link', { name: /Usar.*Regalo/ }).click()
   await expect(page.getByText('La cuenta de este favorito ya no existe: elige una.')).toBeVisible()
-  await expect(page.getByLabel('Cuenta')).toHaveValue('')
+  await expect(page.getByLabel('Cuenta', { exact: true })).toHaveValue('')
   await page.getByLabel('Importe').fill('15')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Elige una cuenta válida.')).toBeVisible()
-  await page.getByLabel('Cuenta').selectOption({ label: 'Efectivo' })
+  await page.getByLabel('Cuenta', { exact: true }).selectOption({ label: 'Efectivo' })
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
 

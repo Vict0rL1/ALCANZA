@@ -3,24 +3,30 @@ import { nav, startDemo } from './helpers'
 
 test('la demostración se identifica y muestra el disponible con su explicación', async ({ page }) => {
   await startDemo(page)
-  await expect(page.getByText('Modo demostración:')).toBeVisible()
-  await expect(page.getByText('Prototipo local').first()).toBeVisible()
+  await expect(page.getByText('Demo · datos ficticios')).toBeVisible()
+  await expect(page.getByTestId('avatar')).toHaveAttribute('aria-label', 'Cuenta (invitado)')
   // Saldo 901.57 − pagos 704.79 − apartados 60.00 = 136.78, en 6 días.
   await expect(page.getByTestId('available')).toHaveText('$136.78')
   await expect(page.getByText('Por día', { exact: true })).toBeVisible()
   await expect(page.locator('.stat__value').first()).toHaveText('$22.79')
-  await expect(page.getByText('Saldo registrado:')).toBeVisible()
   await expect(page.getByText('Tienes 1 pago vencido sin marcar')).toBeVisible()
 
   await page.getByText('¿Cómo se calculó?').click()
   await expect(page.getByText('Pagos reservados (3)')).toBeVisible()
   await expect(page.getByText('Los ingresos futuros no se suman', { exact: false })).toBeVisible()
   await expect(page.getByText('Guardado')).toBeVisible()
+
+  // Vista completa (C1): bandeja y próximos pagos a la vista; lo secundario, plegado en «Más en tu Inicio».
+  await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
+  await expect(page.getByTestId('home-sections')).toBeVisible()
+  await page.getByTestId('home-more').locator('summary').click()
+  await expect(page.getByText('Saldo registrado:')).toBeVisible()
 })
 
 test('reiniciar y salir de la demostración piden confirmación', async ({ page }) => {
   await startDemo(page)
   await nav(page, 'Ajustes').click()
+  await page.getByTestId('settings-row-reinicio').click()
   await page.getByRole('button', { name: 'Reiniciar datos de demostración' }).click()
   const dialog = page.getByRole('dialog', { name: '¿Reiniciar la demostración?' })
   await expect(dialog).toBeVisible()
