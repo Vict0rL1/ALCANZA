@@ -4,7 +4,7 @@ import { categoriesForKind } from '../../domain/categories'
 import { sumMinor } from '../../domain/money'
 import { txCategoryIds } from '../../domain/splits'
 import { transactionsToCsv } from '../../domain/csvExport'
-import { trashTransactions } from '../../domain/operations'
+import { restoreFromTrashMany, trashTransactions } from '../../domain/operations'
 import { useRun } from '../../state/hooks'
 import { downloadText } from '../backupActions'
 import { useDeleteTransaction } from '../useDeleteTransaction'
@@ -110,7 +110,13 @@ export function Movements({ route }: { route?: Route }) {
     }
     setSelected(new Set())
     setSelecting(false)
-    toast({ message: saved ? tn('movements.bulkTrashed', ids.length) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    // «Deshacer» devuelve exactamente esos movimientos en una sola operación (todo o nada).
+    const undo = async () => {
+      const r = await run((d, c) => restoreFromTrashMany(d, ids, c))
+      const ok = r.result.ok && r.saved
+      toast({ message: ok ? tn('movements.bulkRestored', ids.length) : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+    }
+    toast({ message: saved ? tn('movements.bulkTrashed', ids.length) : t('save.error.generic'), tone: saved ? 'good' : 'critical', ...(saved ? { action: { label: t('common.undo'), onClick: () => void undo() } } : {}) })
   }
 
   // Estable entre renders: las filas memorizadas no se repintan al pasar de página.

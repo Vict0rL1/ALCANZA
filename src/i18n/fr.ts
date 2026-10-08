@@ -2693,4 +2693,6 @@ export const fr: Record<keyof typeof es, string> = {
   'backup.lightHint': 'La copie sans photos est plus légère, mais elle ne compte pas comme votre sauvegarde : en la restaurant, les mouvements perdent leur photo de reçu.',
   'backup.lightExported': 'Copie sans photos téléchargée. Elle n\'est pas enregistrée comme sauvegarde.',
   'settings.backup.summaryNoReceipts': 'Cette copie a été exportée sans photos de reçus : après restauration, les mouvements n\'auront pas de photo.',
+  'movements.bulkRestored_one': '{count} opération restaurée',
+  'movements.bulkRestored_other': '{count} opérations restaurées',
 }

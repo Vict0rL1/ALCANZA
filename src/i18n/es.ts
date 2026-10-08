@@ -2694,4 +2694,6 @@ export const es = {
   'backup.lightHint': 'La copia sin fotos pesa menos, pero no cuenta como tu copia de seguridad: al restaurarla, los movimientos quedan sin su foto de recibo.',
   'backup.lightExported': 'Copia sin fotos descargada. No se registra como copia de seguridad.',
   'settings.backup.summaryNoReceipts': 'Esta copia se exportó sin fotos de recibos: al restaurarla, los movimientos quedarán sin foto.',
+  'movements.bulkRestored_one': '{count} movimiento restaurado',
+  'movements.bulkRestored_other': '{count} movimientos restaurados',
 } as const

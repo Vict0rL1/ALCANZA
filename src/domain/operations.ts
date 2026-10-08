@@ -234,6 +234,24 @@ export interface RestoreResult {
 }
 
 /**
+ * Restaura varios movimientos de la papelera en una sola operación: todo o nada. Si alguno no
+ * puede volver (p. ej. su ocurrencia ya se pagó con otro movimiento), no se restaura ninguno.
+ */
+export function restoreFromTrashMany(data: AppData, ids: readonly string[], ctx: OpContext): OpResult<RestoreResult[]> {
+  let next = data
+  const values: RestoreResult[] = []
+  let unchanged = true
+  for (const id of ids) {
+    const r = restoreFromTrash(next, id, ctx)
+    if (!r.ok) return r
+    if (!r.unchanged) unchanged = false
+    next = r.data
+    values.push(r.value)
+  }
+  return unchanged ? { ok: true, data, value: values, unchanged: true } : { ok: true, data: next, value: values }
+}
+
+/**
  * Restaura un movimiento de la papelera con el mismo id (idempotente).
  *
  * Nunca deja referencias rotas ni cuenta dinero dos veces:

@@ -2695,4 +2695,6 @@ export const en: Record<keyof typeof es, string> = {
   'backup.lightHint': 'The copy without photos is smaller, but it doesn\'t count as your backup: restoring it leaves movements without their receipt photo.',
   'backup.lightExported': 'Copy without photos downloaded. It isn\'t recorded as a backup.',
   'settings.backup.summaryNoReceipts': 'This copy was exported without receipt photos: after restoring it, movements will have no photo.',
+  'movements.bulkRestored_one': '{count} transaction restored',
+  'movements.bulkRestored_other': '{count} transactions restored',
 }
