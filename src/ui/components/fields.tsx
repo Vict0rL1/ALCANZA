@@ -1,7 +1,7 @@
 /**
  * Campos de formulario con etiqueta, ayuda y error asociados (aria-describedby).
  */
-import { useId, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes } from 'react'
+import { useId, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { useT } from '../../i18n'
 import type { Formatter } from '../format'
 
@@ -46,6 +46,23 @@ export function TextField({ label, hint, error, className, ...rest }: InputProps
     <FieldShell label={label} hint={hint} error={error} className={className}>
       {({ inputId, describedBy, invalid }) => (
         <input id={inputId} className="input" aria-describedby={describedBy} aria-invalid={invalid || undefined} {...rest} />
+      )}
+    </FieldShell>
+  )
+}
+
+type TextAreaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> & {
+  label: string
+  hint?: ReactNode
+  error?: string | null
+}
+
+/** Texto de varias líneas con la misma cáscara (etiqueta, ayuda y error asociados) que `TextField`. */
+export function TextAreaField({ label, hint, error, className, ...rest }: TextAreaProps) {
+  return (
+    <FieldShell label={label} hint={hint} error={error} className={className}>
+      {({ inputId, describedBy, invalid }) => (
+        <textarea id={inputId} className="input textarea" aria-describedby={describedBy} aria-invalid={invalid || undefined} {...rest} />
       )}
     </FieldShell>
   )

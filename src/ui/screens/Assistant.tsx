@@ -13,7 +13,7 @@ import { compressReceipt, ocrAvailable, recognizeText } from '../ocr'
 import { resolveCategories } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { parseMoney } from '../../domain/money'
-import { learnCategories, type ParsedEntry } from '../../domain/parser'
+import { countEntries, learnCategories, MAX_PARSER_LINES, type ParsedEntry } from '../../domain/parser'
 import { lastUsedAccount } from '../../domain/quickEntry'
 import type { Issue } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -21,7 +21,7 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { PrimaryButton, SecondaryButton, TextButton } from '../components/base'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
-import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { MoneyField, Segmented, SelectField, TextAreaField, TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
@@ -64,6 +64,8 @@ export function Assistant({ route }: { route: Route }) {
   const [lines, setLines] = useState<Line[] | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
+  // Líneas pegadas por encima del tope: se analizan las primeras y se avisa (F1).
+  const [truncated, setTruncated] = useState(0)
   const [listening, setListening] = useState(false)
   const recognizer = useRef<InstanceType<SpeechCtor> | null>(null)
   const speech = useMemo(() => speechApi(), [])
@@ -133,6 +135,8 @@ export function Assistant({ route }: { route: Route }) {
     })
     setBusy(false)
     setIssues([])
+    const total = countEntries(input)
+    setTruncated(total > MAX_PARSER_LINES ? total : 0)
     setLines(
       entries.map((entry) => ({
         id: newId(),
@@ -213,7 +217,29 @@ export function Assistant({ route }: { route: Route }) {
             void analyze()
           }}
         >
-          <TextField label={t('assistant.input')} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('assistant.placeholder')} maxLength={4000} autoFocus />
+          {/* Varias líneas: un <input> convertía los saltos de línea en espacios y perdía movimientos (F1). */}
+          <TextAreaField
+            label={t('assistant.input')}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault()
+                void analyze()
+              }
+            }}
+            placeholder={t('assistant.placeholder')}
+            hint={t('assistant.inputHint')}
+            rows={Math.min(10, Math.max(4, text.split('\n').length))}
+            maxLength={4000}
+            autoFocus
+            data-testid="assistant-text"
+          />
+          {truncated > 0 && (
+            <p className="note note--box" role="status" data-testid="assistant-truncated">
+              {t('assistant.truncated', { max: MAX_PARSER_LINES, count: truncated })}
+            </p>
+          )}
           <div className="button-row">
             <PrimaryButton type="submit" icon="sparkles" disabled={busy || !text.trim()}>
               {t('assistant.analyze')}

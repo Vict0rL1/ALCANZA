@@ -2754,4 +2754,7 @@ export const fr: Record<keyof typeof es, string> = {
   'settings.value.scheduled_other': '{count} planifiés',
   'settings.value.never': 'Jamais exportée',
   'settings.value.lastExport': 'Dernière copie : {when}',
+  'assistant.inputHint': 'Une ligne par mouvement. Ctrl+Entrée pour analyser.',
+  'assistant.truncated': '{max} lignes sur {count} ont été analysées ; collez le reste ensuite.',
+  'assistant.hint.multipleAmounts': 'À vérifier : cette ligne contient plusieurs montants ; seul le premier a été retenu.',
 }

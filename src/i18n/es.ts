@@ -2755,4 +2755,7 @@ export const es = {
   'settings.value.scheduled_other': '{count} programados',
   'settings.value.never': 'Nunca exportada',
   'settings.value.lastExport': 'Última copia: {when}',
+  'assistant.inputHint': 'Una línea por movimiento. Ctrl+Enter para analizar.',
+  'assistant.truncated': 'Se analizaron {max} líneas de {count}; pega el resto después.',
+  'assistant.hint.multipleAmounts': 'Revisar: esta línea tiene más de un importe; solo se tomó el primero.',
 } as const

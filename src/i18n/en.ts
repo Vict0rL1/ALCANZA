@@ -2756,4 +2756,7 @@ export const en: Record<keyof typeof es, string> = {
   'settings.value.scheduled_other': '{count} scheduled',
   'settings.value.never': 'Never exported',
   'settings.value.lastExport': 'Last backup: {when}',
+  'assistant.inputHint': 'One line per movement. Ctrl+Enter to analyze.',
+  'assistant.truncated': '{max} of {count} lines were analyzed; paste the rest afterwards.',
+  'assistant.hint.multipleAmounts': 'Review: this line has more than one amount; only the first was used.',
 }
