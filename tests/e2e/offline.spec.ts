@@ -26,7 +26,16 @@ test('borrar la caché de la app y el service worker no borra los registros fina
   await page.getByRole('button', { name: 'Explorar con datos de demostración' }).click()
   await expect(page.getByTestId('available')).toBeVisible()
   const before = await page.getByTestId('available').textContent()
+  // `registration.active` ya existe mientras el worker todavía está «activating» y la caché
+  // puede estar vacía: se espera a que controle la página y a que la caché de esta versión
+  // tenga al menos un archivo.
   await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.active)
+  await page.reload()
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+  await page.waitForFunction(async () => {
+    for (const key of await caches.keys()) if (key.startsWith('margen-') && (await (await caches.open(key)).keys()).length > 0) return true
+    return false
+  })
   // La caché solo contiene archivos de la app (nunca datos).
   const cached = await page.evaluate(async () => {
     const urls: string[] = []

@@ -32,8 +32,16 @@ describe('formatMoney (único formateador de dinero)', () => {
   })
 
   it('compacto solo para mostrar', () => {
-    expect(plain(formatMoney(125000000, 'MXN', 'es-MX', { compact: true }))).toBe('$1.3 M')
-    expect(plain(formatMoney(95000, 'MXN', 'es-MX', { compact: true }))).toBe('$950')
+    // El orden símbolo/cifra en notación compacta cambia entre versiones de ICU (Node 22.22 da
+    // «1.3 M$» donde otras dan «$1.3 M»): se compara con lo que Intl devuelve en ESTA máquina y,
+    // sin depender de la versión, se exige la cifra abreviada y el símbolo.
+    const intl = (n: number) => plain(new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', notation: 'compact' }).format(n))
+    const big = plain(formatMoney(125000000, 'MXN', 'es-MX', { compact: true }))
+    expect(big).toBe(intl(1250000))
+    expect(big).toContain('1.3')
+    expect(big).toContain('$')
+    expect(big).not.toContain('1,250,000')
+    expect(plain(formatMoney(95000, 'MXN', 'es-MX', { compact: true }))).toBe(intl(950))
   })
 
   it('símbolo de la moneda por locale', () => {
