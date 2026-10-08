@@ -22,7 +22,7 @@ function sizeText(bytes: number): string {
 }
 
 export function BackupsSection() {
-  const { t } = useT()
+  const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
   const toast = useToast()
@@ -117,7 +117,7 @@ export function BackupsSection() {
                     <span className="item__main">
                       <span className="item__title">{fmt.timestamp(b.createdAt)}</span>
                       <span className="item__meta">
-                        {t(`localBackup.reason.${b.reason}` as MessageKey)} · {sizeText(b.size)} · {t('localBackup.counts', { movements: b.counts.transactions, accounts: b.counts.accounts })}
+                        {t(`localBackup.reason.${b.reason}` as MessageKey)} · {sizeText(b.size)} · {tn('localBackup.movements', b.counts.transactions)} · {tn('localBackup.accounts', b.counts.accounts)}
                         {b.budgetId !== data.budgetId ? ` · ${t('localBackup.otherBudget')}` : ''}
                       </span>
                     </span>
