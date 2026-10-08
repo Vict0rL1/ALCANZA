@@ -422,6 +422,51 @@ code {
   font-weight: 800;
 }
 
+/* Avatar de la cabecera: lleva a Cuenta; el punto verde señala el modo invitado. */
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.avatar__face {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.avatar:hover .avatar__face,
+.avatar.is-active .avatar__face {
+  border-color: var(--accent);
+}
+
+.avatar:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.avatar__dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+
 .topbar .topbar__proto {
   font-size: 0.68rem;
   font-weight: 600;
@@ -757,9 +802,217 @@ html {
   background: var(--balance-gradient);
 }
 
+/* Cajas INGRESOS / GASTOS y barra «Disponible · N %» del héroe (D2). */
+.hero__boxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hero__box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.hero__box-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-overline, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero__box-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.hero__box-value--income {
+  color: var(--good-text);
+}
+
+.hero__box-value--expenses {
+  color: var(--critical-text);
+}
+
+.hero__pct {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero__pct .meter {
+  flex: 1;
+}
+
+.hero__pct-text {
+  flex: none;
+  font-size: var(--font-overline, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Primer uso: una línea bajo la cifra principal, no una tarjeta antes de ella (C1). */
+.first-use {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.first-use__text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.view-hint .button-row {
+  margin-top: 8px;
+}
+
 .hero__label {
   font-weight: 600;
   color: var(--ink-2);
+}
+
+/* Héroe compacto (C1): menos separación, cabecera con enlace a Estadísticas, fila «por día» y
+   acciones en una sola fila; el reparto del saldo y las ayudas van dentro de «¿Cómo se calculó?». */
+.card.hero {
+  gap: var(--space-2);
+}
+
+.hero__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hero__stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hero__boxes + .hero__pct {
+  margin-top: -2px;
+}
+
+.safe--compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hero__daily {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.hero__daily .stat__value {
+  font-size: 1.25rem;
+}
+
+.hero__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.hero__privacy {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+.safe--compact .hero__daily {
+  flex: 1 1 8rem;
+}
+
+.safe--compact .segmented {
+  flex: 0 1 auto;
+}
+
+.safe--compact .segmented__option {
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 0.875rem;
+}
+
+.safe--compact .segmented > legend {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hero__actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.hero__actions > .btn {
+  padding-inline: 12px;
+}
+
+.explain--inline[open] {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 359px) {
+  .hero__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.explain--inline > summary {
+  padding: 8px 10px;
+}
+
+.explain--inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.explain--inline[open] {
+  flex-basis: 100%;
+}
+
+.explain--inline .composition {
+  margin-bottom: 8px;
 }
 
 .hero__value {
@@ -1459,7 +1712,7 @@ fieldset.bill-row {
 .tx-group__date {
   font-size: 0.9rem;
   color: var(--ink-2);
-  padding: 8px 0 0;
+  padding: 6px 0 0;
 }
 
 .tx-group__date::first-letter,
@@ -2904,18 +3157,25 @@ kbd {
   flex-shrink: 0;
 }
 
+/* «Más herramientas» (vista esencial): dos columnas para que la tarjeta ocupe media pantalla (C1). */
 .tool-links {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+
+.tool-links li {
+  min-width: 0;
 }
 
 .tool-links a {
   display: flex;
   align-items: center;
   min-height: 44px;
+  overflow-wrap: break-word;
 }
 
 .settings-toc {
@@ -3410,7 +3670,7 @@ button.cat-chip:hover {
     flex-wrap: wrap;
   }
 
-  .cat-row__actions {
+  .list-row > .cat-row__actions {
     flex: 1 0 100%;
     display: flex;
     justify-content: flex-end;
@@ -4408,4 +4668,188 @@ html.is-discreet .item:focus-within .item__title {
 .bars__open {
   margin: 0 auto 4px;
   display: flex;
+}
+
+/* Índice de Ajustes como lista agrupada (C3). */
+.settings__subtitle {
+  margin: -8px 0 0;
+}
+
+.settings-index {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-group__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-row {
+  min-height: 48px;
+  padding: 4px 0;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-group__title {
+  font-size: var(--font-overline, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.settings-group__list {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 2px 12px;
+}
+
+.settings-group__list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.settings-group__list .list-row {
+  border-radius: 0;
+}
+
+.settings-group__list .list-row--link {
+  margin: 0;
+}
+
+/* Subpantalla de Ajustes: el título de la tarjeta repite el de la página; se deja solo para
+   lectores de pantalla cuando es texto sin acciones (C3). */
+.settings-sub > .card > .card__title:first-child:not(:has(button, a)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Cuenta y Pro como filas compactas en lo alto de Ajustes (C3). */
+.account-row,
+.pro-row {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pro-row {
+  border-color: var(--accent);
+}
+
+.settings-row__icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--accent-text);
+}
+
+/* Movimientos (C2): búsqueda + botón «Filtros» en una fila; fichas de filtros activos debajo. */
+.filters--compact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.filters__open {
+  white-space: nowrap;
+}
+
+.filters__chips {
+  align-items: center;
+}
+
+.movements__top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.movements__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.movements__toolbar .summary-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.section-title__note {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.month-summary {
+  padding: 0;
+  gap: 0;
+}
+
+.month-summary > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-weight: 650;
+}
+
+.month-summary > summary::-webkit-details-marker {
+  display: none;
+}
+
+.month-summary__chevron {
+  margin-left: auto;
+  transition: transform 0.15s ease;
+}
+
+.month-summary[open] > summary .month-summary__chevron {
+  transform: rotate(180deg);
+}
+
+.month-summary[open] > summary {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-3);
+}
+
+.month-summary > :not(summary) {
+  margin-left: var(--space-4);
+  margin-right: var(--space-4);
+}
+
+.month-summary > :last-child {
+  margin-bottom: var(--space-4);
+}
+
+.month-summary > .month-nav {
+  margin-top: var(--space-3);
 }

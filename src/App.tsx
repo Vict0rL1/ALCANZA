@@ -217,6 +217,16 @@ function MemoryWarning() {
   )
 }
 
+/** Iniciales (1–2 letras) de un nombre o correo; null si no hay de dónde sacarlas. */
+function initials(name: string | undefined): string | null {
+  const words = (name ?? '').replace(/@.*$/, '').split(/[\s._-]+/).filter(Boolean)
+  if (words.length === 0) return null
+  return words
+    .slice(0, 2)
+    .map((w) => w[0]!.toLocaleUpperCase())
+    .join('')
+}
+
 type NavKey = 'nav.home' | 'nav.movements' | 'nav.add' | 'nav.plan' | 'nav.settings'
 const NAV: { path: string; match: string; key: NavKey; icon: IconName; add?: boolean }[] = [
   { path: '/', match: '', key: 'nav.home', icon: 'home' },
@@ -422,7 +432,7 @@ function Shell() {
         <div className="banner banner--demo" role="note">
           <Icon name="info" size={18} />
           <span className="banner__text">
-            <strong>{t('shell.demoTitle')}</strong> <span className="banner__extra">{t('shell.demoText')}</span>
+            <strong>{t('shell.demoShort')}</strong> <span className="banner__extra">{t('shell.demoText')}</span>
           </span>
           <a className="btn btn--small btn--inverse banner__action" href={href('/ajustes?seccion=reinicio')}>
             {t('shell.leaveDemoShort')}
@@ -446,11 +456,17 @@ function Shell() {
           </span>
           <span className="brand__name">Clara</span>
         </a>
-        <span className="badge badge--neutral topbar__proto">{t('shell.prototype')}</span>
         <SaveIndicator save={state.save} />
         <a className={`btn btn--ghost btn--icon topbar__search${top === 'buscar' ? ' is-active' : ''}`} href={href('/buscar')} aria-current={top === 'buscar' ? 'page' : undefined}>
           <Icon name="search" />
           <span className="sr-only">{t('search.title')}</span>
+        </a>
+        {/* Avatar → cuenta (C4/D3): iniciales si hay nombre; punto verde = invitado. */}
+        <a className={`avatar${top === 'cuenta' ? ' is-active' : ''}`} href={href('/cuenta')} aria-label={data.profile.isGuest ? t('account.avatarGuest') : t('account.avatarNamed', { name: data.profile.displayName ?? data.profile.email ?? '' })} aria-current={top === 'cuenta' ? 'page' : undefined} data-testid="avatar">
+          <span className="avatar__face" aria-hidden="true">
+            {initials(data.profile.displayName ?? data.profile.email) ?? <Icon name="user" size={18} />}
+          </span>
+          {data.profile.isGuest && <span className="avatar__dot" aria-hidden="true" />}
         </a>
       </header>
       <div className="shell__body">
@@ -570,7 +586,7 @@ function Screen({ route }: { route: Route }) {
   if (a === 'legal') return <Legal key={key} route={route} />
   if (a === 'cuenta') return <Account key={key} />
   if (a === 'pro') return <Pro key={key} />
-  if (a === 'ajustes') return <Settings key={key} />
+  if (a === 'ajustes') return <Settings key={`${key}/${b ?? ''}`} route={route} />
   if (a === 'buscar') return <Search key={`${key}?${route.query.toString()}`} route={route} />
   return (
     <div className="stack">
