@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { nav, startDemo } from './helpers'
+import { openExplain, nav, startDemo } from './helpers'
 
 test('la demostración se identifica y muestra el disponible con su explicación', async ({ page }) => {
   await startDemo(page)
@@ -11,7 +11,7 @@ test('la demostración se identifica y muestra el disponible con su explicación
   await expect(page.locator('.stat__value').first()).toHaveText('$22.79')
   await expect(page.getByText('Tienes 1 pago vencido sin marcar')).toBeVisible()
 
-  await page.getByText('¿Cómo se calculó?').click()
+  await openExplain(page)
   await expect(page.getByText('Pagos reservados (3)')).toBeVisible()
   await expect(page.getByText('Los ingresos futuros no se suman', { exact: false })).toBeVisible()
   await expect(page.getByText('Guardado')).toBeVisible()

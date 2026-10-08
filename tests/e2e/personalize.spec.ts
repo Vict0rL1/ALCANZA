@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo, storedData } from './helpers'
+import { openExplain, go, startDemo, storedData } from './helpers'
 
 test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin cambiar datos ni cifras', async ({ page }) => {
   await startDemo(page)
@@ -17,7 +17,7 @@ test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin c
   const labels = await main.evaluate((el) => [...el.querySelectorAll('[aria-label]')].map((n) => n.getAttribute('aria-label')).join(' '))
   expect(labels).not.toMatch(/\$\d/)
   // El reparto del saldo vive en «¿Cómo se calculó?» (C1): abierto, muestra el gráfico oculto.
-  await page.getByText('¿Cómo se calculó?').first().click()
+  await openExplain(page)
   await expect(page.getByTestId('chart-hidden').first()).toBeVisible()
   // También en listas y en otras pantallas; persiste al recargar.
   await go(page, '/movimientos')
@@ -67,7 +67,7 @@ test('personalizar Inicio: orden con botones, ocultar secciones, vista esencial 
   await page.getByRole('radio', { name: 'Esencial' }).check()
   await go(page, '/')
   await expect(page.getByTestId('available')).toHaveText('$136.78')
-  await expect(page.getByText('¿Cómo se calculó?').first()).toBeVisible()
+  await expect(page.locator('.hero .explain > summary').first()).toBeVisible()
   await expect(page.getByRole('link', { name: '¿Me alcanza?' }).first()).toBeVisible()
   await expect(page.getByTestId('home-sections')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Más herramientas' })).toBeVisible()

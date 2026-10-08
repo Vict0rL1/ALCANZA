@@ -638,7 +638,7 @@ export function Home() {
                   {QUICK[a].label}
                 </a>
               ))}
-            <Explain className="explain--inline">
+            <Explain className="explain--inline" summaryShort={t('common.howCalculatedShort')}>
               <div className="calc">
                 {budget.status === 'ok' && (
                   <CompositionBar

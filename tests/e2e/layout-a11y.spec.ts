@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { openExplain, go, startDemo } from './helpers'
 
 const ROUTES = [
   '/',
@@ -79,7 +79,7 @@ test('sin problemas de accesibilidad detectables automáticamente', async ({ pag
   for (const route of ROUTES) {
     await go(page, route)
     if (route === '/alcanza') await page.getByLabel('Precio').fill('45')
-    if (route === '/') await page.getByText('¿Cómo se calculó?').click()
+    if (route === '/') await openExplain(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     const summary = results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)
     expect(summary, route).toEqual([])

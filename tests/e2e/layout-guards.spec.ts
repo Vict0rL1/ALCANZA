@@ -61,6 +61,13 @@ test.describe('B10 · ningún control recorta su texto', () => {
   }
 })
 
+test('G2 · los botones del héroe caben en una línea', async ({ page }) => {
+  await startDemo(page)
+  const heights = await page.locator('.hero__actions > .btn, .hero__actions summary').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)))
+  expect(heights.length).toBeGreaterThan(1)
+  for (const h of heights) expect(h, 'botón del héroe de una sola línea').toBeLessThanOrEqual(48)
+})
+
 const PLAN_ROUTES = ['/plan/planes', '/plan/calendario', '/plan/metas', '/plan/periodos', '/plan/proyeccion']
 
 test.describe('F3 · Plan sin desplazamiento horizontal ni controles recortados, en los cuatro idiomas', () => {

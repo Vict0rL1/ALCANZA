@@ -103,13 +103,19 @@ export function EmptyState({ icon, title, children, action }: { icon: IconName; 
 }
 
 /** "¿Cómo se calculó?": explicación desplegable nativa (accesible con teclado). */
-export function Explain({ summary, children, className }: { summary?: string; children: ReactNode; className?: string }) {
+export function Explain({ summary, summaryShort, children, className }: { summary?: string; /** Texto corto para pantallas estrechas; el nombre accesible sigue siendo el completo (G2). */ summaryShort?: string; children: ReactNode; className?: string }) {
   const { t } = useT()
+  const label = summary ?? t('common.howCalculated')
   return (
     <details className={`explain${className ? ` ${className}` : ''}`}>
-      <summary>
+      <summary aria-label={summaryShort ? label : undefined}>
         <Icon name="info" size={16} />
-        {summary ?? t('common.howCalculated')}
+        <span className="explain__summary-long">{label}</span>
+        {summaryShort && (
+          <span className="explain__summary-short" aria-hidden="true">
+            {summaryShort}
+          </span>
+        )}
       </summary>
       <div className="explain__body">{children}</div>
     </details>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { nav, openAddSheet, openApp } from './helpers'
+import { openExplain, nav, openAddSheet, openApp } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -60,9 +60,9 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.getByText('Paso 1 de 3')).toHaveCount(0)
 
   // B2. ¿Cómo se calculó?
-  await page.getByText('¿Cómo se calculó?').click()
+  await openExplain(page)
   for (const amount of ['$1,200.00', '$600.00', '$200.00']) await expect(page.locator('.hero').getByText(amount).first()).toBeVisible()
-  await page.getByText('¿Cómo se calculó?').click()
+  await openExplain(page)
 
   // B3. Privacidad: oculto → discreto → visible.
   const privacy = page.getByTestId('privacy-toggle')
