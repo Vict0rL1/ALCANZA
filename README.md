@@ -1,5 +1,7 @@
 # Clara · prototipo local de finanzas personales
 
+[![CI](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml)
+
 > **Nombre:** la app se llamaba «Margen». El nombre visible ahora es **Clara** (igual en
 > español e inglés). Los identificadores internos conservan el nombre anterior
 > (`margen.data.v1` en el navegador, formato de copia `margen-backup`, cachés `margen-…`) para
@@ -265,6 +267,9 @@ npm run check
 
 Revisa tipos, estilo de código y pruebas de lógica.
 
+Lo mismo se ejecuta en GitHub en cada PR (la insignia «CI» de arriba muestra el estado de
+`main`): ver [`docs/RELEASE.md`](docs/RELEASE.md).
+
 ## 6. Comandos disponibles
 
 | Comando | Qué hace |
@@ -274,6 +279,8 @@ Revisa tipos, estilo de código y pruebas de lógica.
 | `npm run preview` | Sirve la versión optimizada |
 | `npm test` | Pruebas de lógica (Vitest) |
 | `npm run test:e2e` | Pruebas en navegador (Playwright) |
+| `npm run test:smoke` | Solo las ~10 pruebas esenciales marcadas `@smoke` (1–2 min) |
+| `npm run size` | Tras `npm run build`: falla si el JS inicial crece más de un 10 % (`scripts/size-baseline.json`) |
 | `npm run typecheck` | Comprobación de tipos de TypeScript |
 | `npm run lint` | Revisión de estilo y errores comunes (oxlint) |
 | `node scripts/generate-icons.mjs` | Regenera los iconos PNG de la PWA desde `public/icon.svg` |
