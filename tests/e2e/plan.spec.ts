@@ -81,7 +81,8 @@ test('proyección: muestra suposiciones, posible faltante y tabla', async ({ pag
   await startDemo(page)
   await go(page, '/plan/proyeccion')
   await expect(page.getByText(/Posible faltante a partir del/)).toBeVisible()
-  await expect(page.getByText('Es una estimación, no un saldo real', { exact: false })).toBeVisible()
+  // E6: la explicación es una frase; el párrafo completo («Es una estimación…») está en «¿Por qué?».
+  await expect(page.getByText('Estimación del saldo a 30 días con tus ingresos y pagos previstos.')).toBeVisible()
   await page.getByRole('radio', { name: 'No incluir' }).check()
   await expect(page.getByText('Sin faltantes previstos con estas suposiciones')).toBeVisible()
   await page.getByText('Ver tabla').click()

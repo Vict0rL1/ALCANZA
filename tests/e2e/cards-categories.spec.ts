@@ -26,7 +26,7 @@ test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async
   await go(page, '/')
   // El recordatorio es una sección secundaria: vista completa y «Más en tu Inicio» (C1).
   await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
-  await page.getByTestId('home-more').locator('summary').click()
+  await page.getByTestId('home-more').locator(':scope > summary').click()
   await expect(page.getByText('Pago de tarjeta')).toBeVisible()
   await expect(page.getByText(/Visa estudiante: vence el .* mínimo estimado \$10\.00/)).toBeVisible()
   // La deuda de una tarjeta del presupuesto se descuenta: 136.78 − 300.

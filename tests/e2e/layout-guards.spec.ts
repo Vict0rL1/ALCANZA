@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectAboveFold, expectNoHorizontalScroll, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setLanguage, setupFirstUse, startDemo, tabBarHeight } from './helpers'
+import { expectAboveFold, expectNoHorizontalScroll, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setLanguage, setupFirstUse, showFullHome, startDemo, tabBarHeight } from './helpers'
 
 /**
  * Guardas de maquetación y jerarquía (ronda 2 de pulido). Cada prueba corresponde a un punto
@@ -257,4 +257,55 @@ test.describe('E3 · estados vacíos con el componente común', () => {
     const tall = await page.locator('main svg').evaluateAll((svgs) => svgs.filter((s) => s.getBoundingClientRect().height > 160).map((s) => s.getAttribute('class')))
     expect(tall).toEqual([])
   })
+})
+
+/**
+ * E6: en Inicio, Movimientos y Plan las explicaciones visibles son una frase corta (≤ 2 líneas en
+ * Pixel 7 y escritorio, ≤ 3 a 320 px); el párrafo completo vive en «¿Por qué?».
+ */
+test.describe('E6 · explicaciones de una frase con «¿Por qué?»', () => {
+  test('Inicio, Movimientos y las cinco pantallas de Plan', async ({ page }, info) => {
+    test.setTimeout(120_000)
+    const max = info.project.name === 'celular-pequeno' ? 3 : 2
+    await startDemo(page)
+    await showFullHome(page)
+    const check = async (where: string) => {
+      const long = await page.locator('main p.note, main p.lead, main .alert__text').evaluateAll(
+        (els, limit) =>
+          els
+            .filter((el) => el.getBoundingClientRect().height > 0 && !el.closest('details:not([open]), .explain, .empty') && !el.querySelector('.why'))
+            .map((el) => {
+              const lh = parseFloat(getComputedStyle(el).lineHeight) || 20
+              return { lines: Math.round(el.getBoundingClientRect().height / lh), text: (el.textContent ?? '').slice(0, 60) }
+            })
+            .filter((x) => x.lines > limit)
+            .map((x) => `${x.lines} líneas: ${x.text}`),
+        max,
+      )
+      expect(long, `explicaciones largas en ${where}`).toEqual([])
+      const whys = page.locator('main .why')
+      for (let i = 0; i < (await whys.count()); i++) {
+        const why = whys.nth(i)
+        await expect(why.locator('summary')).toHaveText(/¿Por qué\?/)
+        expect(((await why.locator('details').textContent()) ?? '').length).toBeGreaterThan(40)
+      }
+    }
+    await check('Inicio')
+    await go(page, '/movimientos')
+    await check('Movimientos')
+    for (const tab of ['planes', 'calendario', 'metas', 'periodos', 'proyeccion']) {
+      await go(page, `/plan/${tab}`)
+      await check(`Plan › ${tab}`)
+    }
+  })
+})
+
+test('E6 · la etiqueta del periodo en el héroe cabe sin recortarse (también en un mes pasado)', async ({ page }) => {
+  await startDemo(page)
+  const label = page.getByTestId('period-label')
+  const fits = () => label.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)
+  expect(await fits()).toBe(true)
+  await page.getByTestId('period-prev').click()
+  await expect(label).toContainText(/agosto|ago/i)
+  expect(await fits()).toBe(true)
 })

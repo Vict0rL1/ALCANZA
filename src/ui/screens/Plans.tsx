@@ -16,7 +16,7 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { CategoryPicker } from '../components/CategoryPicker'
 import { BottomSheet, ListRow, PrimaryButton, ProgressBar, SecondaryButton, TextButton, Toggle, type ProgressState } from '../components/base'
-import { Alert, Badge, Card, EmptyState, PageHeader } from '../components/common'
+import { Alert, Badge, Card, EmptyState, PageHeader, Why } from '../components/common'
 import { ConfirmDialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
@@ -149,7 +149,7 @@ export function Plans({ route }: { route: Route }) {
           ))}
         </ul>
       )}
-      <p className="note">{t('plans.note')}</p>
+      <Why short={t('plans.noteShort')}>{t('plans.note')}</Why>
       <BottomSheet open={sheet} onClose={() => setSheet(false)} title={t('plans.create.title')}>
         <div className="stack-sm" data-testid="plan-create-sheet">
           <a className="list-row list-row--link" href={href('/plan/planes/nuevo')} onClick={() => setSheet(false)}>
@@ -499,7 +499,7 @@ export function PlanDetail({ route }: { route: Route }) {
           {t('common.delete')}
         </button>
       </div>
-      <p className="note">{t('plans.note')}</p>
+      <Why short={t('plans.noteShort')}>{t('plans.note')}</Why>
       <ConfirmDialog open={confirmDelete} title={t('plans.deleteTitle', { name: title })} confirmLabel={t('common.delete')} onConfirm={() => void remove()} onCancel={() => setConfirmDelete(false)} destructive>
         {t('plans.deleteText')}
       </ConfirmDialog>

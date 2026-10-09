@@ -962,6 +962,37 @@ html {
   text-overflow: ellipsis;
 }
 
+.hero__period-short {
+  display: none;
+}
+
+/* A menos de 360 px «Estadísticas» queda como icono (nombre accesible completo) para que el mes quepa. */
+@media (max-width: 359px) {
+  .hero__stats-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 479px) {
+  .hero__period:has(.hero__period-short) .hero__period-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .hero__period-short {
+    display: inline;
+  }
+}
+
 .hero__period::first-letter {
   text-transform: uppercase;
 }
@@ -1642,6 +1673,19 @@ fieldset.bill-row {
 .empty__text {
   margin: 0;
   color: var(--ink-2);
+}
+
+/* Una frase + «¿Por qué?» (E6): la explicación completa queda a un toque. */
+.why {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.why__short {
+  margin: 0;
 }
 
 /* Dentro de una tarjeta (E3): menos aire, icono de 24 px. */

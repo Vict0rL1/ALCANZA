@@ -14,7 +14,7 @@ import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, Meter, PageHeader, type Tone } from '../components/common'
+import { Alert, Badge, Card, Meter, PageHeader, Why, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { CategoryPicker } from '../components/CategoryPicker'
@@ -98,7 +98,7 @@ export function PlannedExpenseCard({ goal, onAllocate }: { goal: Goal; onAllocat
               </div>
             )}
           </dl>
-          <p className="note">{t('planned.planVsConfirmed')}</p>
+          <Why short={t('planned.planVsConfirmedShort')}>{t('planned.planVsConfirmed')}</Why>
           {s.state === 'overdue' && (
             <Alert tone="critical" title={t('planned.overdueTitle', { date: fmt.date(goal.targetDate!) })}>
               {t('planned.overdueText', { amount: fmt.money(p.remainingMinor) })}
@@ -347,7 +347,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
   return (
     <div className="stack">
       <PageHeader title={existing ? t('planned.editTitle') : t('planned.newTitle')} back={{ href: href('/plan/metas'), label: t('plan.goals') }} />
-      <p className="lead">{t('planned.intro')}</p>
+      <Why short={t('planned.introShort')}>{t('planned.intro')}</Why>
       <form
         className="form card"
         noValidate

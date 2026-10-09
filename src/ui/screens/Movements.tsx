@@ -16,7 +16,7 @@ import type { Transaction, TxKind, TxStatus } from '../../domain/types'
 import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Badge, EmptyState, PageHeader } from '../components/common'
+import { Badge, EmptyState, PageHeader, Why } from '../components/common'
 import { MoneyField, TextField } from '../components/fields'
 import { CategoryPicker } from '../components/CategoryPicker'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -436,7 +436,11 @@ export function Movements({ route }: { route?: Route }) {
                   {t('movements.showMore', { count: realized.length - shownRealized.length })}
                 </button>
               )}
-              {!selecting && <p className="note">{t('movements.swipeHint')} {t('movements.swipeHint2')}</p>}
+              {!selecting && (
+                <Why short={t('movements.swipeShort')}>
+                  {t('movements.swipeHint')} {t('movements.swipeHint2')}
+                </Why>
+              )}
             </section>
           )}
         </>

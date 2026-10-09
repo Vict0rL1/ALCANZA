@@ -260,7 +260,7 @@ export async function showFullHome(page: Page) {
   const full = page.getByTestId('show-full-home')
   if (await full.count()) await full.click()
   const more = page.getByTestId('home-more')
-  if ((await more.count()) && !(await more.evaluate((el) => (el as HTMLDetailsElement).open))) await more.locator('summary').click()
+  if ((await more.count()) && !(await more.evaluate((el) => (el as HTMLDetailsElement).open))) await more.locator(':scope > summary').click()
 }
 
 /** C2: abre la hoja «Filtros» de Movimientos (los filtros ya no están en la página). */

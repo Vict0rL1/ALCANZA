@@ -106,6 +106,22 @@ export function EmptyState({ icon, title, text, action, compact, testId }: { ico
   )
 }
 
+/**
+ * E6: una explicación larga reducida a una línea + «¿Por qué?» desplegable. La línea corta es la
+ * que se lee siempre; el párrafo completo sigue disponible (y en los cuatro idiomas).
+ */
+export function Why({ short, children, className }: { short: string; children: ReactNode; className?: string }) {
+  const { t } = useT()
+  return (
+    <div className={`why${className ? ` ${className}` : ''}`}>
+      <p className="note why__short">{short}</p>
+      <Explain className="explain--inline why__more" summary={t('common.why')} summaryShort={t('common.why')}>
+        {children}
+      </Explain>
+    </div>
+  )
+}
+
 /** "¿Cómo se calculó?": explicación desplegable nativa (accesible con teclado). */
 export function Explain({ summary, summaryShort, children, className }: { summary?: string; /** Texto corto para pantallas estrechas; el nombre accesible sigue siendo el completo (G2). */ summaryShort?: string; children: ReactNode; className?: string }) {
   const { t } = useT()

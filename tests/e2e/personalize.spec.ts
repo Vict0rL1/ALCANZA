@@ -82,7 +82,7 @@ test('personalizar Inicio: orden con botones, ocultar secciones, vista esencial 
   await expect(page.getByTestId('home-sections')).toHaveCount(0)
   await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
   await expect(page.getByTestId('home-sections')).toBeVisible()
-  await page.getByTestId('home-more').locator('summary').click()
+  await page.getByTestId('home-more').locator(':scope > summary').click()
   await expect(page.getByTestId('week-home')).toBeVisible()
   expect(financial(await storedData(page))).toBe(before)
 })

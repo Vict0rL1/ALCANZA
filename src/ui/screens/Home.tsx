@@ -23,7 +23,7 @@ import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { CompositionBar } from '../components/charts'
-import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter } from '../components/common'
+import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, Why } from '../components/common'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
@@ -158,7 +158,7 @@ export function Home() {
             </a>
           }
         >
-          {t('home.alert.overdueBillsText')}
+          <Why short={t('home.alert.overdueBillsShort')}>{t('home.alert.overdueBillsText')}</Why>
         </Alert>
       ),
     },
@@ -326,7 +326,7 @@ export function Home() {
               </li>
             ))}
           </ul>
-          <p className="note">{t('home.remindersNote')}</p>
+          <Why short={t('home.remindersShort')}>{t('home.remindersNote')}</Why>
         </Card>
       )}
     </>
@@ -462,7 +462,7 @@ export function Home() {
             </li>
           )}
         </ul>
-        <p className="note">{t('home.freshnessNote')}</p>
+        <Why short={t('home.freshnessShort')}>{t('home.freshnessNote')}</Why>
         <div className="button-row">
           <a className="btn btn--primary" href={href('/conciliar')}>
             <Icon name="scale" />
@@ -569,7 +569,13 @@ export function Home() {
                   <Icon name="chevronLeft" size={18} />
                 </button>
                 <span className="hero__period" data-testid="period-label" aria-live="polite">
-                  {periodLabel(t, fmt, viewPeriod)}
+                  {/* Debajo de 480 px se ve el mes corto («Ago 2026»); el nombre completo sigue para lectores de pantalla. */}
+                  <span className="hero__period-long">{periodLabel(t, fmt, viewPeriod)}</span>
+                  {viewPeriod.type === 'month' && (
+                    <span className="hero__period-short" aria-hidden="true">
+                      {fmt.monthYearShort(viewPeriod.start)}
+                    </span>
+                  )}
                 </span>
                 <button type="button" className="btn btn--ghost btn--icon hero__period-btn" onClick={goNext} aria-label={t('home.period.next')} disabled={!canGoNext} data-testid="period-next">
                   <Icon name="chevronRight" size={18} />
@@ -577,7 +583,7 @@ export function Home() {
               </div>
               <span className="hero__tools">
                 <a className="hero__stats" href={href('/estadisticas')} data-testid="stats-link">
-                  <Icon name="chart" size={16} /> {t('stats.title')}
+                  <Icon name="chart" size={16} /> <span className="hero__stats-text">{t('stats.title')}</span>
                 </a>
                 <button
                   type="button"

@@ -19,7 +19,7 @@ test('la demostración se identifica y muestra el disponible con su explicación
   // Vista completa (C1): bandeja y próximos pagos a la vista; lo secundario, plegado en «Más en tu Inicio».
   await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
   await expect(page.getByTestId('home-sections')).toBeVisible()
-  await page.getByTestId('home-more').locator('summary').click()
+  await page.getByTestId('home-more').locator(':scope > summary').click()
   await expect(page.getByText('Saldo registrado:')).toBeVisible()
 })
 

@@ -9,7 +9,7 @@ import { planItems, type PlanItem } from '../../domain/planItems'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, EmptyState, type Tone } from '../components/common'
+import { Alert, Badge, Card, EmptyState, Why, type Tone } from '../components/common'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { MarkPaidDialog } from '../dialogs'
@@ -179,7 +179,7 @@ export function Calendar() {
         </a>
       </div>
       <Alert tone="neutral" icon="info" title={t('calendar.remindersNoteTitle')}>
-        {t('calendar.remindersNote')}
+        <Why short={t('calendar.remindersShort')}>{t('calendar.remindersNote')}</Why>
       </Alert>
 
       {overdueAll.length > 0 && (

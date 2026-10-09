@@ -11,7 +11,7 @@ import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, EmptyState, Meter, PageHeader } from '../components/common'
+import { Alert, Badge, Card, EmptyState, Meter, PageHeader, Why } from '../components/common'
 import { MoneyField, Segmented, TextField } from '../components/fields'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
@@ -44,14 +44,14 @@ export function Goals() {
         </a>
       </div>
       <Alert tone="info" icon="info" title={t('goals.virtualTitle')}>
-        {t('goals.virtualNote')}
+        <Why short={t('goals.virtualShort')}>{t('goals.virtualNote')}</Why>
       </Alert>
       <Card>
         <p className="stat__label">{t('goals.freeLabel')}</p>
         <p className="stat__value" data-testid="free-to-allocate">
           {fmt.money(free)}
         </p>
-        <p className="note">{t('goals.freeHint')}</p>
+        <Why short={t('goals.freeShort')}>{t('goals.freeHint')}</Why>
       </Card>
 
       <section className="stack-sm" aria-labelledby="planned-title">
