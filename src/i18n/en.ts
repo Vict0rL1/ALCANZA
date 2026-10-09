@@ -2845,4 +2845,6 @@ export const en: Record<keyof typeof es, string> = {
   'home.alert.overdueBillsShort': 'Still reserved; if you paid, mark them.',
   'calendar.remindersShort': 'Reminders only show on Home.',
   'projection.shortfallShort': 'Lowest: {amount} on {date}.',
+  'shell.newerDownload': 'Download a copy of this data',
+  'shell.newerHint': 'If you just used Clara on another device or tab, open it there and come back here later.',
 }

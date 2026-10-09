@@ -2844,4 +2844,6 @@ export const es = {
   'home.alert.overdueBillsShort': 'Siguen reservados; si ya pagaste, márcalos.',
   'calendar.remindersShort': 'Los avisos solo se ven en Inicio.',
   'projection.shortfallShort': 'El más bajo: {amount} el {date}.',
+  'shell.newerDownload': 'Descargar una copia de estos datos',
+  'shell.newerHint': 'Si acabas de usar Clara en otro dispositivo o pestaña, ábrela ahí y vuelve aquí más tarde.',
 } as const

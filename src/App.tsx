@@ -163,7 +163,8 @@ function Loading() {
 /**
  * Los datos guardados no se pueden leer. Nunca se reemplazan sin preguntar: primero se
  * ofrece descargarlos y empezar de nuevo pide confirmación (y guarda una copia interna).
- * Si los guardó una versión más nueva de Clara, lo que hace falta es actualizar la app.
+ * Si los guardó una versión más nueva de Clara, no están dañados: solo se ofrece recargar y
+ * descargar una copia; nunca «Empezar de nuevo» (H4).
  */
 function Corrupt({ raw, newerVersion }: { raw: string; newerVersion: boolean }) {
   const { t } = useT()
@@ -175,6 +176,7 @@ function Corrupt({ raw, newerVersion }: { raw: string; newerVersion: boolean }) 
       <div className="card setup__card">
         <Alert tone="critical" title={t(newerVersion ? 'shell.newerTitle' : 'shell.corruptTitle')} role="alert">
           <p>{t(newerVersion ? 'shell.newerText' : 'shell.corruptText')}</p>
+          {newerVersion && <p>{t('shell.newerHint')}</p>}
         </Alert>
         <div className="form__actions form__actions--stack">
           {newerVersion && (
@@ -184,11 +186,14 @@ function Corrupt({ raw, newerVersion }: { raw: string; newerVersion: boolean }) 
           )}
           <button type="button" className="btn btn--secondary" onClick={downloadRaw}>
             <Icon name="download" />
-            {t('shell.corruptDownload')}
+            {t(newerVersion ? 'shell.newerDownload' : 'shell.corruptDownload')}
           </button>
-          <button type="button" className="btn btn--danger-ghost" onClick={() => setConfirming(true)}>
-            {t('shell.corruptReset')}
-          </button>
+          {/* H4: con datos de una versión más nueva no hay nada roto; «Empezar de nuevo» solo para datos dañados. */}
+          {!newerVersion && (
+            <button type="button" className="btn btn--danger-ghost" onClick={() => setConfirming(true)}>
+              {t('shell.corruptReset')}
+            </button>
+          )}
         </div>
       </div>
       <ConfirmDialog
