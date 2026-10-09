@@ -40,15 +40,14 @@ test.describe('B1 · ninguna categoría se parte a media palabra', () => {
 
   test('la tipografía Inter (autoalojada) carga y se usa: las medidas de estas guardas son con ella', async ({ page }) => {
     await openApp(page)
+    // Con texto en pantalla el navegador ya pidió la fuente; `fonts.ready` antes de eso no espera nada.
+    await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
     await waitForFonts(page)
-    const fonts = await page.evaluate(() => ({
-      usable: document.fonts.check('600 13px Inter'),
-      loaded: [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === 'Inter' && f.status === 'loaded').length,
-      family: getComputedStyle(document.body).fontFamily,
-    }))
-    expect(fonts.family).toMatch(/^"?Inter"?,/)
-    expect(fonts.loaded, 'caras de Inter cargadas').toBeGreaterThanOrEqual(1)
-    expect(fonts.usable, 'Inter disponible para texto en latín').toBe(true)
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(/^"?Inter"?,/)
+    await expect
+      .poll(() => page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === 'Inter' && f.status === 'loaded').length), { message: 'caras de Inter cargadas' })
+      .toBeGreaterThanOrEqual(1)
+    expect(await page.evaluate(() => document.fonts.check('600 13px Inter')), 'Inter disponible para texto en latín').toBe(true)
   })
   test('gestión de categorías en Ajustes', async ({ page }) => {
     await startDemo(page)
