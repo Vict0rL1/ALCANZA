@@ -37,7 +37,10 @@ self.addEventListener('fetch', (event) => {
   const key = request.mode === 'navigate' ? '/' : request
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      const hit = await cache.match(key)
+      // Cada URL de la caché es un archivo fijo de ESTA versión: no depende de cabeceras como
+      // `Origin`. Sin `ignoreVary`, una respuesta con `Vary: Origin` no coincide cuando el navegador
+      // añade `Origin` a un import() (Chromium 153) y, sin conexión, la pantalla no abriría.
+      const hit = await cache.match(key, { ignoreVary: true })
       if (hit) return hit
       const response = await fetch(request)
       if (response.ok && request.mode !== 'navigate') cache.put(request, response.clone())
