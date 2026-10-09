@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { openMoreMenu, available, go, movementCount, startDemo, openDetails } from './helpers'
+import { openMoreMenu, available, go, movementCount, startDemo, openDetails, settleAnimations } from './helpers'
 
 // Fechas mes/día/año (el 27 obliga a reconocerlo). El saldo de referencia de la demo es del 26-sep.
 const CSV = [
@@ -38,6 +38,7 @@ test('importar CSV: vista previa, posibles duplicados, importar y no duplicar al
   await expect(page.getByRole('checkbox', { name: /Broken row/ })).toBeDisabled()
   await expect(page.getByText('no cambia el saldo')).toBeVisible()
 
+  await settleAnimations(page)
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)

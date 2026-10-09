@@ -290,6 +290,16 @@ export async function openMonthSummary(page: Page) {
   return summary
 }
 
+/**
+ * Espera a que terminen las transiciones y animaciones finitas (el color de la pestaña activa al
+ * navegar, el cambio de tema, la entrada de un aviso). Una auditoría de contraste a mitad de una
+ * transición mide colores intermedios que nadie ve más de 200 ms: en CI fallaba una vez de cada
+ * muchas. Las animaciones infinitas (spinner, skeleton) no se esperan.
+ */
+export async function settleAnimations(page: Page) {
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getComputedTiming().endTime === Infinity), undefined, { polling: 50 })
+}
+
 /** Abre la hoja «¿Qué quieres registrar?» por la entrada que exista (botón flotante o pestaña «+»). */
 export async function openAddSheet(page: Page) {
   const fab = page.locator('.fab')

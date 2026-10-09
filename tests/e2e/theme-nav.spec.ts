@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { available, go, START, startDemo } from './helpers'
+import { available, go, START, startDemo, settleAnimations } from './helpers'
 
 test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formulario abierto en otra pestaña', async ({ page, context }) => {
   await startDemo(page)
@@ -18,6 +18,7 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   await expect(form.getByLabel('Importe', { exact: true })).toHaveValue('7.77')
   // Contraste en oscuro forzado.
   await go(page, '/')
+  await settleAnimations(page)
   const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   await expect(page.getByTestId('available')).toHaveText(amount!)
@@ -30,6 +31,7 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   // Contraste también en claro.
   await go(page, '/')
+  await settleAnimations(page)
   const light = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
   expect(light.violations.map((v) => v.id)).toEqual([])
   await go(page, '/ajustes/formato')
@@ -47,6 +49,7 @@ test('el botón secundario de la guía mantiene el contraste AA al pasar el punt
   for (const theme of ['Claro', 'Oscuro']) {
     await page.getByRole('radio', { name: theme }).check()
     await page.locator('.coach__actions .btn--ghost').hover()
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).include('.coach__actions').withRules(['color-contrast']).analyze()
     expect(results.violations.flatMap((v) => v.nodes.map((n) => `${theme}: ${n.failureSummary}`))).toEqual([])
   }
@@ -60,6 +63,7 @@ test('oscuro es el tema predeterminado; la galería de componentes pasa la audit
   for (const theme of ['Oscuro', 'Claro']) {
     await page.getByRole('radio', { name: theme }).check()
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme === 'Claro' ? 'light' : 'dark')
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).disableRules(['region']).analyze()
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
   }

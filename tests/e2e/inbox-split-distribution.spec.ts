@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { pickCategory, applyFilters, openFilters, available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, available, go, movementCount, startDemo, openDetails, settleAnimations } from './helpers'
 
 async function newExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
@@ -128,6 +128,7 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   for (const route of ['/pendientes', '/movimientos/nuevo']) {
     if (route !== '/movimientos/nuevo') await go(page, route)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), route).toBeLessThanOrEqual(0)
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`), route).toEqual([])
   }
@@ -137,6 +138,7 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   await page.getByRole('link', { name: 'Distribuir este ingreso' }).click()
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+  await settleAnimations(page)
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 

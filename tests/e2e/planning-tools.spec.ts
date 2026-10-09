@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { pickCategory, applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails, settleAnimations } from './helpers'
 
 test('gasto planificado: vinculado al calendario, aporte confirmado y pago distinto de lo apartado', async ({ page }) => {
   await startDemo(page)
@@ -269,6 +269,7 @@ test('pantallas nuevas con datos: sin desplazamiento horizontal ni problemas de 
     for (const route of ['/plan/metas', periodUrl, '/alcanza/escenarios', '/revision', '/buscar?q=se']) {
       await go(page, route)
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), route).toBeLessThanOrEqual(0)
+      await settleAnimations(page)
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`), `${scheme} ${route}`).toEqual([])
     }

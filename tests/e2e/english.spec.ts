@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { showFullHome, go, openApp } from './helpers'
+import { showFullHome, go, openApp, settleAnimations } from './helpers'
 
 test('la app funciona en inglés y se puede volver a español', { tag: '@smoke' }, async ({ page }) => {
   await openApp(page)
@@ -21,6 +21,7 @@ test('la app funciona en inglés y se puede volver a español', { tag: '@smoke' 
       await page.getByLabel('Price').fill('150')
       await expect(page.getByTestId('verdict')).toHaveText('Only with money set aside')
     }
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
     expect(results.violations.map((v) => v.id), route).toEqual([])
   }
@@ -37,6 +38,7 @@ test('la app funciona en inglés y se puede volver a español', { tag: '@smoke' 
   ] as const) {
     await go(page, route)
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
     expect(results.violations.map((v) => v.id), route).toEqual([])
   }
