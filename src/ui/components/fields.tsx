@@ -210,7 +210,7 @@ export function MoneyField({
             value={value}
             onChange={(e) => {
               const el = e.target
-              const { text, caret } = groupAmountInput(el.value, fmt.numberLocale, fmt.currency, el.selectionStart ?? el.value.length)
+              const { text, caret } = groupAmountInput(el.value, fmt.numberLocale, fmt.currency, el.selectionStart ?? el.value.length, value)
               caretRef.current = caret
               onChange(text)
             }}
