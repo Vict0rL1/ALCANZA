@@ -447,3 +447,36 @@ test.describe('D4 · filtros y acciones en lote', () => {
     await expect(page.getByRole('heading', { name: 'Editar movimiento' })).toBeVisible()
   })
 })
+
+test.describe('E2 · importe: miles mientras se escribe, cursor estable y cifra grande', () => {
+  test('el formulario agrupa los miles con el formato elegido y guarda el importe exacto', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos/nuevo')
+    const amount = page.getByLabel('Importe', { exact: true })
+    await amount.pressSequentially('1234')
+    await expect(amount).toHaveValue('1,234')
+    await amount.press('.')
+    await amount.pressSequentially('5')
+    await expect(amount).toHaveValue('1,234.5')
+    // El cursor sigue sobre el mismo dígito al insertar en medio: «1,2|34.5» + 9 → «12,9|34.5».
+    await amount.evaluate((el: HTMLInputElement) => el.setSelectionRange(3, 3))
+    await amount.press('9')
+    await expect(amount).toHaveValue('12,934.5')
+    expect(await amount.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(4)
+    const size = await amount.evaluate((el) => getComputedStyle(el).fontSize)
+    expect(parseFloat(size)).toBeGreaterThanOrEqual(40)
+    await amount.fill('1234')
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
+    await expect(page.locator('.item__amount', { hasText: '$1,234.00' }).first()).toBeVisible()
+  })
+
+  test('el límite de un plan usa la misma cifra grande', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/plan/planes/nuevo')
+    const limit = page.getByLabel('Límite máximo')
+    await limit.pressSequentially('250000')
+    await expect(limit).toHaveValue('250,000')
+    expect(parseFloat(await limit.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(40)
+  })
+})

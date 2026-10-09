@@ -317,7 +317,7 @@ export function PlanForm({ route }: { route: Route }) {
           void submit()
         }}
       >
-        <MoneyField label={t('plans.form.amount')} hint={t('plans.form.amountHint')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
+        <MoneyField big label={t('plans.form.amount')} hint={t('plans.form.amountHint')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
         <TextField label={t('plans.form.name')} hint={t('plans.form.nameHint')} value={name} maxLength={LIMITS.nameMax} onChange={(e) => setName(e.target.value)} error={fieldError(t, fmt, issues, 'name')} />
         <CategoryPicker
           multiple

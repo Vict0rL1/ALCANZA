@@ -340,3 +340,52 @@ function parseScaled(input: string, digits: number, locale: string, options: Par
   if (minor === 0 && !options.allowZero) return fail('zero')
   return { ok: true, minor: minor === 0 ? 0 : minor }
 }
+
+/**
+ * Agrupa los miles de lo que se escribe en un campo de importe (E2), con el formato elegido en
+ * Ajustes: "1234567" → "1,234,567" (es-MX) o "1.234.567" (es-CO). Solo actúa sobre textos hechos
+ * de dígitos y separadores (un signo «−» opcional); cualquier otra cosa, y un texto que termina en
+ * separador (se está escribiendo), se devuelve tal cual para que `parseMoney` lo juzgue. El decimal
+ * se decide como en `parseMoney`: con los dos signos, el último; uno solo repetido, miles; uno solo
+ * seguido de 3 dígitos, según el formato; de más de 3, miles (texto ya agrupado al que se añade un
+ * dígito); de 1–2, decimal. Los decimales se recortan a los de la moneda (0 en COP o CLP).
+ * `caret` es la posición del cursor en el texto nuevo que corresponde a `caret` en el escrito.
+ */
+export function groupAmountInput(input: string, locale: string, currency: CurrencyCode, caret: number = input.length): { text: string; caret: number } {
+  const { decimal, group } = localeSeparators(locale)
+  const m = /^(-?)([0-9.,\s\u00a0]*)$/.exec(input)
+  if (!m || /[.,]$/.test(input)) return { text: input, caret }
+  const sign = m[1] ?? ''
+  const body = (m[2] ?? '').replace(/[\s\u00a0]/g, '')
+  if (!/\d/.test(body)) return { text: input, caret }
+  const lastDot = body.lastIndexOf('.')
+  const lastComma = body.lastIndexOf(',')
+  let intPart = body
+  let fracPart: string | null = null
+  const hasBoth = lastDot >= 0 && lastComma >= 0
+  const decimalAt = hasBoth ? Math.max(lastDot, lastComma) : lastDot >= 0 ? lastDot : lastComma
+  if (decimalAt >= 0) {
+    const sep = body[decimalAt]!
+    const count = body.split(sep).length - 1
+    const after = body.length - decimalAt - 1
+    const isGroup = !hasBoth && (count > 1 || after > 3 || (after === 3 && sep === group))
+    if (!isGroup) {
+      intPart = body.slice(0, decimalAt)
+      fracPart = body.slice(decimalAt + 1)
+    }
+  }
+  const digits = currencyDigits(currency)
+  const digitsInt = intPart.replace(/[.,]/g, '').replace(/^0+(?=\d)/, '')
+  const digitsFrac = fracPart === null || digits === 0 ? null : fracPart.replace(/[.,]/g, '').slice(0, digits)
+  const grouped = digitsInt.replace(/\B(?=(\d{3})+(?!\d))/g, group)
+  const text = sign + grouped + (digitsFrac === null ? '' : decimal + digitsFrac)
+  // Cursor: tras el mismo número de dígitos que había antes de él.
+  const significantBefore = input.slice(0, caret).replace(/[^0-9]/g, '').length
+  let pos = sign.length
+  let seen = 0
+  while (pos < text.length && seen < significantBefore) {
+    if (/\d/.test(text[pos]!)) seen++
+    pos++
+  }
+  return { text, caret: Math.min(text.length, pos) }
+}
