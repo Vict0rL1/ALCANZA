@@ -10,7 +10,7 @@ test('reglas de categoría en Ajustes: crear, evitar duplicados, eliminar y desh
   await section.getByRole('button', { name: 'Nueva regla' }).click()
   let dialog = page.getByRole('dialog', { name: 'Nueva regla de categoría' })
   await dialog.getByLabel('Si la descripción contiene').fill('Uber')
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Transporte' })
+  await pickCategory(page, dialog.getByLabel('Categoría', { exact: true }), 'Transporte')
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(section.getByText('«Uber» → Transporte')).toBeVisible()
 

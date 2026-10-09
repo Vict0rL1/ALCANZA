@@ -9,7 +9,7 @@
  * una preferencia visual no cambia cifras; simular no toca registros; reintentar no duplica.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { showFullHome, available, go, movementCount, openApp, openDetails, storedData } from './helpers'
+import { showFullHome, available, go, movementCount, openApp, openDetails, storedData, pickCategory } from './helpers'
 
 /** Saldo consolidado de las cuentas del presupuesto, según lo guardado (independiente de la UI). */
 async function consolidated(page: Page): Promise<number> {
@@ -106,10 +106,10 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
   // 4. Compra dividida desde una plantilla 60 % / 40 %: 50.00 → 30.00 + 20.00. Un solo gasto.
   await go(page, '/movimientos/plantillas/nueva?tipo=split')
   await page.getByLabel('Nombre').fill('Súper')
-  await page.getByLabel('Categoría (línea 1)').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 1)'), 'Supermercado')
   await page.getByLabel('Porcentaje (línea 1)').fill('60')
   await page.getByRole('button', { name: 'Añadir línea' }).click()
-  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda y alquiler' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 2)'), 'Vivienda y alquiler')
   await page.getByLabel('Porcentaje (línea 2)').fill('40')
   await page.getByRole('button', { name: 'Guardar plantilla' }).click()
   const before = await movementCount(page)

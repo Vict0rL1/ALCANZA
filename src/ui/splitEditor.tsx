@@ -4,14 +4,15 @@
  */
 import { useT } from '../i18n'
 import { Alert } from './components/common'
-import { MoneyField, SelectField, TextField } from './components/fields'
+import { MoneyField, TextField } from './components/fields'
 import { Icon } from './components/Icon'
 import { useFormat, type Formatter } from './format'
-import { categoryLabel } from './labels'
 import { parseMoneyText } from './moneyText'
 import { LIMITS } from '../domain/validation'
 import { MAX_SPLIT_LINES } from '../domain/splits'
 import { newSplitDraft, type SplitDraft } from './splitDrafts'
+import { CategoryPicker } from './components/CategoryPicker'
+import { useData } from '../state/store'
 
 /** Suma de las líneas que ya tienen un importe válido (las vacías cuentan 0). */
 function assignedMinor(drafts: SplitDraft[], fmt: Formatter): number {
@@ -44,6 +45,7 @@ export function SplitEditor({
 }) {
   const { t } = useT()
   const fmt = useFormat()
+  const data = useData()
   const assigned = assignedMinor(drafts, fmt)
   const remaining = totalMinor === null ? null : totalMinor - assigned
   const update = (id: string, patch: Partial<SplitDraft>) => onChange(drafts.map((d) => (d.id === id ? { ...d, ...patch } : d)))
@@ -58,12 +60,7 @@ export function SplitEditor({
         const max = maxByCategory?.get(d.categoryId)
         return (
           <div key={d.id} className="card split-line" role="group" aria-label={t('split.lineN', { n: i + 1 })}>
-            <SelectField
-              label={t('split.category', { n: i + 1 })}
-              value={d.categoryId}
-              onChange={(e) => update(d.id, { categoryId: e.target.value })}
-              options={categories.map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-            />
+            <CategoryPicker label={t('split.category', { n: i + 1 })} kind="expense" data={data} value={d.categoryId} onChange={(id) => update(d.id, { categoryId: id })} only={categories} keep={d.categoryId} />
             <MoneyField
               label={t('split.amount', { n: i + 1 })}
               value={d.amountText}

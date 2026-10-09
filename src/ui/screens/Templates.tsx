@@ -22,6 +22,7 @@ import { categoryLabel, issueMessage } from '../labels'
 import { parseMoneyText } from '../moneyText'
 import { parsePercent, percentText } from '../percentText'
 import { href, withQuery, useNavigateIfStillHere, type Route } from '../router'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 type Kind = Template['kind']
 type T = ReturnType<typeof useT>['t']
@@ -275,12 +276,16 @@ export function TemplateForm({ route }: { route: Route }) {
           <legend className="field__label">{t('templates.lines')}</legend>
           {lines.map((l, i) => (
             <div key={l.key} className="template-line">
+              {kind === 'split' ? (
+                <CategoryPicker label={t('templates.lineCategory', { n: i + 1 })} kind="expense" data={data} value={l.target} onChange={(id) => update(l.key, { target: id })} keep={l.target || undefined} />
+              ) : (
               <SelectField
-                label={t(kind === 'split' ? 'templates.lineCategory' : 'templates.lineTarget', { n: i + 1 })}
+                label={t('templates.lineTarget', { n: i + 1 })}
                 value={l.target}
                 onChange={(e) => update(l.key, { target: e.target.value })}
                 options={[{ value: '', label: t('favorites.choose') }, ...targetOptions, ...(l.target && !targetOptions.some((o) => o.value === l.target) ? [{ value: l.target, label: `${targetLabel(data, l.target, t)} (${t('templates.unavailable')})` }] : [])]}
               />
+              )}
               <Segmented
                 legend={t('templates.mode', { n: i + 1 })}
                 name={`mode-${l.key}`}

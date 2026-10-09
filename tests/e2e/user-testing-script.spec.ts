@@ -8,7 +8,7 @@
  * 150.00 apartados para emergencias.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, openApp, openDetails } from './helpers'
+import { available, go, movementCount, openApp, openDetails, pickCategory } from './helpers'
 
 async function setUp(page: Page) {
   await openApp(page)
@@ -65,9 +65,9 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await page.locator('a.item', { hasText: 'Supermercado' }).click()
   await page.getByRole('button', { name: 'Dividir entre categorías' }).click()
   const editor = page.getByTestId('split-editor')
-  await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 1'), 'Supermercado')
   await editor.getByLabel('Importe de la línea 1').fill('28.40')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda y alquiler' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 2'), 'Vivienda y alquiler')
   await editor.getByLabel('Importe de la línea 2').fill('10')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$401.60')

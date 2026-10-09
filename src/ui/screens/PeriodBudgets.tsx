@@ -29,13 +29,14 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, Why, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
-import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CheckboxField, MoneyField, Segmented, TextField } from '../components/fields'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 import { href, type Route, useNavigateIfStillHere } from '../router'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 const STATUS: Record<PeriodStatus, { tone: Tone; icon: IconName }> = {
   upcoming: { tone: 'info', icon: 'clock' },
@@ -429,12 +430,7 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
           <div className="card stack-sm" data-testid="period-suggestions">
             <p>{tn('period.suggestText', suggestions.length)}</p>
             {suggestionCategories.length > 1 && (
-              <SelectField
-                label={t('period.suggestCategory')}
-                value={suggestCategory}
-                onChange={(e) => setSuggestCategory(e.target.value)}
-                options={[{ value: '', label: t('filters.allCategories') }, ...suggestionCategories.map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
-              />
+              <CategoryPicker label={t('period.suggestCategory')} kind="expense" data={data} value={suggestCategory} onChange={setSuggestCategory} only={suggestionCategories} placeholder={t('filters.allCategories')} includeArchived />
             )}
             {suggestions.length > 0 && (
               <button type="button" className="btn btn--secondary" onClick={() => void linkSuggestions()}>

@@ -11,11 +11,12 @@ import { useRun } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Card, EmptyState } from '../components/common'
 import { Dialog } from '../components/Dialog'
-import { Segmented, SelectField, TextField } from '../components/fields'
+import { Segmented, TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, withCurrent } from '../labels'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 export function RulesSection() {
   const { t } = useT()
@@ -148,13 +149,7 @@ export function RuleDialog({
           { value: 'income', label: t('rules.forIncome') },
         ]}
       />
-      <SelectField
-        label={t('fields.category')}
-        value={categoryId}
-        onChange={(e) => setCategoryId(e.target.value)}
-        options={options.map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-        error={fieldError(t, fmt, issues, 'categoryId')}
-      />
+      <CategoryPicker label={t('fields.category')} kind={kind} data={data} value={categoryId} onChange={setCategoryId} only={options} keep={rule?.kind === kind ? rule.categoryId : undefined} error={fieldError(t, fmt, issues, 'categoryId')} />
     </Dialog>
   )
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { available, go, movementCount, startDemo, openDetails, pickCategory } from './helpers'
 
 test('favoritos: desde Inicio abren el formulario con hoy, no registran nada solos y guardar dos veces no duplica', async ({ page }) => {
   await startDemo(page)
@@ -53,7 +53,7 @@ test('favoritos: crear desde el formulario, ordenar, cuenta eliminada pide elegi
   dialog = page.getByRole('dialog', { name: 'Nuevo favorito' })
   await dialog.getByLabel('Nombre').fill('Regalo')
   await dialog.getByLabel('Cuenta').selectOption({ label: 'Tarjeta regalo' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Regalos' })
+  await pickCategory(page, dialog.getByLabel('Categoría', { exact: true }), 'Regalos')
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
 
   // Ordenar: «Regalo» sube al tercer lugar.

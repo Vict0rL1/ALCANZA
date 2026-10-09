@@ -121,6 +121,11 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Guardas de maquetación (`tests/e2e/layout-guards.spec.ts`): palabras partidas, controles recortados,
   solapamientos y lo que cabe en la primera pantalla; corren en los tres tamaños.
 - Gráficos: seguir la paleta validada (`--series-*`), etiquetas selectivas, tabla alternativa.
+- Categorías: un solo dibujo (`CategoryIcon`) y un solo selector (`CategoryPicker`); nada de `<select>` de
+  categoría salvo la tabla de la importación CSV. Listas vacías con `EmptyState` (icono, título y una
+  línea de texto, ≤ 1 acción). Explicaciones largas: una frase + «¿Por qué?» (`Why`).
+- Movimiento: hojas, avisos y la cifra principal respetan `prefers-reduced-motion`; las hojas se cierran con
+  Esc, ✕, fondo o deslizando hacia abajo, y devuelven el foco a quien las abrió.
 
 ## Seguridad y datos
 
