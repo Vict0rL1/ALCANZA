@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), serviceWorker({ publicDir: 'public' }), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_ENDPOINT)],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).
-    include: ['src/**/*.test.ts', 'pwa/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'pwa/**/*.test.ts', 'tests/config/**/*.test.ts'],
     environment: 'node',
   },
 }))

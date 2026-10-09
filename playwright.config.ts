@@ -14,8 +14,10 @@ const extraBrowsers = process.env.PLAYWRIGHT_ALL_BROWSERS === '1'
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
-  retries: 0,
-  reporter: [['list']],
+  // En CI, un reintento: si una prueba falla y luego pasa, `--fail-on-flaky-tests` la marca como
+  // inestable y el trabajo falla igual (no se esconde). El informe HTML se sube como artefacto.
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',

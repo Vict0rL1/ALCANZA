@@ -45,5 +45,7 @@ jobs:
         with:
           # Entre comillas: `${{ }}` dentro de un mapa `{ }` no es YAML válido.
           name: 'playwright-${{ matrix.project }}'
-          path: test-results/
+          path: |
+            test-results/
+            playwright-report/
           retention-days: 7
