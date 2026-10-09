@@ -35,6 +35,47 @@ comprobaciones que ya se ejecutaron alguna vez.
 Para comprobarlo: en un PR, el botón de fusionar debe quedar bloqueado mientras alguna de esas
 comprobaciones no esté en verde.
 
+### B. Cloudflare Pages (una sola vez)
+
+Clara se publica en Cloudflare Pages desde GitHub Actions: GitHub compila, prueba y sube la carpeta
+`dist/`. Cloudflare no lee el repositorio ni compila nada. El plan gratuito basta y no pide tarjeta.
+
+1. **Cuenta y proyecto.**
+   1. Crea una cuenta gratuita en <https://dash.cloudflare.com/sign-up> y confirma el correo.
+   2. En el panel: **Workers & Pages** › **Create** › pestaña **Pages** › **Use direct upload**
+      («Subir recursos», **no** «Connect to Git»).
+   3. **Project name**: `clara`. Pulsa **Create project**. Si después te pide subir archivos, sube la
+      carpeta `dist/` de una compilación local (`npm run build`) o cierra esa pantalla: el primer
+      despliegue real lo hará GitHub.
+   4. Si prefieres la terminal, lo mismo en un solo paso:
+      `npx wrangler login` y luego `npx wrangler pages project create clara --production-branch=main`.
+   5. La rama de producción debe ser `main` (proyecto `clara` › **Settings** › **Builds & deployments**
+      › **Production branch**).
+2. **Token de la API con un solo permiso.**
+   1. Arriba a la derecha: tu perfil › **My Profile** › **API Tokens** › **Create Token** ›
+      **Create Custom Token** › **Get started**.
+   2. **Token name**: `clara-github-deploy`.
+   3. **Permissions**: `Account` · `Cloudflare Pages` · `Edit`. **Ningún otro permiso.**
+   4. **Account Resources**: `Include` · tu cuenta.
+   5. **Continue to summary** › **Create Token**. Copia el token: Cloudflare solo lo muestra una vez.
+      No lo pegues en ningún archivo, chat ni correo.
+3. **Secretos en GitHub.**
+   1. Copia tu **Account ID**: **Workers & Pages** › columna derecha › **Account ID** (también es el
+      número largo que aparece en la dirección del panel, `dash.cloudflare.com/<Account ID>/…`).
+   2. En GitHub: el repositorio › **Settings** › **Secrets and variables** › **Actions** ›
+      **New repository secret**, dos veces:
+      - Name `CLOUDFLARE_API_TOKEN` · Secret: el token del paso 2.
+      - Name `CLOUDFLARE_ACCOUNT_ID` · Secret: el Account ID.
+4. **Deja Cloudflare Web Analytics desactivado** (proyecto `clara` › **Metrics** › **Web Analytics**:
+   no lo actives). Su script lo bloquearía la CSP de Clara y rompería la promesa de «sin terceros».
+5. **Dirección pública.** Tras el primer despliegue a producción, la app queda en
+   `https://clara.pages.dev` (si ese nombre ya estaba ocupado, Cloudflare añade un sufijo, p. ej.
+   `https://clara-abc.pages.dev`: lo verás en el proyecto, arriba). Escríbela en el README, en
+   «Dirección pública».
+
+Hasta que existan los dos secretos, el trabajo `deploy-preview` de cada PR falla con el mensaje
+«Faltan los secretos de Cloudflare»: no se despliega nada y no se finge que se desplegó.
+
 ---
 
 ## Cómo funciona
