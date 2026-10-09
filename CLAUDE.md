@@ -2,7 +2,7 @@
 
 Clara es un **prototipo local** de finanzas personales (React + TypeScript + Vite).
 Sin backend, sin cuentas de usuario, sin conexión bancaria y sin IA dentro del producto.
-Interfaz en español e inglés (`src/i18n/es.ts` y `en.ts`). Antes se llamaba «Margen»: las
+Interfaz en español, inglés, portugués y francés (`src/i18n/es.ts`, `en.ts`, `pt.ts`, `fr.ts`). Antes se llamaba «Margen»: las
 claves internas (`margen.data.v1`, `margen-backup`, cachés `margen-`) NO se renombran.
 
 ## Comandos (ejecutar antes de cada commit)
@@ -28,8 +28,8 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   `domain/operations.ts`; no calcula dinero.
 - `src/ui/` — pantallas y componentes. Solo muestran y llaman operaciones.
 - `src/i18n/` — todos los textos visibles. **Nunca** escribir texto de interfaz
-  directamente en componentes: añadir la clave a `es.ts` **y** a `en.ts` (el tipo de
-  `en.ts` obliga a tener todas las claves).
+  directamente en componentes: añadir cada clave a `es.ts`, `en.ts`, `pt.ts` **y** `fr.ts`
+  (el tipo compartido obliga a tener todas las claves en los cuatro).
 
 ## Reglas financieras (ver `docs/FORMULAS.md`)
 
@@ -63,6 +63,9 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   escenario mínimo por defecto. Cobros parciales con `partialSettlement`; como mucho una
   liquidación final por ocurrencia.
 - Favoritos solo rellenan el formulario; nunca registran movimientos.
+- Parser del asistente (`domain/parser.ts`): las pruebas pasan por `parseText` (lo que usa el
+  asistente), no solo por `parseEntry`; una coma entre dígitos es parte del importe. El asistente
+  escribe en un `<textarea>` (una línea por movimiento).
 - Gastos planificados = metas `kind: 'expense'` (`domain/plannedExpenses.ts`): el plan es
   solo sugerencia; solo lo apartado descuenta. Vinculados a una ocurrencia, esa ocurrencia
   no se reserva dos veces (`reserves.ts`). Pagar = gasto real + liberar reserva en una
@@ -84,7 +87,7 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   apartados virtuales (metas), nunca dinero ni movimientos; pagos ya reservados no se
   restan dos veces; todo o nada; deshacer solo si es coherente.
 - Registro de copias (`backup`): no modifica `updatedAt`. Una exportación fallida no se
-  registra; «exportada» ≠ «verificada».
+  registra; «exportada» ≠ «verificada». La copia sin fotos (`withoutReceipts`) tampoco se registra.
 - Historial (`domain/history.ts`): `AppStore.commit` registra antes/después de cada registro
   financiero que cambió (máx. 1000 entradas). Revertir solo si nada cambió después y validando
   todo; importar/demo = corte `replace`. Es local, no una auditoría inviolable.
@@ -96,6 +99,9 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Plan ante faltante (`domain/shortfall.ts`): palancas simuladas sobre copia; pagos programados
   nunca son palanca; aplicar solo planificación, con confirmación, todo o nada, como `plan` en el
   historial.
+- Filtros del historial (`domain/txFilters.ts`): categorías y etiquetas «cualquiera», importe inclusivo en
+  unidades menores, origen por marcas del registro. Lote (`domain/bulk.ts`): una operación, todo o nada;
+  transferencias, ajustes y divididas no se recategorizan; deshacer restaura por id lo exacto.
 - Preferencias de presentación y modo privado (`ui/preferences.ts`): del dispositivo; nunca
   cambian cifras, datos ni exportaciones; el modo privado no es autenticación ni cifrado.
 
@@ -107,14 +113,26 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Cada cifra principal tiene su explicación ("¿Cómo se calculó?").
 - No mostrar botones de funciones que no existen. No simular notificaciones,
   sincronización, autenticación ni integraciones.
+- Registrar tiene una sola entrada: la pestaña «+» (celular) o «Agregar» (escritorio) abren la hoja
+  `AddSheet`; nada de botones flotantes ni «Agregar» en las pantallas.
+- Inicio: la cifra principal es la primera tarjeta; vista «esencial» por defecto para quien empieza;
+  lo secundario se pliega en «Más en tu Inicio». Ajustes: cada sección es `/ajustes/<id>` y sale de
+  `SETTINGS_SECTIONS` (índice, búsqueda, enlaces antiguos `?seccion=`).
+- Guardas de maquetación (`tests/e2e/layout-guards.spec.ts`): palabras partidas, controles recortados,
+  solapamientos y lo que cabe en la primera pantalla; corren en los tres tamaños.
 - Gráficos: seguir la paleta validada (`--series-*`), etiquetas selectivas, tabla alternativa.
+- Categorías: un solo dibujo (`CategoryIcon`) y un solo selector (`CategoryPicker`); nada de `<select>` de
+  categoría salvo la tabla de la importación CSV. Listas vacías con `EmptyState` (icono, título y una
+  línea de texto, ≤ 1 acción). Explicaciones largas: una frase + «¿Por qué?» (`Why`).
+- Movimiento: hojas, avisos y la cifra principal respetan `prefers-reduced-motion`; las hojas se cierran con
+  Esc, ✕, fondo o deslizando hacia abajo, y devuelven el foco a quien las abrió.
 
 ## Seguridad y datos
 
 - Ningún secreto, clave o credencial en el código, el navegador o los registros.
   No hace falta `.env` en esta fase.
 - La importación valida TODO el archivo y no aplica nada si hay un error.
-- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 8) y añadir migración con prueba.
+- Cambios de formato de datos: subir `SCHEMA_VERSION` (hoy 10) y añadir migración con prueba.
   Las migraciones solo rellenan campos ausentes; nunca borran datos mal formados.
 - Guardado (`indexedDbRepository.ts`, `localStorageRepository.ts`; ver `docs/STORAGE.md`): nunca sobrescribe lo que otra pestaña u otra
   versión guardó después de leer (error `conflict`); si guardar falla, se avisa de forma

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, available, go, movementCount, startDemo, openDetails, settleAnimations } from './helpers'
 
 async function newExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
@@ -15,12 +15,12 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   await newExpense(page, '120', 'Walmart')
   await page.getByRole('button', { name: 'Dividir entre categorías' }).click()
   const editor = page.getByTestId('split-editor')
-  await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 1'), 'Supermercado')
   await editor.getByLabel('Importe de la línea 1').fill('75')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 2'), 'Vivienda y alquiler')
   await editor.getByLabel('Importe de la línea 2').fill('30')
   await editor.getByRole('button', { name: 'Añadir línea' }).click()
-  await editor.getByLabel('Categoría de la línea 3').selectOption({ label: 'Compras' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 3'), 'Ropa y compras')
   await editor.getByLabel('Importe de la línea 3').fill('14.99')
   await expect(page.getByTestId('split-status')).toHaveText(/Falta asignar \$0\.01/)
   // Un centavo de diferencia bloquea el guardado.
@@ -37,7 +37,8 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   await expect(await available(page)).toHaveText('$16.78')
   await go(page, '/movimientos')
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toContainText('Dividida en 3 categorías')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda' })
+  await pickCategory(page, (await openFilters(page)).getByLabel('Categoría', { exact: true }), 'Vivienda y alquiler')
+  await applyFilters(page)
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toBeVisible()
 
   // Cambiar el total pide ajustar; quitar la división conserva el movimiento.
@@ -127,6 +128,7 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   for (const route of ['/pendientes', '/movimientos/nuevo']) {
     if (route !== '/movimientos/nuevo') await go(page, route)
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), route).toBeLessThanOrEqual(0)
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`), route).toEqual([])
   }
@@ -136,12 +138,13 @@ test('pantallas nuevas: sin desplazamiento horizontal, accesibles y en inglés',
   await page.getByRole('link', { name: 'Distribuir este ingreso' }).click()
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0)
+  await settleAnimations(page)
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 
   // Inglés.
-  await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/pendientes')
   await expect(page.getByRole('heading', { name: 'To review', exact: true })).toBeVisible()
   await go(page, '/movimientos/nuevo')
@@ -156,9 +159,9 @@ test('sugerencia: dividir como la última vez en el mismo comercio (solo propone
   await newExpense(page, '120', 'Costco')
   await page.getByRole('button', { name: 'Dividir entre categorías' }).click()
   const editor = page.getByTestId('split-editor')
-  await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 1'), 'Supermercado')
   await editor.getByLabel('Importe de la línea 1').fill('90')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 2'), 'Vivienda y alquiler')
   await editor.getByLabel('Importe de la línea 2').fill('30')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
 
@@ -173,22 +176,21 @@ test('sugerencia: dividir como la última vez en el mismo comercio (solo propone
   await expect(page.getByTestId('split-status')).toHaveText(/Cuadra/)
 })
 
-test('bandeja: límite de categoría superado lleva a los movimientos filtrados, sin cambiar cifras', async ({ page }) => {
+test('bandeja: un plan superado lleva a su detalle, sin cambiar cifras', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
-  await summary.getByRole('button', { name: 'Agregar límite' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
-  await dialog.getByLabel('Límite por mes').fill('30')
-  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await go(page, '/plan/planes/nuevo')
+  await page.getByLabel('Límite máximo').fill('30')
+  await page.getByTestId('plan-categories').click()
+  await page.getByTestId('category-picker').getByRole('option', { name: 'Restaurantes y café' }).first().click()
+  await page.getByRole('button', { name: 'Listo' }).click()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByText('Plan guardado')).toBeVisible()
 
   await go(page, '/pendientes')
-  const item = page.locator('article', { hasText: '«Comida fuera y café» superó su límite de este mes' })
+  const item = page.locator('article', { hasText: '«Restaurantes y café» superó su límite' })
   await expect(item).toContainText('$7.05')
-  await item.getByRole('link', { name: 'Ver movimientos de la categoría' }).click()
-  await expect(page.getByLabel('Categoría', { exact: true })).toHaveValue('dining')
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-09-01')
+  await item.getByRole('link', { name: 'Ver plan' }).click()
+  await expect(page.getByTestId('plan-spent')).toContainText('$37.05')
 
   await go(page, '/pendientes')
   await page.locator('article', { hasText: 'superó su límite' }).getByRole('button', { name: 'Está bien así' }).click()

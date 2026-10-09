@@ -373,3 +373,28 @@ describe('tarjetas de crédito', () => {
     expect(r2.ok || r2.issues[0]?.code).toBe('creditKindChange')
   })
 })
+
+describe('periodo de calendario (§6): mes con y sin arrastre', () => {
+  it('con arrastre el disponible parte del saldo consolidado; sin arrastre, del neto del periodo; los días cuentan hoy', () => {
+    const base = baseData({
+      transactions: [tx({ id: 'i', kind: 'income', categoryId: 'salary', amountMinor: 50000, date: '2026-09-29' }), tx({ id: 'e', amountMinor: 20000, date: '2026-09-29' })],
+      schedules: [bill('2026-09-30', 10000, { id: 'b' }), bill('2026-10-02', 99900, { id: 'later' })],
+    })
+    const on = computeBudget({ ...base, settings: { ...base.settings, budgetPeriod: { type: 'month', weekStartsOn: 1 }, carryOverBalance: true } }, '2026-09-30')
+    expect(on.period).toMatchObject({ type: 'month', start: '2026-09-01', end: '2026-09-30', daysLeft: 1 })
+    expect(on.horizon).toMatchObject({ source: 'period', endDate: '2026-09-30', days: 1 })
+    // Saldo consolidado 100000 + 50000 − 20000 = 130000; solo se reserva el pago del periodo (30-sep).
+    expect(on.baseMinor).toBe(130000)
+    expect(on.reservedTotalMinor).toBe(10000)
+    expect(on.availableMinor).toBe(120000)
+    expect(on.dailyMinor).toBe(120000)
+    const off = computeBudget({ ...base, settings: { ...base.settings, budgetPeriod: { type: 'month', weekStartsOn: 1 }, carryOverBalance: false } }, '2026-09-30')
+    expect(off.baseMinor).toBe(30000)
+    expect(off.availableMinor).toBe(20000)
+    expect(off.spendableMinor).toBe(130000)
+    // «Hasta mi próximo ingreso» sigue igual que siempre.
+    const legacy = computeBudget(base, '2026-09-30')
+    expect(legacy.period).toBeNull()
+    expect(legacy.baseMinor).toBe(legacy.spendableMinor)
+  })
+})

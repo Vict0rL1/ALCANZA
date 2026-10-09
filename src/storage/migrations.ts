@@ -3,6 +3,10 @@
  * añade aquí una función que convierta la versión anterior a la nueva.
  * Nunca se borra información sin una migración explícita y probada.
  */
+import { colorForId } from '../domain/categories'
+import { defaultCollectionsV9, defaultSettingsV9 } from '../domain/defaults'
+import { isValidTimestamp } from '../domain/dates'
+import { isMinorAmount } from '../domain/money'
 import { SCHEMA_VERSION } from '../domain/types'
 
 type Raw = Record<string, unknown>
@@ -70,6 +74,75 @@ const MIGRATIONS: Record<number, (raw: Raw) => Raw> = {
     history: raw.history ?? [],
     historyStartedAt: raw.historyStartedAt ?? (typeof raw.updatedAt === 'string' ? raw.updatedAt : raw.createdAt),
   }),
+  /**
+   * v8 → v9 (Clara v2): periodo de presupuesto, arrastre, safe to spend, notificaciones, bloqueo,
+   * onboarding, tours, Pro y uso de IA en ajustes; preferencias de categorías del sistema, grupos,
+   * etiquetas, planes (límites) y perfil. Los datos existentes conservan su fórmula
+   * (`untilIncome`) y se consideran ya configurados (`onboardingDone`). Solo se rellenan campos
+   * ausentes; las categorías personalizadas reciben grupo, icono, color y orden por defecto.
+   */
+  8: (raw) => {
+    const settings = raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings) ? (raw.settings as Raw) : null
+    const defaults = defaultSettingsV9({ periodType: 'untilIncome', onboardingDone: true }) as unknown as Raw
+    const categories = Array.isArray(raw.categories)
+      ? raw.categories.map((c: unknown, i: number) =>
+          c && typeof c === 'object' && !Array.isArray(c)
+            ? {
+                groupId: (c as Raw).kind === 'income' ? 'income' : 'other',
+                icon: 'tag',
+                color: colorForId(String((c as Raw).id ?? i)),
+                sortOrder: 1000 + i,
+                ...(c as Raw),
+              }
+            : c,
+        )
+      : raw.categories
+    return {
+      ...raw,
+      schemaVersion: 9,
+      settings: settings ? { ...defaults, ...settings } : raw.settings,
+      categories,
+      ...defaultCollectionsV9(),
+      ...Object.fromEntries((['categoryPrefs', 'categoryGroups', 'tags', 'plans', 'profile'] as const).filter((k) => raw[k] !== undefined).map((k) => [k, raw[k]])),
+    }
+  },
+  /**
+   * v9 → v10: los límites mensuales por categoría (`categoryLimits`) pasan a ser planes
+   * recurrentes mensuales (`plans`, kind 'limit') con alertas al 80 % y 100 %. Solo se convierten
+   * los bien formados; los demás se conservan en `categoryLimits` para que la validación los
+   * señale (nunca se borran). El ciclo (`startDate`/`endDate`) lo fija el primer cierre de planes
+   * al abrir la app. Las metas pueden llevar `contribution` (opcional).
+   */
+  9: (raw) => {
+    const limits = Array.isArray(raw.categoryLimits) ? raw.categoryLimits : []
+    const plans = Array.isArray(raw.plans) ? raw.plans : []
+    const settings = raw.settings && typeof raw.settings === 'object' ? (raw.settings as Raw) : {}
+    const stamp = isValidTimestamp(raw.updatedAt) ? raw.updatedAt : '1970-01-01T00:00:00.000Z'
+    const ok = (l: unknown): l is { categoryId: string; monthlyLimitMinor: number } =>
+      !!l && typeof l === 'object' && !Array.isArray(l) && typeof (l as Raw).categoryId === 'string' && isMinorAmount((l as Raw).monthlyLimitMinor) && ((l as Raw).monthlyLimitMinor as number) > 0
+    const converted = limits.filter(ok).map((l) => ({
+      id: `limit_${l.categoryId}`.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64),
+      kind: 'limit',
+      name: '',
+      categoryIds: [l.categoryId],
+      amountMinor: l.monthlyLimitMinor,
+      currency: settings.currency,
+      periodType: 'month',
+      recurring: true,
+      status: 'active',
+      alertAt80: true,
+      alertAt100: true,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }))
+    const existing = new Set(plans.map((p: unknown) => (p && typeof p === 'object' ? (p as Raw).id : undefined)))
+    return {
+      ...raw,
+      schemaVersion: 10,
+      plans: [...plans, ...converted.filter((p) => !existing.has(p.id))],
+      categoryLimits: limits.filter((l) => !ok(l)),
+    }
+  },
 }
 
 export function migrate(raw: Raw): Raw {

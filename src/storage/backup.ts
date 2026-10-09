@@ -32,6 +32,11 @@ import type {
   Settings,
   Transaction,
   TrashEntry,
+  CategoryGroup,
+  CategoryPref,
+  Plan,
+  Tag,
+  UserProfile,
 } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 import {
@@ -55,6 +60,11 @@ import {
   validateTemplate,
   validateHistory,
   TEMPLATES_MAX,
+  validateCategoryGroup,
+  validateCategoryPrefs,
+  validatePlan,
+  validateProfile,
+  validateTag,
 } from '../domain/validation'
 import { migrate } from './migrations'
 
@@ -75,22 +85,40 @@ export interface BackupFile {
   /** Nombre de la app que generó el archivo («Margen» en copias anteriores). No se valida. */
   app: string
   appVersion: string
+  /** Partes que se dejaron fuera a propósito (p. ej. una copia sin fotos de recibos). */
+  omitted?: BackupOmission[]
   data: AppData
+}
+
+export type BackupOmission = 'receipts'
+
+export interface BackupOptions {
+  /** Copia ligera: sin fotos de recibos en movimientos, papelera ni historial. */
+  withoutReceipts?: boolean
+}
+
+/** Quita las fotos de recibos al serializar (están en movimientos, papelera e historial). */
+const dropReceipts = (key: string, value: unknown) => (key === 'receiptUri' ? undefined : value)
+
+/** Texto del archivo de copia; con `withoutReceipts` no queda ninguna foto dentro. */
+export function backupText(data: AppData, now: Date, appVersion: string, options: BackupOptions = {}, indent?: number): string {
+  return JSON.stringify(createBackup(data, now, appVersion, options), options.withoutReceipts ? dropReceipts : undefined, indent)
 }
 
 export type BackupIssueCode = 'invalidJson' | 'notABackup' | 'schemaTooNew' | 'tooLarge' | 'tooManyRecords' | 'noAccounts' | 'migrationFailed'
 
 export type ImportIssue = Issue | { path: string; code: BackupIssueCode; params?: Record<string, string | number> }
 
-export type ImportResult = { ok: true; data: AppData; exportedAt: string | null } | { ok: false; issues: ImportIssue[] }
+export type ImportResult = { ok: true; data: AppData; exportedAt: string | null; withoutReceipts: boolean } | { ok: false; issues: ImportIssue[] }
 
-export function createBackup(data: AppData, now: Date, appVersion: string): BackupFile {
+export function createBackup(data: AppData, now: Date, appVersion: string, options: BackupOptions = {}): BackupFile {
   return {
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: now.toISOString(),
     app: 'Clara',
     appVersion,
+    ...(options.withoutReceipts ? { omitted: ['receipts' as const] } : {}),
     data,
   }
 }
@@ -105,19 +133,20 @@ export function performExport(
   now: Date,
   appVersion: string,
   write: (filename: string, text: string) => void,
+  options: BackupOptions = {},
 ): { ok: true; exportedAt: string; filename: string } | { ok: false } {
   try {
-    const filename = backupFileName(now, data.isDemo)
-    write(filename, JSON.stringify(createBackup(data, now, appVersion), null, 2))
+    const filename = backupFileName(now, data.isDemo, options.withoutReceipts)
+    write(filename, backupText(data, now, appVersion, options, 2))
     return { ok: true, exportedAt: now.toISOString(), filename }
   } catch {
     return { ok: false }
   }
 }
 
-export function backupFileName(now: Date, isDemo: boolean): string {
+export function backupFileName(now: Date, isDemo: boolean, withoutReceipts = false): string {
   const stamp = now.toISOString().slice(0, 16).replace(/[:T]/g, '-')
-  return `clara-${isDemo ? 'demo-' : ''}copia-${stamp}.json`
+  return `clara-${isDemo ? 'demo-' : ''}copia-${withoutReceipts ? 'sin-fotos-' : ''}${stamp}.json`
 }
 
 type Obj = Record<string, unknown>
@@ -129,15 +158,29 @@ function pick<T>(src: Obj, keys: readonly string[]): T {
   return out as T
 }
 
-const SETTINGS_KEYS = ['currency', 'numberLocale', 'dateStyle', 'timeZone', 'language', 'fallbackHorizonDays', 'weeklyReview'] as const
+const SETTINGS_KEYS = [
+  'currency', 'numberLocale', 'dateStyle', 'timeZone', 'language', 'fallbackHorizonDays', 'weeklyReview',
+  'budgetPeriod', 'carryOverBalance', 'safeToSpend', 'notifications', 'biometricLock', 'onboardingDone', 'toursSeen', 'proStatus', 'aiUsage',
+] as const
+const BUDGET_PERIOD_KEYS = ['type', 'weekStartsOn', 'customStart', 'customEnd'] as const
+const SAFE_KEYS = ['showOnHome', 'granularity', 'subtractScheduled', 'subtractGoalContributions'] as const
+const NOTIF_KEYS = ['scheduledAlerts', 'dailyReminder', 'dailyReminderTime', 'dailySummary', 'dailySummaryTime', 'quietHours', 'quietFrom', 'quietTo', 'planAlerts'] as const
+const PRO_KEYS = ['active', 'plan', 'expiresAt'] as const
+const AI_KEYS = ['month', 'count'] as const
+const PROFILE_KEYS = ['id', 'isGuest', 'provider', 'email', 'displayName', 'avatarUrl'] as const
+const GROUP_KEYS = ['id', 'nameKey', 'name', 'color', 'sortOrder', 'createdAt', 'updatedAt'] as const
+const TAG_KEYS = ['id', 'name', 'color', 'createdAt', 'updatedAt'] as const
+const PREF_KEYS = ['name', 'archived', 'groupId', 'icon', 'color', 'sortOrder'] as const
+const PLAN_LIMIT_KEYS = ['id', 'kind', 'name', 'categoryIds', 'amountMinor', 'currency', 'periodType', 'startDate', 'endDate', 'recurring', 'status', 'previousPlanId', 'alertAt80', 'alertAt100', 'result', 'createdAt', 'updatedAt'] as const
 const ACCOUNT_KEYS = ['id', 'name', 'kind', 'includeInBudget', 'anchor', 'card', 'createdAt', 'updatedAt'] as const
 const ANCHOR_KEYS = ['amountMinor', 'date', 'setAt'] as const
 const CARD_KEYS = ['limitMinor', 'aprBps', 'statementDay', 'dueDay', 'minPaymentBps', 'minPaymentFloorMinor'] as const
-const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'createdAt', 'updatedAt'] as const
+const CATEGORY_KEYS = ['id', 'name', 'kind', 'archived', 'groupId', 'icon', 'color', 'sortOrder', 'createdAt', 'updatedAt'] as const
 const TX_KEYS = [
   'id', 'kind', 'status', 'amountMinor', 'currency', 'date', 'accountId', 'toAccountId', 'categoryId',
   'refundOfId', 'note', 'scheduleId', 'occurrenceDate', 'realizedAt', 'importRef',
-  'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'splits', 'createdAt', 'updatedAt',
+  'adjustmentDirection', 'reconciliationId', 'partialSettlement', 'splits',
+  'merchant', 'tagIds', 'favoriteId', 'source', 'receiptUri', 'lat', 'lng', 'isInitialBalance', 'createdAt', 'updatedAt',
 ] as const
 const SPLIT_KEYS = ['id', 'categoryId', 'amountMinor', 'note'] as const
 
@@ -149,9 +192,9 @@ function pickTx(t: Obj): Transaction {
 }
 const SCHEDULE_KEYS = [
   'id', 'name', 'kind', 'amountMinor', 'amountIsEstimate', 'range', 'currency', 'accountId', 'categoryId', 'frequency',
-  'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'createdAt', 'updatedAt',
+  'startDate', 'endDate', 'reminderDaysBefore', 'skippedDates', 'note', 'intervalDays', 'autoConfirm', 'paused', 'createdAt', 'updatedAt',
 ] as const
-const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'createdAt', 'updatedAt'] as const
+const GOAL_KEYS = ['id', 'name', 'kind', 'targetMinor', 'targetDate', 'currency', 'fundedFrom', 'allocations', 'plan', 'icon', 'color', 'contribution', 'createdAt', 'updatedAt'] as const
 const ALLOCATION_KEYS = ['id', 'amountMinor', 'date', 'createdAt', 'reason', 'distributionId'] as const
 const PLAN_KEYS = ['repeatEveryMonths', 'link', 'categoryId', 'history', 'paidAt'] as const
 const CYCLE_KEYS = ['dueDate', 'targetMinor', 'reservedMinor', 'paidMinor', 'txId', 'surplus', 'paidAt'] as const
@@ -202,9 +245,33 @@ export function validateAppData(raw: unknown): ImportResult {
   }
   if (issues.length) return { ok: false, issues }
 
-  const settings = pick<Settings>(migrated.settings as Obj, SETTINGS_KEYS)
+  const rawSettings = migrated.settings as Obj
+  const settings = pick<Settings>(rawSettings, SETTINGS_KEYS)
   if (settings.fallbackHorizonDays === undefined) settings.fallbackHorizonDays = null
+  if (isObj(rawSettings.budgetPeriod)) settings.budgetPeriod = pick(rawSettings.budgetPeriod, BUDGET_PERIOD_KEYS)
+  if (isObj(rawSettings.safeToSpend)) settings.safeToSpend = pick(rawSettings.safeToSpend, SAFE_KEYS)
+  if (isObj(rawSettings.notifications)) settings.notifications = pick(rawSettings.notifications, NOTIF_KEYS)
+  if (isObj(rawSettings.proStatus)) settings.proStatus = pick(rawSettings.proStatus, PRO_KEYS)
+  if (isObj(rawSettings.aiUsage)) settings.aiUsage = pick(rawSettings.aiUsage, AI_KEYS)
   issues.push(...validateSettings(settings, 'settings.'))
+  // v9: perfil, preferencias de categorías del sistema, grupos, etiquetas y planes.
+  const profile = isObj(migrated.profile) ? pick<UserProfile>(migrated.profile, PROFILE_KEYS) : ({ id: 'guest', isGuest: true } as UserProfile)
+  if (migrated.profile !== undefined && !isObj(migrated.profile)) issues.push({ path: 'profile', code: 'invalidValue' })
+  issues.push(...validateProfile(profile))
+  let categoryPrefs: AppData['categoryPrefs'] = {}
+  if (migrated.categoryPrefs !== undefined) {
+    if (!isObj(migrated.categoryPrefs)) issues.push({ path: 'categoryPrefs', code: 'invalidValue' })
+    else {
+      categoryPrefs = Object.fromEntries(Object.entries(migrated.categoryPrefs).map(([id, pref]) => [id, isObj(pref) ? pick<CategoryPref>(pref, PREF_KEYS) : (pref as CategoryPref)]))
+      issues.push(...validateCategoryPrefs(categoryPrefs))
+    }
+  }
+  const categoryGroups = listOf(migrated.categoryGroups, 'categoryGroups', issues).map((g) => pick<CategoryGroup>(g, GROUP_KEYS))
+  categoryGroups.forEach((g, i) => issues.push(...validateCategoryGroup(g, categoryGroups, `categoryGroups[${i}].`)))
+  checkDuplicates(categoryGroups, 'categoryGroups', issues)
+  const tags = listOf(migrated.tags, 'tags', issues).map((tg) => pick<Tag>(tg, TAG_KEYS))
+  tags.forEach((tg, i) => issues.push(...validateTag(tg, tags, `tags[${i}].`)))
+  checkDuplicates(tags, 'tags', issues)
 
   const accounts = (migrated.accounts as Obj[]).map((a) => {
     const acc = pick<Account>(a, ACCOUNT_KEYS)
@@ -236,6 +303,9 @@ export function validateAppData(raw: unknown): ImportResult {
   const categories = (migrated.categories as Obj[]).map((c) => pick<CustomCategory>(c, CATEGORY_KEYS))
   categories.forEach((c, i) => issues.push(...validateCategory(c, categories, `categories[${i}].`)))
   checkDuplicates(categories, 'categories', issues)
+  const plans = listOf(migrated.plans, 'plans', issues).map((pl) => pick<Plan>(pl, PLAN_LIMIT_KEYS))
+  plans.forEach((pl, i) => issues.push(...validatePlan(pl, { data: { settings, categories }, prefix: `plans[${i}].` })))
+  checkDuplicates(plans, 'plans', issues)
   // Opcional: copias v2 anteriores a los límites no lo traen.
   const rawLimits = Array.isArray(migrated.categoryLimits) ? migrated.categoryLimits : []
   if (rawLimits.length > MAX_RECORDS || !rawLimits.every(isObj)) issues.push({ path: 'categoryLimits', code: 'invalidValue' })
@@ -288,7 +358,7 @@ export function validateAppData(raw: unknown): ImportResult {
   const favorites = listOf(migrated.favorites, 'favorites', issues).map((f) =>
     pick<Favorite>(f, ['id', 'name', 'kind', 'accountId', 'categoryId', 'amountMinor', 'note', 'order', 'createdAt', 'updatedAt']),
   )
-  favorites.forEach((f, i) => issues.push(...validateFavorite(f, { data: { accounts, categories }, prefix: `favorites[${i}].` })))
+  favorites.forEach((f, i) => issues.push(...validateFavorite(f, { data: { accounts, categories, categoryPrefs }, prefix: `favorites[${i}].` })))
   checkDuplicates(favorites, 'favorites', issues)
 
   const reconciliations = listOf(migrated.reconciliations, 'reconciliations', issues).map((r) =>
@@ -366,6 +436,11 @@ export function validateAppData(raw: unknown): ImportResult {
     schedules,
     goals,
     categories,
+    categoryPrefs,
+    categoryGroups,
+    tags,
+    plans,
+    profile,
     categoryLimits,
     categoryRules,
     trash,
@@ -384,7 +459,7 @@ export function validateAppData(raw: unknown): ImportResult {
     updatedAt: typeof migrated.updatedAt === 'string' ? migrated.updatedAt : new Date().toISOString(),
     revision: typeof migrated.revision === 'number' && Number.isSafeInteger(migrated.revision) ? migrated.revision : 0,
   }
-  return { ok: true, data, exportedAt: null }
+  return { ok: true, data, exportedAt: null, withoutReceipts: false }
 }
 
 /** Lee el texto de un archivo de copia de seguridad. */
@@ -404,5 +479,9 @@ export function parseBackup(text: string): ImportResult {
   }
   const result = validateAppData(raw.data)
   if (!result.ok) return result
-  return { ...result, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null }
+  return {
+    ...result,
+    exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null,
+    withoutReceipts: Array.isArray(raw.omitted) && raw.omitted.includes('receipts'),
+  }
 }

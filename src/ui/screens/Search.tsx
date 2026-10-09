@@ -101,9 +101,7 @@ export function Search({ route }: { route: Route }) {
         {tooShort ? t('search.typeMore', { min: MIN_QUERY_LENGTH }) : tn('search.count', total)}
       </p>
       {!tooShort && total === 0 && (
-        <EmptyState icon="search" title={t('search.noResults', { query: deferred.trim() })}>
-          <p>{t(includeTrash || data.trash.length === 0 ? 'search.noResultsHint' : 'search.noResultsTrash')}</p>
-        </EmptyState>
+        <EmptyState icon="search" title={t('search.noResults', { query: deferred.trim() })} text={t(includeTrash || data.trash.length === 0 ? 'search.noResultsHint' : 'search.noResultsTrash')} />
       )}
       {groups.map((g) => (
         <section key={g.kind} className="stack-sm" aria-labelledby={`sg-${g.kind}`}>
@@ -115,7 +113,7 @@ export function Search({ route }: { route: Route }) {
               <li key={`${e.kind}-${e.id}`}>
                 <a className="item item--link" href={href(target(e, back))}>
                   <span className="item__icon">
-                    <Icon name={ICON[e.kind]} size={18} />
+                    <Icon name={ICON[e.kind]} size={16} />
                   </span>
                   <span className="item__main">
                     <span className="item__title">{e.title || t(`search.group.${e.kind}` as MessageKey)}</span>

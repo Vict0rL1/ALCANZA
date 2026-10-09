@@ -22,6 +22,7 @@ import { categoryLabel, issueMessage } from '../labels'
 import { parseMoneyText } from '../moneyText'
 import { parsePercent, percentText } from '../percentText'
 import { href, withQuery, useNavigateIfStillHere, type Route } from '../router'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 type Kind = Template['kind']
 type T = ReturnType<typeof useT>['t']
@@ -42,7 +43,7 @@ function targetLabel(data: AppData, target: string, t: T): string {
 
 /** Problema de disponibilidad de una línea guardada (para avisar en la lista). */
 function lineProblem(data: AppData, tpl: Template, i: number, today: string): boolean {
-  if (tpl.kind === 'split') return !categoriesForKind('expense', data.categories).includes(tpl.lines[i]!.categoryId)
+  if (tpl.kind === 'split') return !categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).includes(tpl.lines[i]!.categoryId)
   const target = tpl.lines[i]!.target
   if (target.kind === 'goal') {
     const g = data.goals.find((x) => x.id === target.goalId)
@@ -84,7 +85,7 @@ export function Templates() {
         </h2>
         <p className="note">{t(kind === 'split' ? 'templates.splitIntro' : 'templates.distributionIntro')}</p>
         {list.length === 0 ? (
-          <p className="note">{t('templates.none')}</p>
+          <EmptyState compact icon="list" title={t('templates.none')} />
         ) : (
           <ul className="item-list">
             {list.map((tpl) => {
@@ -204,7 +205,7 @@ export function TemplateForm({ route }: { route: Route }) {
 
   const targetOptions =
     kind === 'split'
-      ? categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))
+      ? categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))
       : [
           ...data.goals.filter((g) => g.fundedFrom === 'budget' && !g.plan?.paidAt && !g.plan?.link).map((g) => ({ value: `g:${g.id}`, label: t('templates.goalOption', { name: g.name }) })),
           ...data.schedules.filter((s) => s.kind === 'expense').map((s) => ({ value: `p:${s.id}`, label: t('templates.paymentOption', { name: s.name }) })),
@@ -275,12 +276,16 @@ export function TemplateForm({ route }: { route: Route }) {
           <legend className="field__label">{t('templates.lines')}</legend>
           {lines.map((l, i) => (
             <div key={l.key} className="template-line">
+              {kind === 'split' ? (
+                <CategoryPicker label={t('templates.lineCategory', { n: i + 1 })} kind="expense" data={data} value={l.target} onChange={(id) => update(l.key, { target: id })} keep={l.target || undefined} />
+              ) : (
               <SelectField
-                label={t(kind === 'split' ? 'templates.lineCategory' : 'templates.lineTarget', { n: i + 1 })}
+                label={t('templates.lineTarget', { n: i + 1 })}
                 value={l.target}
                 onChange={(e) => update(l.key, { target: e.target.value })}
                 options={[{ value: '', label: t('favorites.choose') }, ...targetOptions, ...(l.target && !targetOptions.some((o) => o.value === l.target) ? [{ value: l.target, label: `${targetLabel(data, l.target, t)} (${t('templates.unavailable')})` }] : [])]}
               />
+              )}
               <Segmented
                 legend={t('templates.mode', { n: i + 1 })}
                 name={`mode-${l.key}`}

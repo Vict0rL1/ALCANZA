@@ -3,12 +3,20 @@
  * Todo lo que se pide es opcional salvo moneda y saldo; se puede explorar la demo.
  */
 import { useRef, useState } from 'react'
+import { currencyName } from '../../domain/formatters'
+import { defaultSettingsV9 } from '../../domain/defaults'
 import { computeBudget, type BudgetResult } from '../../domain/budget'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { SUPPORTED_CURRENCIES } from '../../domain/money'
 import { createInitialData, type SetupInput } from '../../domain/operations'
-import type { AppData, Frequency, GoalFunding, Language, NumberLocale, Settings } from '../../domain/types'
-import { FREQUENCIES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
+import type { AppData, BudgetPeriodType, Frequency, GoalFunding, Language, NumberLocale, Settings } from '../../domain/types'
+import { BUDGET_PERIOD_TYPES } from '../../domain/validation'
+import { defaultOnboardingCategoryIds, EXPENSE_CATEGORY_IDS, INCOME_CATEGORY_IDS, systemCategoryMeta } from '../../domain/categories'
+import { newId } from '../../domain/ids'
+import { saveCategoryV2 } from '../../domain/categoryOps'
+import { categoryLabel } from '../labels'
+import { periodLabel } from '../periodLabel'
+import { FREQUENCIES, LANGUAGES, NUMBER_LOCALES, type Issue } from '../../domain/validation'
 import { createDemoData } from '../../demo/demoData'
 import { useT, type MessageKey } from '../../i18n'
 import { getStore } from '../../state/store'
@@ -16,6 +24,8 @@ import { Alert, CalcRow, Card } from '../components/common'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
+import { WelcomeRestore } from './setup/WelcomeRestore'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { createFormatter } from '../format'
 import { frequencyLabel, issueMessage } from '../labels'
 import { parseMoney } from '../../domain/money'
@@ -28,7 +38,7 @@ interface BillRow {
   frequency: Frequency
 }
 
-const STEPS = 5
+const STEPS = 6
 
 function guessLocale(): NumberLocale {
   const lang = typeof navigator !== 'undefined' ? navigator.language : 'es'
@@ -44,6 +54,11 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   const billKey = useRef(0)
   const [step, setStep] = useState(0)
   const [currency, setCurrency] = useState('CAD')
+  const [periodType, setPeriodType] = useState<BudgetPeriodType>('month')
+  const [categoryIds, setCategoryIds] = useState<string[]>(defaultOnboardingCategoryIds)
+  const [ownCategories, setOwnCategories] = useState<{ id: string; name: string; kind: 'expense' | 'income' }[]>([])
+  const [ownName, setOwnName] = useState('')
+  const [ownKind, setOwnKind] = useState<'expense' | 'income'>('expense')
   const [numberLocale, setNumberLocale] = useState<NumberLocale>(guessLocale)
   const [accountName, setAccountName] = useState('')
   const [balance, setBalance] = useState('')
@@ -62,7 +77,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
 
-  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language, fallbackHorizonDays: null }
+  const settings: Settings = { currency, numberLocale, dateStyle: 'medium', timeZone, language, fallbackHorizonDays: null, ...defaultSettingsV9({ periodType, onboardingDone: true }) }
   const fmt = createFormatter(settings)
   const money = (text: string, opts: { allowNegative?: boolean; allowZero?: boolean } = {}) => parseMoney(text, currency, numberLocale, opts)
 
@@ -70,13 +85,14 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
   const buildInput = (upTo: number): { input: SetupInput | null; errs: Record<string, string> } => {
     const errs: Record<string, string> = {}
     const bal = money(balance, { allowNegative: true, allowZero: true })
-    if (upTo >= 1) {
+    if (upTo >= 1 && (!EXPENSE_CATEGORY_IDS.some((id) => categoryIds.includes(id)) || !INCOME_CATEGORY_IDS.some((id) => categoryIds.includes(id)))) errs.categories = t('setup.categories.needOne')
+    if (upTo >= 2) {
       if (!bal.ok) errs.balance = moneyErrorMessage(t, bal)!
       if (!balanceDate) errs.balanceDate = t('issue.invalidDate')
       else if (balanceDate > today) errs.balanceDate = t('issue.realizedInFuture')
     }
     let income: SetupInput['income'] = null
-    if (upTo >= 2 && hasIncome === 'yes') {
+    if (upTo >= 3 && hasIncome === 'yes') {
       const amt = money(incomeAmount)
       if (!amt.ok) errs.incomeAmount = moneyErrorMessage(t, amt)!
       if (!incomeDate) errs.incomeDate = t('setup.income.dateRequired')
@@ -85,7 +101,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
       }
     }
     const billInputs: SetupInput['bills'] = []
-    if (upTo >= 3) {
+    if (upTo >= 4) {
       bills.forEach((b) => {
         const amt = money(b.amount)
         if (!b.name.trim()) errs[`bill-${b.key}-name`] = t('issue.required')
@@ -95,12 +111,13 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
       })
     }
     let reserveInput: SetupInput['reserve'] = null
-    if (upTo >= 4 && reserve.trim()) {
+    if (upTo >= 5 && reserve.trim()) {
       const amt = money(reserve, { allowZero: true })
       if (!amt.ok) errs.reserve = moneyErrorMessage(t, amt)!
       else if (amt.minor > 0) reserveInput = { amountMinor: amt.minor, fundedFrom: reserveWhere, name: t('setup.reserve.defaultName') }
     }
-    if (Object.keys(errs).length > 0 || !bal.ok) return { input: null, errs }
+    if (Object.keys(errs).length > 0 || (upTo >= 2 && !bal.ok)) return { input: null, errs }
+    if (!bal.ok) return { input: null, errs }
     return {
       input: {
         currency,
@@ -114,6 +131,8 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
         fallbackHorizonDays: hasIncome === 'no' ? Number(horizon) : null,
         bills: billInputs,
         reserve: reserveInput,
+        categoryIds,
+        periodType,
       },
       errs,
     }
@@ -127,15 +146,23 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
    * apartado y muestra ya el primer cálculo: lo avanzado se configura después.
    */
   const next = (toSummary = false) => {
-    const upTo = toSummary ? 4 : step
+    const upTo = toSummary ? 5 : step
     const { input, errs } = buildInput(upTo)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    if (upTo === 4 && input) {
-      const r = createInitialData(input, { today, now: new Date().toISOString() })
-      setPreview(r.ok ? { data: r.data, budget: computeBudget(r.data, today) } : { issues: r.issues })
+    if (upTo === 5 && input) {
+      const now = new Date().toISOString()
+      const r = createInitialData(input, { today, now })
+      // Categorías propias creadas en el onboarding: se añaden a los datos iniciales.
+      let result: { ok: true; data: AppData } | { ok: false; issues: Issue[] } = r
+      for (const own of ownCategories) {
+        if (!result.ok) break
+        const c = saveCategoryV2(result.data, { id: own.id, name: own.name, kind: own.kind }, { today, now })
+        result = c.ok ? { ok: true, data: c.data } : { ok: false, issues: c.issues }
+      }
+      setPreview(result.ok ? { data: result.data, budget: computeBudget(result.data, today) } : { issues: result.issues })
     }
-    setStep((s) => (toSummary ? 5 : s + 1))
+    setStep((s) => (toSummary ? 6 : s + 1))
     window.scrollTo({ top: 0 })
     requestAnimationFrame(() => document.getElementById('setup-step-title')?.focus())
   }
@@ -202,10 +229,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
             name="lang"
             value={language}
             onChange={onLanguageChange}
-            options={[
-              { value: 'es', label: t('settings.language.es') },
-              { value: 'en', label: t('settings.language.en') },
-            ]}
+            options={LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.${l}` as MessageKey) }))}
           />
           <h1 id="setup-step-title" tabIndex={-1}>
             {t('setup.welcome.title')}
@@ -229,10 +253,12 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
             </button>
           </div>
           <p className="note">{t('setup.welcome.demoNote')}</p>
+          <p className="note">{t('setup.welcome.guestNote')}</p>
+          <WelcomeRestore fmt={fmt} timeZone={timeZone} />
         </Card>
       )}
 
-      {step >= 1 && step <= 4 && (
+      {step >= 1 && step <= 5 && (
         <Card className="setup__card">
           <form
             className="form"
@@ -244,8 +270,76 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
           >
             {step === 1 && (
               <>
+                {stepTitle('setup.categories.title')}
+                <p>{t('setup.categories.lead')}</p>
+                {(['expense', 'income'] as const).map((k) => {
+                  const ids = k === 'expense' ? EXPENSE_CATEGORY_IDS : INCOME_CATEGORY_IDS
+                  const count = ids.filter((id) => categoryIds.includes(id)).length + ownCategories.filter((o) => o.kind === k).length
+                  return (
+                    <fieldset key={k} className="field">
+                      <legend className="field__label">
+                        {t(k === 'expense' ? 'setup.categories.expense' : 'setup.categories.income')} · {tn('setup.categories.selected', count)}
+                      </legend>
+                      {/* Fichas verticales: icono, nombre (sin partir palabras) y marca de elegida arriba a la derecha. */}
+                      <div className="cat-tiles">
+                        {ids.map((id) => {
+                          const meta = systemCategoryMeta(id)!
+                          const checked = categoryIds.includes(id)
+                          return (
+                            <label key={id} className="cat-option">
+                              <input type="checkbox" className="cat-option__input" checked={checked} onChange={(e) => setCategoryIds((list) => (e.target.checked ? [...list, id] : list.filter((x) => x !== id)))} />
+                              <CategoryIcon icon={meta.icon} color={meta.color} size="lg" />
+                              <span className="cat-option__label">{categoryLabel(t, id)}</span>
+                              <span className="cat-option__check" aria-hidden="true">
+                                <Icon name="check" size={14} />
+                              </span>
+                            </label>
+                          )
+                        })}
+                        {ownCategories
+                          .filter((o) => o.kind === k)
+                          .map((o) => (
+                            <span key={o.id} className="cat-option cat-option--own">
+                              <CategoryIcon icon="tag" size="lg" />
+                              <span className="cat-option__label">{o.name}</span>
+                              <button type="button" className="btn btn--ghost btn--icon cat-option__remove" onClick={() => setOwnCategories((list) => list.filter((x) => x.id !== o.id))} aria-label={t('setup.categories.ownRemove', { name: o.name })}>
+                                <Icon name="x" size={16} />
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    </fieldset>
+                  )
+                })}
+                <div className="field">
+                  <TextField label={t('setup.categories.ownName')} value={ownName} maxLength={40} onChange={(e) => setOwnName(e.target.value)} />
+                  <Segmented legend={t('categories.kind')} name="ownKind" value={ownKind} onChange={setOwnKind} options={[{ value: 'expense', label: t('categories.kindExpense') }, { value: 'income', label: t('categories.kindIncome') }]} />
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    disabled={!ownName.trim()}
+                    onClick={() => {
+                      const name = ownName.trim()
+                      if (!name) return
+                      setOwnCategories((list) => [...list, { id: `c_${newId()}`, name, kind: ownKind }])
+                      setOwnName('')
+                    }}
+                  >
+                    <Icon name="plus" />
+                    {t('setup.categories.addOwn')}
+                  </button>
+                  {ownCategories.length > 0 && <p className="note">{ownCategories.map((o) => t('setup.categories.ownAdded', { name: o.name })).join(' ')}</p>}
+                </div>
+                {errors.categories && <Alert tone="critical" title={errors.categories} role="alert" />}
+                {nav()}
+              </>
+            )}
+
+            {step === 2 && (
+              <>
                 {stepTitle('setup.balance.title')}
-                <SelectField label={t('setup.balance.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: t(`currency.${c.code}` as MessageKey) }))} hint={t('setup.balance.currencyHint')} />
+                <SelectField label={t('setup.balance.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} · ${currencyName(c.code, language)}` }))} hint={t('setup.balance.currencyHint')} />
+                <SelectField label={t('setup.period.label')} value={periodType} onChange={(e) => setPeriodType(e.target.value as BudgetPeriodType)} options={BUDGET_PERIOD_TYPES.map((p) => ({ value: p, label: t(`period.type.${p}` as MessageKey) }))} hint={t('setup.period.hint')} />
                 <SelectField
                   label={t('settings.format.number')}
                   value={numberLocale}
@@ -260,7 +354,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
               </>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <>
                 {stepTitle('setup.income.title')}
                 <Segmented
@@ -306,7 +400,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
               </>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <>
                 {stepTitle('setup.bills.title')}
                 <p>{t('setup.bills.lead')}</p>
@@ -333,7 +427,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
               </>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <>
                 {stepTitle('setup.reserve.title')}
                 <p>{t('setup.reserve.lead')}</p>
@@ -356,7 +450,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
         </Card>
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <Card className="setup__card">
           {stepTitle('setup.summary.title')}
           {preview && 'budget' in preview ? (
@@ -365,7 +459,9 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
               <p className="hero__value">{fmt.money(preview.budget.status === 'ok' ? preview.budget.availableMinor : preview.budget.spendableMinor)}</p>
               {preview.budget.horizon && (
                 <p className="hero__sub">
-                  {t(preview.budget.horizon.source === 'income' ? 'home.untilIncome' : 'home.untilHorizon', { date: fmt.date(preview.budget.horizon.endDate, { weekday: true }) })} · {tn('home.periodDays', preview.budget.horizon.days)}
+                  {preview.budget.period
+                    ? t('home.period.untilEnd', { label: periodLabel(t, fmt, preview.budget.period), days: tn('home.periodDays', preview.budget.period.daysLeft) })
+                    : `${t(preview.budget.horizon.source === 'income' ? 'home.untilIncome' : 'home.untilHorizon', { date: fmt.date(preview.budget.horizon.endDate, { weekday: true }) })} · ${tn('home.periodDays', preview.budget.horizon.days)}`}
                 </p>
               )}
               <div className="calc">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ceilDiv, floorDiv, formatMoney, minorToDecimalString, minorToInputString, mulDivFloor, parseMoney, sumMinor } from './money'
+import { ceilDiv, floorDiv, formatMoney, groupAmountInput, minorToDecimalString, minorToInputString, mulDivFloor, parseMoney, sumMinor } from './money'
 
 const ok = (input: string, locale = 'es-MX', currency = 'CAD', opts = {}) => {
   const r = parseMoney(input, currency, locale, opts)
@@ -112,5 +112,46 @@ describe('formato', () => {
   it('prepara texto editable con el separador del usuario', () => {
     expect(minorToInputString(123456, 'CAD', 'es-ES')).toBe('1234,56')
     expect(minorToInputString(123456, 'CAD', 'es-MX')).toBe('1234.56')
+  })
+})
+
+describe('groupAmountInput (E2): miles mientras se escribe', () => {
+  it('agrupa por el formato elegido y conserva lo escrito tras el decimal', () => {
+    expect(groupAmountInput('1234567', 'es-MX', 'CAD')).toEqual({ text: '1,234,567', caret: 9 })
+    expect(groupAmountInput('1234.5', 'es-MX', 'CAD')).toEqual({ text: '1,234.5', caret: 7 })
+    expect(groupAmountInput('1234,5', 'es-CO', 'USD')).toEqual({ text: '1.234,5', caret: 7 })
+    expect(groupAmountInput('1.234.567', 'es-CO', 'COP').text).toBe('1.234.567')
+    expect(groupAmountInput('1234', 'es-CL', 'CLP').text).toBe('1.234')
+    expect(groupAmountInput('-1234', 'es-MX', 'CAD').text).toBe('-1,234')
+    expect(groupAmountInput('12,5', 'es-MX', 'CAD').text).toBe('12.5')
+  })
+
+  it('al editar un número ya agrupado, los separadores de miles se recolocan', () => {
+    // Insertar un dígito en medio: «1,2|34» + 5 → «1,25|34» → «12,5|34».
+    expect(groupAmountInput('1,2534', 'es-MX', 'CAD', 4, '1,234')).toEqual({ text: '12,534', caret: 4 })
+    // Borrar un dígito: «12,934» − 9 → «1,234» (no «12.34»).
+    expect(groupAmountInput('12,34', 'es-MX', 'CAD', 3, '12,934').text).toBe('1,234')
+    expect(groupAmountInput('1,2934.5', 'es-MX', 'CAD', 4, '1,234.5')).toEqual({ text: '12,934.5', caret: 4 })
+  })
+
+  it('nunca cambia el significado: textos inválidos, ambiguos o a medio escribir quedan igual', () => {
+    expect(groupAmountInput('12.3.4', 'es-MX', 'CAD').text).toBe('12.3.4')
+    expect(groupAmountInput('12.3.4', 'es-CO', 'COP').text).toBe('12.3.4')
+    expect(groupAmountInput('1234.567', 'es-MX', 'CAD').text).toBe('1234.567')
+    expect(groupAmountInput('1234,5', 'es-CO', 'COP').text).toBe('1234,5')
+    expect(groupAmountInput('1,2345', 'es-MX', 'CAD').text).toBe('1,2345')
+    expect(groupAmountInput('12,', 'es-MX', 'CAD').text).toBe('12,')
+    expect(groupAmountInput('$ 45', 'es-MX', 'CAD').text).toBe('$ 45')
+    expect(groupAmountInput('', 'es-MX', 'CAD')).toEqual({ text: '', caret: 0 })
+    // Lo que se guarda es lo mismo que sin agrupar.
+    for (const [raw, locale, cur] of [['1234567', 'es-MX', 'CAD'], ['85000', 'es-CO', 'COP'], ['1234,5', 'es-CO', 'USD']] as const) {
+      const grouped = groupAmountInput(raw, locale, cur).text
+      expect(parseMoney(grouped, cur, locale)).toEqual(parseMoney(raw, cur, locale))
+    }
+  })
+
+  it('mantiene el cursor sobre el mismo dígito', () => {
+    expect(groupAmountInput('1234', 'es-MX', 'CAD', 2)).toEqual({ text: '1,234', caret: 3 })
+    expect(groupAmountInput('1234567', 'es-MX', 'CAD', 4)).toEqual({ text: '1,234,567', caret: 5 })
   })
 })

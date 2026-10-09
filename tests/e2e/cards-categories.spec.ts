@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { pickCategory, applyFilters, openFilters, go, startDemo } from './helpers'
 
 test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await dialog.getByLabel('Nombre').fill('Visa estudiante')
@@ -24,6 +24,9 @@ test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async
   await expect(page.getByText('aprox. $5.00')).toBeVisible() // 300 × 19.99 % / 12 = 4.9975 → 5.00
 
   await go(page, '/')
+  // El recordatorio es una sección secundaria: vista completa y «Más en tu Inicio» (C1).
+  await page.getByRole('button', { name: 'Ver Inicio completo' }).click()
+  await page.getByTestId('home-more').locator(':scope > summary').click()
   await expect(page.getByText('Pago de tarjeta')).toBeVisible()
   await expect(page.getByText(/Visa estudiante: vence el .* mínimo estimado \$10\.00/)).toBeVisible()
   // La deuda de una tarjeta del presupuesto se descuenta: 136.78 − 300.
@@ -32,34 +35,39 @@ test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async
 
 test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/categorias')
   await page.getByRole('button', { name: 'Nueva categoría' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva categoría' })
-  await dialog.getByLabel('Nombre').fill('Mascotas')
+  await dialog.getByLabel('Nombre').fill('Acuario')
   await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Categoría guardada')).toBeVisible()
 
   // Nombre duplicado
   await page.getByRole('button', { name: 'Nueva categoría' }).click()
-  await page.getByRole('dialog', { name: 'Nueva categoría' }).getByLabel('Nombre').fill('mascotas')
+  await page.getByRole('dialog', { name: 'Nueva categoría' }).getByLabel('Nombre').fill('acuario')
   await page.getByRole('dialog', { name: 'Nueva categoría' }).getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Ya existe una categoría con ese nombre.')).toBeVisible()
   await page.getByRole('dialog', { name: 'Nueva categoría' }).getByRole('button', { name: 'Cancelar' }).click()
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('25')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Mascotas' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Acuario')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Mascotas' })
+  await pickCategory(page, (await openFilters(page)).getByLabel('Categoría', { exact: true }), 'Acuario')
+  await applyFilters(page)
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
 
   // Archivar: desaparece de formularios pero el movimiento la conserva.
-  await go(page, '/ajustes')
-  await page.getByRole('button', { name: /Archivar.*Mascotas/ }).click()
+  await go(page, '/ajustes/categorias')
+  await page.getByRole('button', { name: /^Archivar.*Acuario$/ }).click()
+  // Con registros, el diálogo ofrece reasignar; sin elegir destino, el movimiento conserva la categoría.
+  await page.getByRole('dialog', { name: '¿Archivar «Acuario»?' }).getByRole('button', { name: 'Archivar', exact: true }).click()
   await expect(page.getByText('Categoría archivada')).toBeVisible()
   await go(page, '/movimientos/nuevo')
-  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Mascotas' })).toHaveCount(0)
+  await page.getByLabel('Categoría', { exact: true }).click()
+  await expect(page.getByTestId('category-picker').getByRole('option', { name: 'Acuario' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await go(page, '/movimientos')
-  await expect(page.locator('.item__meta', { hasText: 'Mascotas' }).first()).toBeVisible()
+  await expect(page.locator('.item__meta', { hasText: 'Acuario' }).first()).toBeVisible()
 })

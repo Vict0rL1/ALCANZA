@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { available, go, startDemo } from './helpers'
+import { openExplain, available, go, startDemo } from './helpers'
 
 test('¿Qué cambió?: desglose exacto desde el inicio del historial y sin inventar lo anterior', async ({ page }) => {
   await startDemo(page)
   await expect(await available(page)).toHaveText('$136.78')
 
   // Información pendiente y supuestos visibles en «¿Cómo se calculó?».
-  await page.getByText('¿Cómo se calculó?').first().click()
+  await openExplain(page)
   await expect(page.getByTestId('explain-pending')).toBeVisible()
   await expect(page.getByText('Se supone que', { exact: false }).first()).toBeVisible()
 
@@ -15,6 +15,7 @@ test('¿Qué cambió?: desglose exacto desde el inicio del historial y sin inven
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$124.28')
 
+  await openExplain(page)
   await page.getByTestId('what-changed-link').click()
   await expect(page.getByRole('heading', { name: '¿Qué cambió?' })).toBeVisible()
   // El historial empezó hoy: «inicio de ayer» no se puede reconstruir y se dice.

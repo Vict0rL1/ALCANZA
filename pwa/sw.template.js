@@ -3,7 +3,7 @@
  * - Guarda en caché la app completa de ESTA versión para usarla sin conexión.
  * - Sirve siempre desde la caché de su versión (coherencia entre HTML y archivos).
  * - Una versión nueva se instala en segundo plano y la app muestra «Actualizar».
- * - Nunca guarda datos financieros: esos viven en localStorage.
+ * - Nunca guarda datos financieros: esos viven en IndexedDB (localStorage solo como respaldo).
  */
 const VERSION = '__VERSION__'
 // Prefijo con el nombre anterior («Margen») para limpiar también las cachés ya instaladas.
@@ -37,7 +37,10 @@ self.addEventListener('fetch', (event) => {
   const key = request.mode === 'navigate' ? '/' : request
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      const hit = await cache.match(key)
+      // Cada URL de la caché es un archivo fijo de ESTA versión: no depende de cabeceras como
+      // `Origin`. Sin `ignoreVary`, una respuesta con `Vary: Origin` no coincide cuando el navegador
+      // añade `Origin` a un import() (Chromium 153) y, sin conexión, la pantalla no abriría.
+      const hit = await cache.match(key, { ignoreVary: true })
       if (hit) return hit
       const response = await fetch(request)
       if (response.ok && request.mode !== 'navigate') cache.put(request, response.clone())

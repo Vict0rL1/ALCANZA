@@ -2,13 +2,29 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { registerServiceWorker } from './pwa/register'
-import { AppStore, setStore } from './state/store'
+import { captureInstallPrompt } from './ui/install'
+import { collectUserStrings, installErrorLog } from './ui/errorLog'
+import { APP_VERSION } from './ui/version'
+import { enablePseudoLocale } from './i18n'
+import { AppStore, getStore, setStore } from './state/store'
 import { createRepository } from './storage/indexedDbRepository'
 import './styles.css'
 import { watchThemeChanges } from './ui/theme'
 
+// Informe de errores (M3): antes que nada, para ver también los fallos al arrancar. Los textos de la
+// persona (si ya hay datos cargados) se quitan de cada mensaje.
+installErrorLog({
+  version: APP_VERSION,
+  userStrings: () => {
+    const data = getStore().data
+    return data ? collectUserStrings(data) : []
+  },
+})
 registerServiceWorker()
+captureInstallPrompt()
 watchThemeChanges()
+// Pseudo-locale solo en desarrollo: `?pseudo=1` marca todo texto que pasa por i18n.
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('pseudo') === '1') enablePseudoLocale(true)
 
 // IndexedDB si el navegador lo permite; si no, localStorage (ver docs/STORAGE.md).
 void createRepository().then((repo) => {

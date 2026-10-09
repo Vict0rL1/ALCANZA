@@ -1,9 +1,10 @@
 /**
  * Campos de formulario con etiqueta, ayuda y error asociados (aria-describedby).
  */
-import { useId, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes } from 'react'
+import { useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { useT } from '../../i18n'
 import type { Formatter } from '../format'
+import { groupAmountInput } from '../../domain/money'
 
 interface FieldShellProps {
   label: string
@@ -46,6 +47,23 @@ export function TextField({ label, hint, error, className, ...rest }: InputProps
     <FieldShell label={label} hint={hint} error={error} className={className}>
       {({ inputId, describedBy, invalid }) => (
         <input id={inputId} className="input" aria-describedby={describedBy} aria-invalid={invalid || undefined} {...rest} />
+      )}
+    </FieldShell>
+  )
+}
+
+type TextAreaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> & {
+  label: string
+  hint?: ReactNode
+  error?: string | null
+}
+
+/** Texto de varias líneas con la misma cáscara (etiqueta, ayuda y error asociados) que `TextField`. */
+export function TextAreaField({ label, hint, error, className, ...rest }: TextAreaProps) {
+  return (
+    <FieldShell label={label} hint={hint} error={error} className={className}>
+      {({ inputId, describedBy, invalid }) => (
+        <textarea id={inputId} className="input textarea" aria-describedby={describedBy} aria-invalid={invalid || undefined} {...rest} />
       )}
     </FieldShell>
   )
@@ -164,6 +182,15 @@ export function MoneyField({
   name?: string
 }) {
   const { t } = useT()
+  // E2: miles agrupados mientras se escribe; el cursor se queda sobre el mismo dígito.
+  const inputRef = useRef<HTMLInputElement>(null)
+  const caretRef = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (caretRef.current === null || !inputRef.current) return
+    const el = inputRef.current
+    if (document.activeElement === el) el.setSelectionRange(caretRef.current, caretRef.current)
+    caretRef.current = null
+  })
   return (
     <FieldShell label={label} hint={hint} error={error} className={big ? 'field--money-big' : undefined}>
       {({ inputId, describedBy, invalid }) => (
@@ -172,6 +199,7 @@ export function MoneyField({
             {fmt.currency}
           </span>
           <input
+            ref={inputRef}
             id={inputId}
             name={name}
             className="input money-input__field"
@@ -180,7 +208,12 @@ export function MoneyField({
             enterKeyHint="done"
             placeholder={t('money.placeholder', { sep: fmt.decimalSeparator })}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              const el = e.target
+              const { text, caret } = groupAmountInput(el.value, fmt.numberLocale, fmt.currency, el.selectionStart ?? el.value.length, value)
+              caretRef.current = caret
+              onChange(text)
+            }}
             aria-describedby={describedBy}
             aria-invalid={invalid || undefined}
             autoFocus={autoFocus}

@@ -33,50 +33,72 @@ export function usePwaState(): PwaState {
   )
 }
 
+/** Estado actual (para pruebas). */
+export function getPwaState(): PwaState {
+  return state
+}
+
 export function registerServiceWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator) || !window.isSecureContext) return
-  window.addEventListener('load', async () => {
-    try {
-      // ¿Esta pestaña ya estaba controlada por una versión anterior? En la primera visita
-      // la activación (clients.claim) también dispara «controllerchange» y no es una versión nueva.
-      const hadController = !!navigator.serviceWorker.controller
-      const registration = await navigator.serviceWorker.register('/sw.js')
-      let requested = false
-      const offer = (worker: ServiceWorker) =>
-        set({
-          update: () => {
-            requested = true
-            worker.postMessage('skipWaiting')
-          },
-        })
-      /** Sigue a una versión que se está instalando hasta que quede lista (o falle). */
-      const track = (worker: ServiceWorker | null) => {
-        if (!worker) return
-        const check = () => {
-          if (worker.state !== 'installed') return
-          if (navigator.serviceWorker.controller) offer(worker)
-          else set({ offlineReady: true })
-        }
-        worker.addEventListener('statechange', check)
-        check()
-      }
-      if (registration.waiting && navigator.serviceWorker.controller) offer(registration.waiting)
-      // La comprobación de versión empieza al navegar: puede estar instalándose ya.
-      track(registration.installing)
-      registration.addEventListener('updatefound', () => track(registration.installing))
+  const start = () => void connect(navigator.serviceWorker, () => window.location.reload())
+  // Si la página terminó de cargar antes de llegar aquí, «load» ya no llegará.
+  if (document.readyState === 'complete') start()
+  else window.addEventListener('load', start, { once: true })
+}
+
+/**
+ * Conecta la página con su service worker. «Uso sin conexión: activo» sale de lo que de verdad
+ * permite abrir sin red: una página ya controlada o un service worker activo. No depende de que
+ * `register()` responda: sin conexión puede fallar al buscar una versión nueva.
+ */
+export async function connect(container: ServiceWorkerContainer, reload: () => void) {
+  // ¿Esta pestaña ya estaba controlada por una versión anterior? En la primera visita
+  // la activación (clients.claim) también dispara «controllerchange» y no es una versión nueva.
+  const hadController = !!container.controller
+  if (hadController) set({ offlineReady: true })
+  container.ready.then(
+    (registration) => {
       if (registration.active) set({ offlineReady: true })
-      let reloading = false
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (reloading) return
-        if (requested) {
-          reloading = true
-          window.location.reload()
-        } else if (hadController || state.update) {
-          set({ update: null, reloadNeeded: true })
-        }
+    },
+    () => {},
+  )
+  try {
+    const registration = await container.register('/sw.js')
+    let requested = false
+    const offer = (worker: ServiceWorker) =>
+      set({
+        update: () => {
+          requested = true
+          worker.postMessage('skipWaiting')
+        },
       })
-    } catch {
-      // Sin service worker la app sigue funcionando; solo no estará disponible sin conexión.
+    /** Sigue a una versión que se está instalando hasta que quede lista (o falle). */
+    const track = (worker: ServiceWorker | null) => {
+      if (!worker) return
+      const check = () => {
+        if (worker.state !== 'installed') return
+        if (container.controller) offer(worker)
+        else set({ offlineReady: true })
+      }
+      worker.addEventListener('statechange', check)
+      check()
     }
-  })
+    if (registration.waiting && container.controller) offer(registration.waiting)
+    // La comprobación de versión empieza al navegar: puede estar instalándose ya.
+    track(registration.installing)
+    registration.addEventListener('updatefound', () => track(registration.installing))
+    if (registration.active) set({ offlineReady: true })
+    let reloading = false
+    container.addEventListener('controllerchange', () => {
+      if (reloading) return
+      if (requested) {
+        reloading = true
+        reload()
+      } else if (hadController || state.update) {
+        set({ update: null, reloadNeeded: true })
+      }
+    })
+  } catch {
+    // Sin service worker la app sigue funcionando; solo no estará disponible sin conexión.
+  }
 }

@@ -6,10 +6,11 @@
  * Guardar dos veces el mismo id actualiza el registro; no crea duplicados.
  */
 import { computeBudget } from './budget'
+import { defaultCollectionsV9, defaultSettingsV9 } from './defaults'
 import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
-import { sumMinor } from './money'
+import { isSupportedCurrency, sumMinor } from './money'
 import { findSettlement } from './planItems'
 import { balanceAtDate, reconciliationFingerprint } from './reconcile'
 import type {
@@ -18,8 +19,8 @@ import type {
   AppData,
   SplitLine,
   CardDetails,
-  CategoryLimit,
   CategoryRule,
+  CurrencyCode,
   CustomCategory,
   Favorite,
   Goal,
@@ -33,11 +34,12 @@ import type {
   Transaction,
   TrashEntry,
 } from './types'
-import { SCHEMA_VERSION } from './types'
+import { SCHEMA_VERSION, type BudgetPeriodType, type TransactionSource } from './types'
+import { applyOnboardingCategories } from './categoryOps'
+import { defaultOnboardingCategoryIds } from './categories'
 import {
   validateAccount,
   validateCategory,
-  validateCategoryLimit,
   validateCategoryRule,
   validateFavorite,
   validateGoal,
@@ -77,7 +79,9 @@ function upsert<T extends { id: string }>(list: T[], item: T): T[] {
 /* Movimientos                                                         */
 /* ------------------------------------------------------------------ */
 
-export type TransactionDraft = Omit<Transaction, 'createdAt' | 'updatedAt' | 'currency' | 'realizedAt'> & {
+export type TransactionDraft = Omit<Transaction, 'createdAt' | 'updatedAt' | 'currency' | 'realizedAt' | 'receiptUri'> & {
+  /** Foto del recibo (data URL comprimida). `null` quita la existente; ausente la conserva. */
+  receiptUri?: string | null
   /**
    * Solo si la fecha coincide con la del saldo de referencia: el movimiento ya
    * estaba incluido en el saldo escrito, así que no debe volver a restarse.
@@ -134,6 +138,12 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
           : { categoryId: draft.categoryId }),
     ...(draft.kind === 'refund' && draft.refundOfId ? { refundOfId: draft.refundOfId } : {}),
     ...(cleanText(draft.note) ? { note: cleanText(draft.note) } : {}),
+    // v9: comercio, etiquetas y origen (se conservan al editar si el formulario no los manda).
+    ...(cleanText(draft.merchant ?? existing?.merchant) ? { merchant: cleanText(draft.merchant ?? existing?.merchant) } : {}),
+    ...((draft.tagIds ?? existing?.tagIds)?.length ? { tagIds: draft.tagIds ?? existing?.tagIds } : {}),
+    ...((draft.source ?? existing?.source) ? { source: draft.source ?? existing?.source } : {}),
+    ...((draft.favoriteId ?? existing?.favoriteId) ? { favoriteId: draft.favoriteId ?? existing?.favoriteId } : {}),
+    ...(draft.receiptUri === null ? {} : (draft.receiptUri ?? existing?.receiptUri) ? { receiptUri: draft.receiptUri ?? existing?.receiptUri } : {}),
     ...(draft.scheduleId ? { scheduleId: draft.scheduleId, occurrenceDate: draft.occurrenceDate } : {}),
     ...(draft.scheduleId && draft.partialSettlement ? { partialSettlement: true } : {}),
     ...(realizedAt ? { realizedAt } : {}),
@@ -156,6 +166,22 @@ export function saveTransaction(data: AppData, draft: TransactionDraft, ctx: OpC
 
 /* ------------------------------------------------------------------ */
 /* Papelera                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Envía varios movimientos a la papelera en una sola operación (todos o ninguno). */
+export function trashTransactions(data: AppData, ids: readonly string[], ctx: OpContext): OpResult<TrashEntry[]> {
+  let next = data
+  const entries: TrashEntry[] = []
+  for (const id of ids) {
+    const r = deleteTransaction(next, id, ctx)
+    if (!r.ok) return r
+    next = r.data
+    entries.push(r.value)
+  }
+  if (entries.length === 0) return fail([{ path: 'ids', code: 'required' }])
+  return { ok: true, data: next, value: entries }
+}
+
 /* ------------------------------------------------------------------ */
 
 /**
@@ -205,6 +231,24 @@ export interface RestoreResult {
   relinkedRefundIds: string[]
   /** La devolución restaurada ya no se pudo vincular a su gasto (eliminado o sin saldo por devolver). */
   refundLinkDropped: boolean
+}
+
+/**
+ * Restaura varios movimientos de la papelera en una sola operación: todo o nada. Si alguno no
+ * puede volver (p. ej. su ocurrencia ya se pagó con otro movimiento), no se restaura ninguno.
+ */
+export function restoreFromTrashMany(data: AppData, ids: readonly string[], ctx: OpContext): OpResult<RestoreResult[]> {
+  let next = data
+  const values: RestoreResult[] = []
+  let unchanged = true
+  for (const id of ids) {
+    const r = restoreFromTrash(next, id, ctx)
+    if (!r.ok) return r
+    if (!r.unchanged) unchanged = false
+    next = r.data
+    values.push(r.value)
+  }
+  return unchanged ? { ok: true, data, value: values, unchanged: true } : { ok: true, data: next, value: values }
 }
 
 /**
@@ -389,6 +433,10 @@ export function saveSchedule(data: AppData, draft: ScheduleDraft, ctx: OpContext
     accountId: draft.accountId,
     categoryId: draft.categoryId,
     frequency: draft.frequency,
+    // v9: intervalo personalizado, confirmación automática y pausa (el formulario los manda explícitos).
+    ...(draft.frequency === 'custom' && draft.intervalDays !== undefined ? { intervalDays: draft.intervalDays } : {}),
+    ...(draft.autoConfirm ? { autoConfirm: true } : {}),
+    ...(draft.paused ? { paused: true } : {}),
     startDate: draft.startDate,
     ...(draft.frequency !== 'once' && draft.endDate ? { endDate: draft.endDate } : {}),
     reminderDaysBefore: draft.reminderDaysBefore,
@@ -440,6 +488,8 @@ export interface MarkOccurrenceInput {
   /** Desde el formulario de movimientos: categoría y nota elegidas (por defecto, las del programado). */
   categoryId?: string
   note?: string
+  /** Origen del registro (`scheduled` cuando lo confirma la app sola). */
+  source?: TransactionSource
 }
 
 /** Lo que falta por recibir o pagar de una ocurrencia (esperado − parciales ya registrados). */
@@ -485,6 +535,7 @@ export function markOccurrence(data: AppData, input: MarkOccurrenceInput, ctx: O
       scheduleId: schedule.id,
       occurrenceDate: input.occurrenceDate,
       ...(input.expectRemainder ? { partialSettlement: true } : {}),
+      ...(input.source ? { source: input.source } : {}),
       alreadyInBalance: input.alreadyInBalance,
     },
     ctx,
@@ -537,6 +588,9 @@ export function saveGoal(data: AppData, draft: GoalDraft, ctx: OpContext): OpRes
     currency: data.settings.currency,
     fundedFrom: draft.fundedFrom,
     allocations: existing?.allocations ?? [],
+    ...(draft.icon ? { icon: draft.icon } : {}),
+    ...(draft.color ? { color: draft.color } : {}),
+    ...(draft.contribution ? { contribution: draft.contribution } : {}),
     // Gasto planificado: se conserva el historial de periodos pagados al editar.
     ...(draft.kind === 'expense'
       ? { plan: { ...(existing?.plan ?? {}), ...(draft.plan ?? {}), history: existing?.plan?.history ?? draft.plan?.history ?? [] } }
@@ -765,23 +819,19 @@ export function deleteCategory(data: AppData, id: string, ctx: OpContext): OpRes
   if (used) return fail([{ path: 'id', code: 'categoryInUse' }])
   return {
     ok: true,
-    data: touch({ ...data, categories: data.categories.filter((c) => c.id !== id), categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id), categoryRules: data.categoryRules.filter((r) => r.categoryId !== id) }, ctx.now),
+    data: touch(
+      {
+        ...data,
+        categories: data.categories.filter((c) => c.id !== id),
+        categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== id),
+        categoryRules: data.categoryRules.filter((r) => r.categoryId !== id),
+        // Un plan solo para esta categoría desaparece; uno de varias la pierde (vacío significaría «todas»).
+        plans: data.plans.filter((p) => !(p.categoryIds.length === 1 && p.categoryIds[0] === id)).map((p) => (p.categoryIds.includes(id) ? { ...p, categoryIds: p.categoryIds.filter((c) => c !== id), updatedAt: ctx.now } : p)),
+      },
+      ctx.now,
+    ),
     value: category,
   }
-}
-
-/** Crea o cambia el límite mensual de una categoría de gasto (uno por categoría). */
-export function setCategoryLimit(data: AppData, limit: CategoryLimit, ctx: OpContext): OpResult<CategoryLimit> {
-  const issues = validateCategoryLimit(limit, data.categories)
-  if (issues.length) return fail(issues)
-  const others = data.categoryLimits.filter((l) => l.categoryId !== limit.categoryId)
-  return { ok: true, data: touch({ ...data, categoryLimits: [...others, limit] }, ctx.now), value: limit }
-}
-
-export function removeCategoryLimit(data: AppData, categoryId: string, ctx: OpContext): OpResult<CategoryLimit> {
-  const limit = data.categoryLimits.find((l) => l.categoryId === categoryId)
-  if (!limit) return fail([{ path: 'categoryId', code: 'notFound' }])
-  return { ok: true, data: touch({ ...data, categoryLimits: data.categoryLimits.filter((l) => l.categoryId !== categoryId) }, ctx.now), value: limit }
 }
 
 /* ------------------------------------------------------------------ */
@@ -981,6 +1031,23 @@ export function moveFavorite(data: AppData, id: string, direction: -1 | 1, ctx: 
 /* Ajustes                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Cambiar la moneda del presupuesto (§7.7). Solo sin registros con importe: los importes
+ * guardados no se convierten (no hay tipo de cambio) y cambiar la etiqueta cambiaría su
+ * significado. Con registros se rechaza con `currencyMismatch` y la interfaz explica la vía
+ * (exportar y empezar un presupuesto nuevo).
+ */
+export function changeCurrency(data: AppData, currency: CurrencyCode, ctx: OpContext): OpResult<Settings> {
+  if (!isSupportedCurrency(currency)) return fail([{ path: 'currency', code: 'invalidValue' }])
+  if (currency === data.settings.currency) return { ok: true, data, value: data.settings, unchanged: true }
+  const hasAmounts = data.transactions.length > 0 || data.trash.length > 0 || data.schedules.length > 0 || data.goals.length > 0 || data.plans.length > 0 || data.favorites.some((f) => f.amountMinor !== undefined) || data.periodBudgets.length > 0
+  if (hasAmounts) return fail([{ path: 'currency', code: 'currencyMismatch', params: { expected: data.settings.currency } }])
+  const settings: Settings = { ...data.settings, currency }
+  const issues = validateSettings(settings)
+  if (issues.length) return fail(issues)
+  return { ok: true, data: touch({ ...data, settings }, ctx.now), value: settings }
+}
+
 export function updateSettings(data: AppData, patch: Partial<Omit<Settings, 'currency'>>, ctx: OpContext): OpResult<Settings> {
   const settings: Settings = { ...data.settings, ...patch }
   const issues = validateSettings(settings)
@@ -1008,6 +1075,10 @@ export interface SetupInput {
   bills: { name: string; amountMinor: number; date: LocalDate; frequency: Schedule['frequency'] }[]
   /** `name` llega traducido desde la interfaz (p. ej. «Reserva de emergencia»). */
   reserve: { amountMinor: number; fundedFrom: Goal['fundedFrom']; name: string } | null
+  /** Categorías del sistema elegidas en el onboarding (§7.1); si falta, quedan las propuestas por defecto. */
+  categoryIds?: readonly string[]
+  /** Periodo del presupuesto (§7.1); por defecto mensual en instalaciones nuevas. */
+  periodType?: BudgetPeriodType
 }
 
 export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<AppData> {
@@ -1024,12 +1095,14 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
       language: input.language,
       fallbackHorizonDays: input.income ? null : input.fallbackHorizonDays,
       weeklyReview: true,
+      ...defaultSettingsV9({ periodType: input.periodType ?? 'month', onboardingDone: true }),
     },
     accounts: [],
     transactions: [],
     schedules: [],
     goals: [],
     categories: [],
+    ...defaultCollectionsV9(),
     categoryLimits: [],
     categoryRules: [],
     trash: [],
@@ -1050,6 +1123,10 @@ export function createInitialData(input: SetupInput, ctx: OpContext): OpResult<A
   }
   const settingsIssues = validateSettings(data.settings, 'settings.')
   if (settingsIssues.length) return fail(settingsIssues)
+
+  const chosen = applyOnboardingCategories(data, input.categoryIds ?? defaultOnboardingCategoryIds(), ctx)
+  if (!chosen.ok) return fail(chosen.issues)
+  data = chosen.data
 
   const account: Account = {
     id: accountId,

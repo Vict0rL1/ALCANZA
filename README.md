@@ -1,5 +1,11 @@
 # Clara · prototipo local de finanzas personales
 
+[![CI](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml)
+
+**Dirección pública (beta):** <https://clara-d3m.pages.dev> — se activa con el primer despliegue a
+producción (al fusionar en `main`; ver [Cómo publicar](#cómo-publicar)). Cada PR tiene además su vista
+previa en `https://<id>.clara-d3m.pages.dev`.
+
 > **Nombre:** la app se llamaba «Margen». El nombre visible ahora es **Clara** (igual en
 > español e inglés). Los identificadores internos conservan el nombre anterior
 > (`margen.data.v1` en el navegador, formato de copia `margen-backup`, cachés `margen-…`) para
@@ -17,8 +23,9 @@ variables, pero útil para cualquiera.
 
 > **Estado: prototipo local.** Funciona solo en tu navegador. No hay cuentas de usuario,
 > ni servidor, ni conexión con bancos, ni IA. Los datos se guardan en este navegador
-> (`localStorage`): **si borras los datos del navegador se pierden** y **todavía no se
-> sincronizan entre dispositivos**. Usa *Ajustes → Copia de seguridad* para exportarlos.
+> (IndexedDB; `localStorage` si no hay): **si borras los datos del navegador se pierden** y
+> **no se sincronizan entre dispositivos**. Usa *Ajustes → Copias de seguridad* para exportarlos
+> y [`docs/RESTORE.md`](docs/RESTORE.md) para llevarlos a otro dispositivo.
 
 ---
 
@@ -265,6 +272,9 @@ npm run check
 
 Revisa tipos, estilo de código y pruebas de lógica.
 
+Lo mismo se ejecuta en GitHub en cada PR (la insignia «CI» de arriba muestra el estado de
+`main`): ver [`docs/RELEASE.md`](docs/RELEASE.md).
+
 ## 6. Comandos disponibles
 
 | Comando | Qué hace |
@@ -274,6 +284,8 @@ Revisa tipos, estilo de código y pruebas de lógica.
 | `npm run preview` | Sirve la versión optimizada |
 | `npm test` | Pruebas de lógica (Vitest) |
 | `npm run test:e2e` | Pruebas en navegador (Playwright) |
+| `npm run test:smoke` | Solo las ~10 pruebas esenciales marcadas `@smoke` (1–2 min) |
+| `npm run size` | Tras `npm run build`: falla si el JS inicial crece más de un 10 % (`scripts/size-baseline.json`) |
 | `npm run typecheck` | Comprobación de tipos de TypeScript |
 | `npm run lint` | Revisión de estilo y errores comunes (oxlint) |
 | `node scripts/generate-icons.mjs` | Regenera los iconos PNG de la PWA desde `public/icon.svg` |
@@ -327,6 +339,21 @@ monedas, notificaciones del teléfono, IA. Ver `docs/ROADMAP.md`.
 
 **Rendimiento:** medido con 1.000, 10.000 y 50.000 movimientos sintéticos en la versión
 compilada; cifras, cuellos de botella corregidos y límites en `docs/PERFORMANCE.md`.
+
+## Cómo publicar
+
+Clara se publica en Cloudflare Pages desde GitHub Actions; no hay que compilar ni subir nada a mano:
+
+1. Una sola vez, Victor sigue [`docs/RELEASE.md`](docs/RELEASE.md) › «Lo que tienes que hacer tú»
+   (proteger `main`, cuenta y proyecto de Cloudflare, token y secretos).
+2. Cada PR recibe una vista previa con su dirección en un comentario, tras pasar todas las pruebas.
+3. Al fusionar en `main`, CI publica en producción y comprueba lo publicado con las pruebas rápidas.
+4. Durante la beta: la prueba en dispositivos reales ([`docs/DEVICE-TEST.md`](docs/DEVICE-TEST.md)),
+   un aviso semanal con la plantilla «Beta: comentario semanal», un aviso «Error» por cada fallo y una
+   etiqueta `v1.0.0-beta.N` por cada despliegue a producción (`docs/RELEASE.md` › F).
+
+Volver a una versión anterior tiene una regla: solo con el mismo `SCHEMA_VERSION` (los datos del
+navegador pueden haber cambiado de formato). Ver [`docs/ROLLBACK.md`](docs/ROLLBACK.md).
 
 ## 9. Solución de problemas
 

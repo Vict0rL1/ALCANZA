@@ -3,7 +3,7 @@ import { available, go, startDemo } from './helpers'
 
 test('tarjeta de crédito: la deuda descuenta y el pago no cuenta dos veces', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   await dialog.getByLabel('Nombre').fill('Visa')
@@ -29,6 +29,6 @@ test('tarjeta de crédito: la deuda descuenta y el pago no cuenta dos veces', as
   await expect(page.getByText('Pago de tarjeta: reduce tu deuda', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$16.78')
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await expect(page.getByText('Debes $0.00')).toBeVisible()
 })

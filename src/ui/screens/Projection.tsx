@@ -6,7 +6,7 @@ import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { ProjectionChart } from '../components/charts'
-import { Alert, Card, Explain } from '../components/common'
+import { Alert, Card, Explain, Why } from '../components/common'
 import { MoneyField, Segmented } from '../components/fields'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { useFormat } from '../format'
@@ -37,10 +37,12 @@ export function Projection() {
   return (
     <div className="stack">
       <Card>
-        <p className="lead">{t('projection.intro')}</p>
+        <Why short={t('projection.introShort')}>{t('projection.intro')}</Why>
         {projection.firstNegativeDate ? (
           <Alert tone="critical" title={t('projection.shortfallTitle', { date: fmt.date(projection.firstNegativeDate, { weekday: true }) })} role="status">
-            {t('projection.shortfallText', { amount: fmt.money(projection.lowest.minor), date: fmt.date(projection.lowest.date) })}
+            <Why short={t('projection.shortfallShort', { amount: fmt.money(projection.lowest.minor), date: fmt.date(projection.lowest.date) })}>
+              {t('projection.shortfallText', { amount: fmt.money(projection.lowest.minor), date: fmt.date(projection.lowest.date) })}
+            </Why>
           </Alert>
         ) : (
           <Alert tone="good" title={t('projection.noShortfallTitle')}>
@@ -63,7 +65,7 @@ export function Projection() {
           />
         )}
         <ProjectionChart projection={projection} fmt={fmt} today={today} />
-        <p className="note">{t('projection.chartNote')}</p>
+        <Why short={t('projection.chartShort')}>{t('projection.chartNote')}</Why>
       </Card>
 
       {hasVariable && (
@@ -103,7 +105,7 @@ export function Projection() {
               </tbody>
             </table>
           </div>
-          <p className="note">{t('projection.scenarioHint')}</p>
+          <Why short={t('projection.scenarioShort')}>{t('projection.scenarioHint')}</Why>
         </Card>
       )}
 

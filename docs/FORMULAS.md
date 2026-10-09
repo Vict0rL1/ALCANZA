@@ -883,3 +883,163 @@ ni viajan en las copias.
   porcentaje de avance de una meta sigue visible porque no es un importe.
 
 Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
+
+## 31. Periodos de presupuesto y *safe to spend* (v2)
+
+- Tipos: semana (día de inicio configurable), quincena (1–15 / 16–fin), mes, trimestre, semestre y año alineados al calendario, personalizado (el rango se repite con la misma duración hasta contener hoy) y «hasta mi próximo ingreso» (modelo original: hoy … día anterior al ingreso).
+- `daysLeft` cuenta hoy y el último día del periodo. Si hoy ya pasó el fin, es 0 y no se divide.
+- Saldo del periodo: `carryOver = saldo consolidado de hoy − (ingresos − gastos realizados del periodo)`. Con arrastre, `base = carryOver + ingresos − gastos` (= saldo consolidado); sin arrastre, `base = ingresos − gastos`. `availablePct = base disponible / (carryOver + ingresos)` solo si el denominador es > 0.
+- Disponible = `base − pagos reservados hasta el fin del periodo (incluido) − apartados de metas`. Las mismas reservas que §1; nada cambia para `untilIncome`.
+- *Safe to spend* = `max(disponible − comprometido, 0)`; por día = `floor(safe / daysLeft)`; por semana = `floor(safe × min(7, daysLeft) / daysLeft)`; por periodo = `safe`.
+
+## 32. Asistente de registro (parser local)
+
+- Entradas: líneas, «;», y «,» o conectores («y», «and», «e», «et») solo cuando cada parte tiene un número. Máximo 200.
+- Importe: primer número con símbolo o decimales; si no, el primero. Separadores regionales (`1.234,56`, `1,234.56`, `1 234,56`), «k»/«mil»/«M», números en palabras (es/en/pt/fr). Monedas sin decimales redondean a entero. Sin importe, la entrada lo pide y su confianza queda ≤ 0,25.
+- Tipo: ingreso si aparece una palabra clave de ingreso en cualquiera de los cuatro idiomas; si no, gasto.
+- Fecha: ISO, `d/m(/a)`, «15 de octubre» / «oct 15» (en inglés manda mes-día), relativas (hoy, ayer, anteayer…) y días de la semana (el más reciente, hoy incluido). Una fecha futura se sustituye por hoy. Sin fecha: hoy.
+- Categoría, por prioridad: regla de la persona → palabra aprendida del historial (≥ 2 veces y mayoría) → diccionario por palabra clave (gana la más larga). Solo categorías activas del tipo detectado; si nada coincide, no se inventa.
+- Confianza: 0,5 con importe (0,15 sin él) + 0,3 regla / 0,25 aprendida / 0,2 diccionario + 0,1 fecha + 0,05 ingreso explícito − 0,1 importe en palabras; acotada a [0,05, 0,95].
+
+## 33. Programados v2 y avisos locales
+
+- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por el importe previsto, `source: 'scheduled'`. Idempotente: una ocurrencia liquidada u omitida no se registra.
+- Pausa: un programado en pausa no genera ocurrencias ni reservas; al reanudar vuelven las futuras y las vencidas no omitidas.
+- Avisos: con `scheduledAlerts`, vencidos (desde las 09:00) y los que vencen hoy o mañana; `dailyReminder` a su hora solo si hoy no hay movimientos realizados; `dailySummary` a su hora con gastos − devoluciones del día. En horas de silencio (rango que puede cruzar medianoche) no se emite nada; al salir del rango se emiten los pendientes. Cada aviso tiene una clave por día para no repetirse.
+
+## 34. Planes de gasto (v2, `domain/plans.ts`)
+
+- **Ciclo** = periodo que contiene «hoy» para el tipo elegido (semana, quincena, mes, trimestre,
+  semestre, año; mismo cálculo que §31) o fechas explícitas si es personalizado. Se guarda en
+  `startDate`/`endDate` al crear y se renueva al cerrar. Un plan migrado sin ciclo recibe el de hoy en
+  el primer cierre.
+- **Gastado** = Σ gastos − Σ devoluciones realizados en las categorías del plan (vacío = todas las
+  de gasto), con las líneas de compras divididas, entre inicio y fin del ciclo (incluidos); nunca
+  negativo. Los previstos no cuentan.
+- **Estado**: superado si gastado > límite; cerca si gastado ≥ 80 % del límite; completado si el
+  plan cerró; en pausa si la persona lo pausó. Restante = límite − gastado (negativo = superado).
+- **Ritmo ideal** al día *d* del ciclo (contando hoy) = ⌊límite × d / días del ciclo⌋. Solo se compara;
+  no limita ni cambia el disponible.
+- **Cierre automático** (al abrir la app y al cambiar el día): un plan activo cuyo fin es anterior a
+  hoy pasa a `completed` con `result = { spentMinor, achieved: gastado ≤ límite, deltaMinor: límite −
+  gastado, closedAt }`. Si es recurrente se crea un plan nuevo (`previousPlanId`) en el ciclo que
+  contiene hoy; si pasaron varios ciclos no se inventan cierres intermedios. Los pausados no se
+  cierran. Idempotente: una segunda pasada el mismo día no cambia nada.
+- **Repetir** = plan nuevo con los mismos ajustes en el ciclo de hoy (los personalizados conservan su
+  duración a partir de hoy).
+- **Alertas**: con `alertAt80`/`alertAt100` y el ajuste «Alertas de planes» activo, se avisa una vez
+  por ciclo y umbral (clave `plan80|plan100:<id>:<inicio del ciclo>`); respetan las horas de silencio.
+- **Metas**: `contribution` (importe + frecuencia) es un recordatorio; «Aportar ahora» solo propone el
+  importe. Sugerencia diaria de una meta = ⌈restante / días hasta la fecha⌉.
+- Un plan nunca mueve dinero ni cambia el disponible; los límites mensuales anteriores
+  (`categoryLimits`) se convirtieron en planes mensuales recurrentes en la migración v9 → v10.
+
+## 35. Estadísticas (v2, `domain/statistics.ts`)
+
+- **Rango** = periodo de calendario que contiene la fecha ancla (mismo cálculo que §31) o fechas
+  explícitas si es personalizado (por defecto los últimos 30 días). Anterior/siguiente = el periodo
+  que contiene el día previo al inicio / posterior al fin; los personalizados se desplazan su duración.
+- **Tres cifras**: ingresos = Σ ingresos realizados; gastos = gasto neto (§15); neto = ingresos − gastos.
+  Delta = actual − anterior; porcentaje entero = ⌊delta × 100 / anterior⌋ solo si anterior > 0 y el
+  periodo anterior empieza en o después de `trackedSince` (si no, se indica «no comparable»).
+- **Por categoría**: netos positivos ordenados de mayor a menor; porcentaje entero sobre su suma.
+  Tocar una categoría abre el historial filtrado por categoría y fechas del rango.
+- **Series de 6 periodos**: ingresos y gasto neto por periodo, del más antiguo al actual.
+- **Tendencia**: acumulado diario del gasto neto (nunca negativo) del periodo frente al anterior,
+  alineados por día del periodo; los días futuros del actual quedan vacíos.
+- **Top 5**: agrupa por comercio (o nota si no hay) sin acentos ni mayúsculas; resta devoluciones;
+  sin texto no se cuenta.
+- **Promedio diario** = ⌊gasto neto / días transcurridos (hasta hoy, mínimo 1)⌋. Día de la semana con
+  más gasto = suma por fecha del periodo.
+- **Saldo futuro (90 días)**: base = proyección (§8) con el gasto diario estimado (§9, 30 días) y el
+  escenario mínimo de ingresos variables; optimista = 75 % del gasto diario con ingresos esperados;
+  pesimista = 125 % con mínimos. Marcas en hoy, 30, 60 y 90 días. Oculto con menos de 14 días desde
+  `trackedSince`, menos de 7 días de gasto observado o sin movimientos.
+- **PDF** = impresión del navegador de la vista (hoja de estilos `@media print`); no hay servicio.
+
+## 36. Recibos (foto → propuesta, `domain/receipt.ts`)
+
+- **Importes**: números con separadores de miles o decimales; un año (1900–2099) sin decimales y las horas no cuentan.
+  En monedas sin decimales (COP…) un número con decimales se descarta.
+- **Total** = mayor importe de una línea con «total / importe / monto / amount due / montant / a pagar…» que no sea
+  subtotal, impuesto, propina, cambio, efectivo o tarjeta; «gran total» pesa más. Sin línea de total, la cifra mayor
+  (y se avisa). Sin importes, nada: la persona lo escribe.
+- **Fecha**: `AAAA-MM-DD`, `DD/MM/AAAA` o `DD-MM-AA`; nunca posterior a hoy.
+- **Comercio**: primera de las seis primeras líneas con ≥ 60 % de mayúsculas (o capitalizada), con letras, sin importes
+  ni palabras de total/identificación fiscal. La categoría se sugiere pasando el comercio por el parser (diccionario,
+  aprendizaje y reglas); sin coincidencia, «otros gastos».
+- **Confianza** = 0,5 si el total viene de una línea «total» (0,3 si es solo la mayor) + 0,25 si hay fecha + 0,25 si hay comercio.
+- Todo es propuesta: la línea entra en la vista previa del asistente y pasa la validación normal al confirmar.
+
+## 37. Formato compacto de importes y versiones de ICU
+
+`formatMoney(…, { compact: true })` es solo para mostrar (etiquetas de gráficos): delega en
+`Intl.NumberFormat` con `notation: 'compact'`. El orden entre símbolo y cifra en esa notación
+depende de los datos CLDR de la versión de ICU del navegador o de Node (`$1.3 M` en unas,
+`1.3 M$` en otras), así que ninguna prueba fija ese texto: se compara con lo que `Intl` devuelve en
+la misma máquina y se exige la cifra abreviada y el símbolo. Los importes reales nunca se muestran
+compactos ni se redondean para calcular.
+
+## 38. Cifras del héroe: ingresos, gastos y «Disponible · N %» (`domain/heroFigures.ts`)
+
+- **Periodo** = el periodo de presupuesto configurado; con «hasta mi próximo ingreso» (sin periodo de
+  calendario), el mes natural de hoy (el mismo que abre Estadísticas).
+- **Ingresos** y **gastos** = `periodSummary` del periodo: solo realizados, transferencias y ajustes
+  fuera, devoluciones restadas del gasto. Son las mismas sumas que Estadísticas.
+- **Saldo al empezar** = saldo del presupuesto hoy − (ingresos − gastos) del periodo transcurrido
+  (reconstruido hacia atrás; no se guarda).
+- **Base** = saldo al empezar + ingresos del periodo.
+- **N %** = ⌊disponible × 100 ÷ base⌋ acotado a 0–100; **0 si la base no es positiva** (nunca se
+  divide entre cero ni se muestra un porcentaje negativo). La línea «¿Cómo se calculó?» repite las tres
+  cifras y el periodo.
+
+## 39. Importes inverosímiles (`domain/plausibility.ts`, G5)
+
+- Un **gasto** es inverosímil si `importe ≥ 20 × max(0, disponible)` **y** `importe ≥ 1 000` en la unidad mayor
+  de la moneda (1 000,00 en CAD/MXN; 1 000 en COP, sin decimales). Por debajo de 1 000 nunca se pregunta.
+- Se pide confirmación una sola vez por movimiento («¿Seguro? Es N veces lo que puedes gastar»,
+  N = ⌊importe ÷ disponible⌋; sin disponible positivo, «más de lo que puedes gastar ahora»). Confirmar
+  guarda el importe tal cual: no se corrige ni se bloquea. En la vista previa del asistente la fila queda
+  marcada con el mismo aviso.
+
+## 40. Inicio en otro periodo (`domain/homeSnapshot.ts`, D1)
+
+- **Periodos navegables** = los del ajuste de periodo; con «hasta mi próximo ingreso», meses naturales.
+  Hacia atrás sin límite; hacia delante solo hasta el periodo que contiene hoy (el futuro no se navega).
+- **Instantánea al cierre** de un periodo pasado: se calcula sobre una copia de los datos en la que
+  (1) no existen los movimientos **realizados** con fecha posterior al cierre (los previstos se conservan:
+  nunca cambian saldos y, como entonces, se reservan si caen en el horizonte) y (2) cada cuenta cuyo saldo
+  de referencia es posterior al cierre lo retrocede: `referencia − Σ efecto(realizados incluidos en la
+  referencia con fecha > cierre)`, con fecha de referencia = cierre. Sobre esa copia se aplican
+  `computeBudget` y `heroFigures` con «hoy» = cierre: saldo, reservado, disponible, ingresos y gastos
+  tal como se habrían visto ese día.
+- El periodo actual no usa la instantánea: Inicio muestra las cifras vivas. La navegación nunca escribe.
+
+## 41. «Repetir» al guardar un movimiento (`domain/repeat.ts`, D6)
+
+- Guardar con «Repetir» = `saveSchedule` + `saveTransaction` en **una** operación (todo o nada): si el
+  programado no es válido, tampoco se guarda el movimiento.
+- El programado empieza en la fecha del movimiento (`startDate = date`) con su importe, cuenta y
+  categoría; el movimiento se guarda con `scheduleId` + `occurrenceDate = date`, así esa ocurrencia es
+  **un movimiento y nunca además una reserva** (regla de §CLAUDE: pagada si hay movimiento realizado con
+  su `scheduleId` + `occurrenceDate`). La siguiente ocurrencia es la primera que se reserva y la que
+  aparece en el calendario.
+- Solo en movimientos nuevos, realizados, de gasto o ingreso, sin división ni vínculo previo.
+
+- «Próximo» en la lista de programados del calendario = primera ocurrencia en o después de hoy que no
+  está liquidada (sin movimiento realizado con su `scheduleId` + `occurrenceDate`, cobros parciales
+  aparte) ni omitida (`nextPendingOccurrence`). Tras «Repetir», la de hoy ya está pagada y el próximo es
+  el del periodo siguiente.
+
+## 42. Progreso de una meta y fecha estimada (`domain/goalChart.ts`, D7)
+
+- Curva «Apartado»: acumulado de `allocations` por fecha, empezando en 0 el día de inicio (primer
+  apartado o creación de la meta, lo anterior). Las liberaciones y pagos cuentan en el acumulado con su
+  signo; solo las aportaciones positivas cuentan como «aportes».
+- Recta ideal: `ideal(d) = ⌊objetivo × (d − inicio) ÷ (fecha objetivo − inicio)⌋`, 0 antes del inicio y
+  el objetivo después del fin. Sin fecha objetivo no hay recta.
+- Fecha estimada: solo con ≥ 2 aportes. `Σ30` = aportes de los últimos 30 días (hoy incluido). Si
+  `Σ30 = 0` no se estima («sin aportes recientes»). Si no, `días = ceilDiv(restante × 30, Σ30)` y
+  `fecha = hoy + días`; «al día» = `⌊Σ30 ÷ 30⌋`. Enteros en unidades menores, nunca flotantes ni
+  división entre cero. Meta completa → sin estimación.
+- La estimación es orientativa: cambia con cada aporte y no es una promesa ni un plan.

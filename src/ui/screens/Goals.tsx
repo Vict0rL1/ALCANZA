@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import { computeBudget, scheduledIncomeItems } from '../../domain/budget'
 import { addDays } from '../../domain/dates'
+import { goalEta, goalTrajectory } from '../../domain/goalChart'
+import { GoalChart } from '../components/statsCharts'
 import { goalPlan, goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
 import { deleteGoal, restoreGoal, saveGoal } from '../../domain/operations'
-import type { Goal, GoalFunding } from '../../domain/types'
+import type { CategoryColor, ContributionFrequency, Goal, GoalFunding } from '../../domain/types'
 import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, EmptyState, Meter, PageHeader } from '../components/common'
+import { Alert, Badge, Card, EmptyState, Meter, PageHeader, Why } from '../components/common'
 import { MoneyField, Segmented, TextField } from '../components/fields'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
@@ -19,6 +21,7 @@ import { useFormat } from '../format'
 import { fieldError, issueMessage, otherIssues } from '../labels'
 import { href, type Route, useNavigateIfStillHere } from '../router'
 import { PlannedExpenseCard, PlannedExpenseForm } from './PlannedExpenses'
+import { ColorPicker, IconPicker } from '../components/categoryPickers'
 
 export function Goals() {
   const { t, tn } = useT()
@@ -41,14 +44,14 @@ export function Goals() {
         </a>
       </div>
       <Alert tone="info" icon="info" title={t('goals.virtualTitle')}>
-        {t('goals.virtualNote')}
+        <Why short={t('goals.virtualShort')}>{t('goals.virtualNote')}</Why>
       </Alert>
       <Card>
         <p className="stat__label">{t('goals.freeLabel')}</p>
         <p className="stat__value" data-testid="free-to-allocate">
           {fmt.money(free)}
         </p>
-        <p className="note">{t('goals.freeHint')}</p>
+        <Why short={t('goals.freeShort')}>{t('goals.freeHint')}</Why>
       </Card>
 
       <section className="stack-sm" aria-labelledby="planned-title">
@@ -62,7 +65,7 @@ export function Goals() {
           </a>
         </div>
         {planned.length === 0 ? (
-          <p className="note">{t('planned.empty')}</p>
+          <EmptyState compact icon="calendar" title={t('planned.emptyTitle')} text={t('planned.empty')} />
         ) : (
           <ul className="goal-list">
             {planned.map((g) => (
@@ -76,9 +79,7 @@ export function Goals() {
 
       <h2 className="section-title">{t('planned.otherGoals')}</h2>
       {goals.length === 0 ? (
-        <EmptyState icon="target" title={t('goals.empty')} action={<a className="btn btn--primary" href={href('/plan/metas/nueva')}>{t('goals.new')}</a>}>
-          <p>{t('goals.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="target" title={t('goals.empty')} text={t('goals.emptyText')} action={<a className="btn btn--primary" href={href('/plan/metas/nueva')}>{t('goals.new')}</a>} />
       ) : (
         <ul className="goal-list">
           {goals.map((g) => {
@@ -110,6 +111,17 @@ export function Goals() {
                   <Meter fraction={p.fraction} label={g.name} valueText={valueText} />
                   <p className="goal__progress">{valueText}</p>
                   {!p.complete && <p className="item__meta">{t('goals.remaining', { amount: fmt.money(p.remainingMinor) })}</p>}
+                  {/* D7: acumulado frente a la recta ideal y fecha estimada (solo con ≥ 2 aportes). */}
+                  {g.allocations.length > 0 && <GoalChart trajectory={goalTrajectory(g, today)} fmt={fmt} today={today} />}
+                  {(() => {
+                    const eta = goalEta(g, today)
+                    if (eta.status === 'complete') return null
+                    return (
+                      <p className="item__meta" data-testid="goal-eta">
+                        {eta.status === 'ok' ? t('goals.etaOk', { date: fmt.date(eta.date), perDay: fmt.money(eta.perDayMinor) }) : eta.status === 'tooFew' ? t('goals.etaTooFew', { count: eta.contributions }) : t('goals.etaNoRecent')}
+                      </p>
+                    )
+                  })()}
                   <div className="goal__plan">
                     {plan.status === 'ok' && (
                       <>
@@ -135,7 +147,7 @@ export function Goals() {
                     {!p.complete && (
                       <button type="button" className="btn btn--primary btn--small" onClick={() => setDialog({ goal: g, mode: 'add' })}>
                         <Icon name="plus" size={16} />
-                        {t('goals.add')}
+                        {g.contribution ? t('goals.contributeNow', { amount: fmt.money(g.contribution.amountMinor) }) : t('goals.add')}
                         <span className="sr-only">: {g.name}</span>
                       </button>
                     )}
@@ -152,7 +164,7 @@ export function Goals() {
           })}
         </ul>
       )}
-      {dialog && <AllocateDialog key={`${dialog.goal.id}-${dialog.mode}`} goal={dialog.goal} mode={dialog.mode} onClose={() => setDialog(null)} />}
+      {dialog && <AllocateDialog key={`${dialog.goal.id}-${dialog.mode}`} goal={dialog.goal} mode={dialog.mode} initialAmountMinor={dialog.mode === 'add' ? dialog.goal.contribution?.amountMinor : undefined} onClose={() => setDialog(null)} />}
     </div>
   )
 }
@@ -179,6 +191,11 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
   const [targetText, setTargetText] = useState(existing ? fmt.moneyInput(existing.targetMinor) : '')
   const [targetDate, setTargetDate] = useState(existing?.targetDate ?? '')
   const [fundedFrom, setFundedFrom] = useState<GoalFunding>(existing?.fundedFrom ?? 'budget')
+  const [icon, setIcon] = useState(existing?.icon ?? 'target')
+  const [color, setColor] = useState<CategoryColor>(existing?.color ?? 'emerald')
+  const [contributionText, setContributionText] = useState(existing?.contribution ? fmt.moneyInput(existing.contribution.amountMinor) : '')
+  const [contributionFrequency, setContributionFrequency] = useState<ContributionFrequency>(existing?.contribution?.frequency ?? 'monthly')
+  const [contributionError, setContributionError] = useState<string | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -194,9 +211,13 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
   const submit = async () => {
     const parsed = parseMoneyText(targetText, fmt)
     setAmountError(moneyErrorMessage(t, parsed))
-    if (!parsed.ok || busy) return
+    const contribution = contributionText.trim() ? parseMoneyText(contributionText, fmt) : null
+    setContributionError(contribution ? moneyErrorMessage(t, contribution) : null)
+    if (!parsed.ok || (contribution && !contribution.ok) || busy) return
     setBusy(true)
-    const { result, saved } = await run((d, c) => saveGoal(d, { id, name, kind, targetMinor: parsed.minor, targetDate: targetDate || undefined, fundedFrom }, c))
+    const { result, saved } = await run((d, c) =>
+      saveGoal(d, { id, name, kind, targetMinor: parsed.minor, targetDate: targetDate || undefined, fundedFrom, icon, color, ...(contribution?.ok ? { contribution: { amountMinor: contribution.minor, frequency: contributionFrequency } } : {}) }, c),
+    )
     setBusy(false)
     if (!result.ok) {
       setIssues(result.issues)
@@ -219,7 +240,7 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
     leave(returnTo)
   }
 
-  const unknown = otherIssues(issues, ['name', 'targetMinor', 'targetDate'])
+  const unknown = otherIssues(issues, ['name', 'targetMinor', 'targetDate', 'contribution'])
   return (
     <div className="stack">
       <PageHeader title={existing ? t('goalForm.editTitle') : t('goalForm.newTitle')} back={{ href: href(returnTo), label: returnTo === '/plan/metas' ? t('plan.goals') : t('common.back') }} />
@@ -255,6 +276,22 @@ function RegularGoalForm({ existing, editId, returnTo }: { existing: Goal | unde
           ]}
           hint={t(fundedFrom === 'budget' ? 'goalForm.fundingBudgetHint' : 'goalForm.fundingExternalHint')}
         />
+        <IconPicker value={icon} onChange={setIcon} label={t('categories.icon')} />
+        <ColorPicker value={color} onChange={setColor} label={t('categories.color')} />
+        <MoneyField label={t('goalForm.contribution')} hint={t('goalForm.contributionHint')} value={contributionText} onChange={setContributionText} error={contributionError ?? fieldError(t, fmt, issues, 'contribution')} fmt={fmt} />
+        {contributionText.trim() !== '' && (
+          <Segmented
+            legend={t('goalForm.contributionFrequency')}
+            name="cfreq"
+            value={contributionFrequency}
+            onChange={setContributionFrequency}
+            options={[
+              { value: 'weekly', label: t('goalForm.freq.weekly') },
+              { value: 'biweekly', label: t('goalForm.freq.biweekly') },
+              { value: 'monthly', label: t('goalForm.freq.monthly') },
+            ]}
+          />
+        )}
         {existing && <p className="note">{t('goalForm.allocationsNote')}</p>}
         {unknown.length > 0 && (
           <Alert tone="critical" title={t('common.fixErrors')} role="alert">

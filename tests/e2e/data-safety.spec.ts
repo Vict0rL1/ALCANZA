@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { failStorageWrites, go, movementCount, restoreStorageWrites, START, startDemo, storedData, writeStoredData, openDetails } from './helpers'
 
@@ -81,31 +82,56 @@ test('dos pestañas: la segunda no sobrescribe en silencio lo que guardó la pri
   await expect(other.locator('a.item', { hasText: 'Desde la pestaña B' })).toBeVisible()
 })
 
-test('datos de una versión más nueva: se explican, no se tocan y empezar de nuevo pide confirmación', async ({ page }) => {
+test('H4 · datos de una versión más nueva (esquema 11): se explican, sin «Empezar de nuevo», y ningún botón los toca', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   const d = JSON.parse((await stored(page))!)
-  d.schemaVersion = 99
+  d.schemaVersion = 11
   await writeStoredData(page, d)
   const future = await stored(page)
   await page.reload()
-  await expect(page.getByRole('alert')).toContainText('Estos datos son de una versión más nueva de Clara')
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Estos datos son de una versión más nueva de Clara')
+  await expect(page.getByText('Si acabas de usar Clara en otro dispositivo o pestaña, ábrela ahí y vuelve aquí más tarde.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Empezar de nuevo' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /dañados/ })).toHaveCount(0)
+  // Solo dos botones: recargar (principal) y descargar una copia.
+  await expect(page.locator('main button')).toHaveCount(2)
+  await expect(page.locator('main .btn--primary')).toHaveText('Recargar la app')
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Descargar una copia de estos datos' }).click()
+  const file = await (await download).path()
+  expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(JSON.parse(future!))
   expect(await stored(page)).toBe(future)
+  await page.getByRole('button', { name: 'Recargar la app' }).click()
+  await expect(alert).toContainText('Estos datos son de una versión más nueva de Clara')
+  expect(await stored(page)).toBe(future)
+})
+
+test('datos dañados: «Empezar de nuevo» sigue disponible, pide confirmación y cancelar no toca nada', async ({ page }) => {
+  await startDemo(page)
+  const d = JSON.parse((await stored(page))!)
+  delete d.accounts
+  await writeStoredData(page, d)
+  const broken = await stored(page)
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('No pudimos leer tus datos guardados')
+  await expect(page.getByRole('button', { name: 'Descargar datos dañados' })).toBeVisible()
   await page.getByRole('button', { name: 'Empezar de nuevo' }).click()
   const dialog = page.getByRole('dialog', { name: '¿Empezar de nuevo?' })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Cancelar' }).click()
-  expect(await stored(page)).toBe(future)
+  expect(await stored(page)).toBe(broken)
 })
 
 test('restaurar una copia se puede deshacer en el momento', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar copia' }).click()
   const file = await (await download).path()
   await addExpense(page, '3.21', 'Después de exportar')
   const count = await movementCount(page)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   await page.getByTestId('import-file').setInputFiles(file)
   await page.getByRole('dialog').getByRole('button', { name: 'Reemplazar datos' }).click()
   await page.getByRole('button', { name: 'Deshacer' }).click()
@@ -138,6 +164,6 @@ test('usuario de una versión anterior: sus datos de localStorage pasan a Indexe
   expect(JSON.parse(origin.copy!).transactions).toEqual(data.transactions)
   expect(JSON.parse(origin.main!).movedTo).toBe('indexeddb')
   // Ajustes muestra dónde están los datos y la copia del origen.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/almacenamiento')
   await expect(page.getByText(/IndexedDB/).first()).toBeVisible()
 })

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails, settleAnimations } from './helpers'
 
 test('gasto planificado: vinculado al calendario, aporte confirmado y pago distinto de lo apartado', async ({ page }) => {
   await startDemo(page)
@@ -103,6 +103,7 @@ test('presupuesto por periodo: asignar no cambia el disponible; gastos asociados
 
 test('revisión semanal: tarjeta en Inicio, semanas anteriores, observaciones y preferencia', async ({ page }) => {
   await startDemo(page)
+  await showFullHome(page)
   await expect(page.getByTestId('week-home')).toContainText('Gastado esta semana')
   await page.getByRole('link', { name: 'Ver revisión semanal' }).click()
   await expect(page.getByRole('heading', { name: 'Revisión semanal' })).toBeVisible()
@@ -124,11 +125,13 @@ test('revisión semanal: tarjeta en Inicio, semanas anteriores, observaciones y 
 
   // Ocultar en Inicio, con deshacer; y volver a mostrar desde Ajustes.
   await go(page, '/')
+  await showFullHome(page)
   await page.getByRole('button', { name: 'Ocultar', exact: true }).click()
   await expect(page.getByTestId('week-home')).toHaveCount(0)
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/personalizar')
   await page.getByLabel('Mostrar la revisión semanal en Inicio').check()
   await go(page, '/')
+  await showFullHome(page)
   await expect(page.getByTestId('week-home')).toBeVisible()
 })
 
@@ -204,7 +207,7 @@ test('búsqueda global: acentos, categorías traducidas, papelera opcional y tec
   await box.fill('supermercado')
   const summary = await page.getByTestId('search-summary').textContent()
   await page.getByRole('link', { name: /Supermercado/ }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await go(page, '/buscar?q=supermercado')
   await expect(page.getByTestId('search-summary')).not.toHaveText(summary!)
   await page.getByLabel('Incluir la papelera').check()
@@ -221,8 +224,8 @@ test('búsqueda global: acentos, categorías traducidas, papelera opcional y tec
 
 test('English: new tools are translated and category search uses English names', async ({ page }) => {
   await startDemo(page)
-  await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/buscar?q=groceries')
   await expect(page.getByRole('heading', { name: /^Categories \(1\)/ })).toBeVisible()
   await go(page, '/buscar?q=supermercado')
@@ -266,6 +269,7 @@ test('pantallas nuevas con datos: sin desplazamiento horizontal ni problemas de 
     for (const route of ['/plan/metas', periodUrl, '/alcanza/escenarios', '/revision', '/buscar?q=se']) {
       await go(page, route)
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), route).toBeLessThanOrEqual(0)
+      await settleAnimations(page)
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`), `${scheme} ${route}`).toEqual([])
     }
@@ -281,7 +285,7 @@ test('búsqueda por importe y compra simulada en otra cuenta', async ({ page }) 
   await go(page, '/alcanza/escenarios/nuevo')
   await page.getByLabel('Nombre').fill('Pagar con ahorro')
   await page.getByLabel('Precio').fill('100')
-  await page.getByLabel('Cuenta').selectOption({ label: 'Ahorros' })
+  await page.getByLabel('Cuenta', { exact: true }).selectOption({ label: 'Ahorros' })
   await page.getByRole('button', { name: 'Guardar escenario' }).click()
   await expect(page.getByText(/Compra de \$100\.00.*Ahorros/)).toBeVisible()
   // El ahorro no cuenta para el presupuesto: el disponible del escenario no cambia.
@@ -305,10 +309,15 @@ test('periodo: sugerencias por fecha con deshacer; movimientos filtrados por ran
 
   await go(page, '/revision')
   await page.getByRole('link', { name: 'Ver movimientos' }).click()
-  await expect(page.getByLabel('Desde')).toHaveValue('2026-09-28')
-  await expect(page.getByLabel('Hasta')).toHaveValue('2026-09-28')
+  // Las fechas llegan como filtros activos; sus valores se ven en la hoja «Filtros» (C2).
+  let sheet = await openFilters(page)
+  await expect(sheet.getByLabel('Desde')).toHaveValue('2026-09-28')
+  await expect(sheet.getByLabel('Hasta')).toHaveValue('2026-09-28')
+  await applyFilters(page)
   await page.getByRole('button', { name: 'Quitar filtros' }).first().click()
-  await expect(page.getByLabel('Desde')).toHaveValue('')
+  sheet = await openFilters(page)
+  await expect(sheet.getByLabel('Desde')).toHaveValue('')
+  await applyFilters(page)
 })
 
 test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotético solo cambia la proyección', async ({ page }) => {
@@ -319,16 +328,16 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   await page.getByLabel('Hasta (incluido)').fill('2026-10-10')
   await page.getByLabel('Asignado').fill('80')
   await page.locator('summary', { hasText: 'Proponer gastos automáticamente' }).click()
-  await page.getByLabel('Comida fuera y café').check()
+  await page.getByLabel('Restaurantes y café').check()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page.getByText(/Regla: Comida fuera y café/)).toBeVisible()
+  await expect(page.getByText(/Regla: Restaurantes y café/)).toBeVisible()
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('6')
   await openDetails(page)
   const period = page.getByRole('checkbox', { name: /Semana de exámenes/ })
   await expect(period).not.toBeChecked() // categoría por defecto: Otros gastos
-  await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Restaurantes y café')
   await expect(period).toBeChecked()
   await expect(page.getByText('Propuesto por la regla del periodo')).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -339,7 +348,7 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   // Desmarcar la propuesta: no se asocia.
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('3')
-  await page.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Restaurantes y café')
   await openDetails(page)
   await page.getByRole('checkbox', { name: /Semana de exámenes/ }).uncheck()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()

@@ -9,7 +9,7 @@
  * una preferencia visual no cambia cifras; simular no toca registros; reintentar no duplica.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, openApp, openDetails, storedData } from './helpers'
+import { showFullHome, available, go, movementCount, openApp, openDetails, storedData, pickCategory } from './helpers'
 
 /** Saldo consolidado de las cuentas del presupuesto, según lo guardado (independiente de la UI). */
 async function consolidated(page: Page): Promise<number> {
@@ -42,7 +42,11 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // 1. Configurar: cuenta con 1,000.00; ingreso de 800.00 el 9-oct; renta de 300.00 el 5-oct.
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('1000')
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Importe esperado').fill('800')
   await page.getByLabel('Fecha del próximo ingreso').fill('2026-10-09')
@@ -102,10 +106,10 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
   // 4. Compra dividida desde una plantilla 60 % / 40 %: 50.00 → 30.00 + 20.00. Un solo gasto.
   await go(page, '/movimientos/plantillas/nueva?tipo=split')
   await page.getByLabel('Nombre').fill('Súper')
-  await page.getByLabel('Categoría (línea 1)').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 1)'), 'Supermercado')
   await page.getByLabel('Porcentaje (línea 1)').fill('60')
   await page.getByRole('button', { name: 'Añadir línea' }).click()
-  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 2)'), 'Vivienda y alquiler')
   await page.getByLabel('Porcentaje (línea 2)').fill('40')
   await page.getByRole('button', { name: 'Guardar plantilla' }).click()
   const before = await movementCount(page)
@@ -133,6 +137,7 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // 6. Pagar la renta (apartada por la distribución): sale del saldo y deja de reservarse.
   await go(page, '/')
+  await showFullHome(page) // los próximos pagos están en la vista completa (C1)
   await page.getByRole('button', { name: /Marcar pagado.*Renta/ }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar pago' }).click()
   await expect(await available(page)).toHaveText('$1,160.00') // no se resta dos veces
@@ -167,6 +172,9 @@ test('recorrido completo con invariantes y cifras independientes', async ({ page
 
   // Una preferencia visual no cambia cifras.
   await go(page, '/')
+  // Tres niveles: oculto, discreto y de vuelta a visible.
+  await page.getByTestId('privacy-toggle').click()
+  await expect(page.getByTestId('available')).toHaveText('-$-----')
   await page.getByTestId('privacy-toggle').click()
   await page.getByTestId('privacy-toggle').click()
   await expect(page.getByTestId('available')).toHaveText('-$340.00') // 1,160 − 1,500 (previsto reservado)

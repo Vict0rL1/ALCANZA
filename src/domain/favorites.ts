@@ -19,9 +19,9 @@ export interface FavoritePrefill {
   missingCategory: boolean
 }
 
-export function favoritePrefill(data: Pick<AppData, 'accounts' | 'categories'>, favorite: Favorite): FavoritePrefill {
+export function favoritePrefill(data: Pick<AppData, 'accounts' | 'categories' | 'categoryPrefs'>, favorite: Favorite): FavoritePrefill {
   const accountOk = data.accounts.some((a) => a.id === favorite.accountId)
-  const categoryOk = categoriesForKind(favorite.kind, data.categories).includes(favorite.categoryId)
+  const categoryOk = categoriesForKind(favorite.kind, data.categories, { prefs: data.categoryPrefs }).includes(favorite.categoryId)
   return {
     kind: favorite.kind,
     accountId: accountOk ? favorite.accountId : undefined,
@@ -35,7 +35,7 @@ export function favoritePrefill(data: Pick<AppData, 'accounts' | 'categories'>, 
 }
 
 /** Favoritos en su orden, con indicación de referencias rotas. */
-export function sortedFavorites(data: Pick<AppData, 'favorites' | 'accounts' | 'categories'>): (Favorite & { broken: boolean })[] {
+export function sortedFavorites(data: Pick<AppData, 'favorites' | 'accounts' | 'categories' | 'categoryPrefs'>): (Favorite & { broken: boolean })[] {
   return [...data.favorites]
     .sort((a, b) => a.order - b.order)
     .map((f) => {

@@ -1,5 +1,6 @@
 /** Utilidades para pruebas: construyen datos pequeños y legibles. */
 import type { Account, AppData, Goal, Schedule, Transaction } from '../domain/types'
+import { defaultCollectionsV9, defaultSettingsV9 } from '../domain/defaults'
 import { SCHEMA_VERSION } from '../domain/types'
 
 export const TZ = 'America/Toronto'
@@ -38,12 +39,14 @@ export function baseData(overrides: Partial<AppData> = {}): AppData {
       timeZone: TZ,
       language: 'es',
       fallbackHorizonDays: null,
+      ...defaultSettingsV9(),
     },
     accounts: [main],
     transactions: [],
     schedules: [],
     goals: [],
     categories: [],
+    ...defaultCollectionsV9(),
     categoryLimits: [],
     categoryRules: [],
     trash: [],

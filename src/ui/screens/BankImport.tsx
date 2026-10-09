@@ -29,6 +29,7 @@ import { useFormat } from '../format'
 import { categoryLabel, issueMessage } from '../labels'
 import { href, useNavigateIfStillHere } from '../router'
 import { RuleDialog } from './RulesSection'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 const PAGE = 100
 
@@ -296,18 +297,8 @@ export function BankImport() {
               onChange={setInvertSign}
             />
             <div className="form-grid">
-              <SelectField
-                label={t('bankImport.expenseCategory')}
-                value={expenseCategory}
-                onChange={(e) => setExpenseCategory(e.target.value)}
-                options={categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-              />
-              <SelectField
-                label={t('bankImport.incomeCategory')}
-                value={incomeCategory}
-                onChange={(e) => setIncomeCategory(e.target.value)}
-                options={categoriesForKind('income', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-              />
+              <CategoryPicker label={t('bankImport.expenseCategory')} kind="expense" data={data} value={expenseCategory} onChange={setExpenseCategory} />
+              <CategoryPicker label={t('bankImport.incomeCategory')} kind="income" data={data} value={incomeCategory} onChange={setIncomeCategory} />
             </div>
             <p className="note">
               {t('bankImport.categoryNote')} <a href={href('/ajustes?seccion=reglas')}>{t('bankImport.manageRules')}</a>
@@ -398,7 +389,7 @@ export function BankImport() {
                             aria-label={t('bankImport.rowCategory', { description: row.description || t('bankImport.line', { n: row.line }) })}
                             onChange={(e) => setRowCategory(row, e.target.value)}
                           >
-                            {categoriesForKind(row.kind, data.categories).map((c) => (
+                            {categoriesForKind(row.kind, data.categories, { prefs: data.categoryPrefs }).map((c) => (
                               <option key={c} value={c}>
                                 {categoryLabel(t, c)}
                               </option>

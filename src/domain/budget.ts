@@ -18,6 +18,7 @@ import { addDays, daysBetween, localDateInTimeZone } from './dates'
 import { goalReserveLines, scheduleCoverage } from './reserves'
 import { floorDiv, mulDivFloor, sumMinor } from './money'
 import { openItemsUntil, planItems, type PlanItem } from './planItems'
+import { getPeriod, periodBalance, type Period, type PeriodBalance } from './periods'
 import type { AppData, Goal, LocalDate, Timestamp } from './types'
 
 export const STALE_BALANCE_DAYS = 3
@@ -27,7 +28,8 @@ export interface Horizon {
   /** Día del próximo ingreso (o fin del horizonte elegido). NO se cuenta como día del periodo. */
   endDate: LocalDate
   days: number
-  source: 'income' | 'fallback'
+  /** `period`: periodo de calendario (§6.1); `endDate` es el último día INCLUIDO y `days` los que quedan contando hoy. */
+  source: 'income' | 'fallback' | 'period'
   income?: PlanItem
 }
 
@@ -62,6 +64,12 @@ export interface BudgetResult {
   isBalanceStale: boolean
   /** Los apartados superan lo que queda después de reservar pagos. */
   goalsExceedMoney: boolean
+  /** Periodo de calendario activo (null con «hasta mi próximo ingreso»). */
+  period: Period | null
+  /** Saldo del periodo (arrastre, ingresos y gastos del periodo); null sin periodo de calendario. */
+  periodBalance: PeriodBalance | null
+  /** Base del disponible: saldo consolidado (con arrastre) o neto del periodo (sin arrastre). */
+  baseMinor: number
 }
 
 /** Ingresos programados abiertos (pendientes o vencidos) hasta `to`. Solo estos definen el periodo. */
@@ -86,7 +94,14 @@ export function findHorizon(data: AppData, today: LocalDate): { horizon: Horizon
 
 export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   const { totalMinor: spendableMinor, accounts: accountBalances } = spendableBalance(data)
-  const { horizon, overdueIncomes, incomeDueToday } = findHorizon(data, today)
+  const found = findHorizon(data, today)
+  const { overdueIncomes, incomeDueToday } = found
+  // Periodo de calendario (§6): sustituye al horizonte «hasta el próximo ingreso».
+  const periodSettings = data.settings.budgetPeriod
+  const period = periodSettings && periodSettings.type !== 'untilIncome' ? getPeriod(periodSettings, today) : null
+  const horizon: Horizon | null = period ? { endDate: period.end, days: period.daysLeft, source: 'period' } : found.horizon
+  const pBalance = period ? periodBalance(data, period, data.settings.carryOverBalance !== false) : null
+  const baseMinor = pBalance ? pBalance.availableMinor : spendableMinor
 
   // Sin horizonte se reservan, como mínimo, los pagos de los próximos 30 días.
   const reserveUntil = horizon ? horizon.endDate : addDays(today, 30)
@@ -101,7 +116,7 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   const reservedTotalMinor = sumMinor(reservedItems.map((i) => -i.budgetEffectMinor - (coveredByGoals.get(i.key) ?? 0)))
   const overdueBills = reservedItems.filter((i) => i.state === 'overdue')
 
-  const availableMinor = spendableMinor - reservedTotalMinor - goalsReservedMinor
+  const availableMinor = baseMinor - reservedTotalMinor - goalsReservedMinor
 
   let dailyMinor: number | null = null
   let weeklyMinor: number | null = null
@@ -142,7 +157,10 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
     balanceDate,
     balanceAgeDays,
     isBalanceStale: balanceAgeDays !== null && balanceAgeDays >= STALE_BALANCE_DAYS,
-    goalsExceedMoney: goalsReservedMinor > 0 && spendableMinor - reservedTotalMinor < goalsReservedMinor,
+    goalsExceedMoney: goalsReservedMinor > 0 && baseMinor - reservedTotalMinor < goalsReservedMinor,
+    period,
+    periodBalance: pBalance,
+    baseMinor,
   }
 }
 

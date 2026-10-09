@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { createTranslator, type MessageKey } from '../i18n'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { createTranslator, loadLanguage, type MessageKey } from '../i18n'
 import { deleteTransaction } from './operations'
 import { buildSearchIndex, search } from './search'
 import type { AppData, Language } from './types'
@@ -28,6 +28,7 @@ const data = baseData({
 const ids = (groups: ReturnType<typeof search>) => groups.flatMap((g) => g.items.map((i) => `${g.kind}:${i.id}`))
 
 describe('búsqueda global', () => {
+  beforeAll(() => loadLanguage('en'))
   const es = buildSearchIndex(data, namer('es', data))
 
   it('ignora mayúsculas y acentos, en ambos sentidos', () => {

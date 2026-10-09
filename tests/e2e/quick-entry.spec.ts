@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, openDetails, startDemo } from './helpers'
+import { available, go, movementCount, openDetails, startDemo, pickCategory } from './helpers'
 
 test('registro rápido: borrador persistente, guardar y agregar otro, duplicar y atajo', async ({ page }) => {
   await startDemo(page)
@@ -57,16 +57,16 @@ test('plantilla de división: porcentajes con redondeo explícito, vista previa 
   await go(page, '/movimientos/plantillas')
   await page.getByRole('link', { name: 'Nueva plantilla de división' }).click()
   await page.getByLabel('Nombre').fill('Súper y casa')
-  await page.getByLabel('Categoría (línea 1)').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 1)'), 'Supermercado')
   await page.getByLabel('Porcentaje (línea 1)').fill('70')
   await page.getByRole('button', { name: 'Añadir línea' }).click()
-  await page.getByLabel('Categoría (línea 2)').selectOption({ label: 'Vivienda' })
+  await pickCategory(page, page.getByLabel('Categoría (línea 2)'), 'Vivienda y alquiler')
   await page.getByLabel('Porcentaje (línea 2)').fill('30')
   // Vista previa con un total de ejemplo: 49.99 → 35.00 (incluye 0.01 de redondeo) + 14.99.
   await page.getByLabel('Probar con un total de').fill('49.99')
   const example = page.getByTestId('template-example')
   await expect(example).toContainText('Supermercado: $35.00 (incluye $0.01 de redondeo)')
-  await expect(example).toContainText('Vivienda: $14.99')
+  await expect(example).toContainText('Vivienda y alquiler: $14.99')
   await page.getByRole('button', { name: 'Guardar plantilla' }).click()
   await expect(page.getByText('Plantilla «Súper y casa» guardada')).toBeVisible()
   // Crear la plantilla no registra nada.

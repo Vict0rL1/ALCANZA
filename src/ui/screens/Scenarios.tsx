@@ -114,9 +114,7 @@ export function Scenarios() {
       )}
 
       {data.scenarios.length === 0 ? (
-        <EmptyState icon="scale" title={t('scenario.empty')} action={<a className="btn btn--primary" href={href(`${LIST}/nuevo`)}>{t('scenario.new')}</a>}>
-          <p>{t('scenario.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="scale" title={t('scenario.empty')} text={t('scenario.emptyText')} action={<a className="btn btn--primary" href={href(`${LIST}/nuevo`)}>{t('scenario.new')}</a>} />
       ) : (
         <>
           <Card labelledBy="sc-assumptions">

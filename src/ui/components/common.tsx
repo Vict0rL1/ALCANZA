@@ -91,25 +91,51 @@ export function Meter({ fraction, label, valueText }: { fraction: number; label:
   )
 }
 
-export function EmptyState({ icon, title, children, action }: { icon: IconName; title: string; children?: ReactNode; action?: ReactNode }) {
+/**
+ * Estado vacío común (E3): icono, título de una línea, como mucho una línea de texto y una acción.
+ * `compact` para dentro de una tarjeta (menos aire, icono de 24 px).
+ */
+export function EmptyState({ icon, title, text, action, compact, testId }: { icon: IconName; title: string; text?: string; action?: ReactNode; compact?: boolean; testId?: string }) {
   return (
-    <div className="empty">
-      <Icon name={icon} size={32} className="empty__icon" />
+    <div className={`empty${compact ? ' empty--compact' : ''}`} data-testid={testId}>
+      <Icon name={icon} size={compact ? 24 : 32} className="empty__icon" />
       <p className="empty__title">{title}</p>
-      {children && <div className="empty__text">{children}</div>}
+      {text && <p className="empty__text">{text}</p>}
       {action}
     </div>
   )
 }
 
-/** "¿Cómo se calculó?": explicación desplegable nativa (accesible con teclado). */
-export function Explain({ summary, children }: { summary?: string; children: ReactNode }) {
+/**
+ * E6: una explicación larga reducida a una línea + «¿Por qué?» desplegable. La línea corta es la
+ * que se lee siempre; el párrafo completo sigue disponible (y en los cuatro idiomas).
+ */
+export function Why({ short, children, className }: { short: string; children: ReactNode; className?: string }) {
   const { t } = useT()
   return (
-    <details className="explain">
-      <summary>
+    <div className={`why${className ? ` ${className}` : ''}`}>
+      <p className="note why__short">{short}</p>
+      <Explain className="explain--inline why__more" summary={t('common.why')} summaryShort={t('common.why')}>
+        {children}
+      </Explain>
+    </div>
+  )
+}
+
+/** "¿Cómo se calculó?": explicación desplegable nativa (accesible con teclado). */
+export function Explain({ summary, summaryShort, children, className }: { summary?: string; /** Texto corto para pantallas estrechas; el nombre accesible sigue siendo el completo (G2). */ summaryShort?: string; children: ReactNode; className?: string }) {
+  const { t } = useT()
+  const label = summary ?? t('common.howCalculated')
+  return (
+    <details className={`explain${className ? ` ${className}` : ''}`}>
+      <summary aria-label={summaryShort ? label : undefined}>
         <Icon name="info" size={16} />
-        {summary ?? t('common.howCalculated')}
+        <span className="explain__summary-long">{label}</span>
+        {summaryShort && (
+          <span className="explain__summary-short" aria-hidden="true">
+            {summaryShort}
+          </span>
+        )}
       </summary>
       <div className="explain__body">{children}</div>
     </details>

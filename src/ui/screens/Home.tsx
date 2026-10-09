@@ -1,30 +1,57 @@
 import { useMemo, useState } from 'react'
 import { backupStatus, SNOOZE_OPTIONS } from '../../domain/backupReminder'
+import { heroFigures } from '../../domain/heroFigures'
+import { FavoriteChips } from '../favoritesUi'
 import { computeBudget, upcomingItems } from '../../domain/budget'
+import { homePeriodAt, homeSnapshotAt, isCurrentPeriod, nextPeriod, previousPeriod } from '../../domain/homeSnapshot'
 import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
-import { FavoriteChips } from '../favoritesUi'
+import { daysOfUse, readDeviceFlags, showInstallCard, showSafetyCard, useInstallMode, writeDeviceFlags } from '../install'
+import { SafetyCard } from '../safetyCard'
 import { cardPaymentReminders } from '../../domain/cards'
-import { endOfMonth, localDateInTimeZone, startOfMonth } from '../../domain/dates'
-import { limitStatuses, periodSummary } from '../../domain/insights'
+import { localDateInTimeZone } from '../../domain/dates'
+import { planProgress } from '../../domain/plans'
 import { goalProgress } from '../../domain/goals'
 import { reminders, type PlanItem } from '../../domain/planItems'
 import { setOccurrenceSkipped, updateSettings } from '../../domain/operations'
+import { committedFor, safeToSpend } from '../../domain/periods'
+import { periodLabel } from '../periodLabel'
+import { CoachMark, CountUp } from '../components/base'
+import { haptic } from '../haptics'
+import { Segmented } from '../components/fields'
 import { weeklyReview, weekStartOf } from '../../domain/weeklyReview'
 import { inboxView } from '../../domain/inbox'
-import { useT } from '../../i18n'
+import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { CompositionBar } from '../components/charts'
-import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, StatTile } from '../components/common'
+import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, Why } from '../components/common'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { HorizonPicker, MarkPaidDialog, UpdateBalanceDialog } from '../dialogs'
 import { relativeDayKey, useFormat } from '../format'
-import { categoryLabel, planItemName } from '../labels'
+import { planItemName, planTitle } from '../labels'
 import { href, withQuery } from '../router'
-import { usePreferences, type HomeSection, type QuickAction } from '../preferences'
+import { nextPrivacyLevel, usePreferences, type HomeSection, type QuickAction } from '../preferences'
 import type { IconName } from '../components/Icon'
+
+/** Secciones que siguen a la vista en la vista completa; el resto se pliega en «Más en tu Inicio». */
+const PRIMARY_SECTIONS: ReadonlySet<HomeSection> = new Set<HomeSection>(['inbox', 'upcoming'])
+const HINT_KEY = 'clara.hint.view'
+function readHintSeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1'
+  } catch {
+    return true
+  }
+}
+function writeHintSeen() {
+  try {
+    localStorage.setItem(HINT_KEY, '1')
+  } catch {
+    /* sin almacenamiento: la pista volverá a verse */
+  }
+}
 
 export function Home() {
   const { t, tn } = useT()
@@ -35,12 +62,31 @@ export function Home() {
   const toast = useToast()
   const [prefs, setPrefs] = usePreferences()
   const essential = prefs.view === 'essential'
-  const budget = useMemo(() => computeBudget(data, today), [data, today])
-  const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 6), [data, today])
+  // Pista de una sola vez sobre la vista esencial (preferencia del dispositivo, como el tema).
+  const [hintSeen, setHintSeen] = useState(() => readHintSeen())
+  const dismissHint = () => {
+    setHintSeen(true)
+    writeHintSeen()
+  }
+  const liveBudget = useMemo(() => computeBudget(data, today), [data, today])
+  // D1: periodo que se muestra. null = el actual (cifras vivas); otro = instantánea al cierre, solo lectura.
+  const [viewStart, setViewStart] = useState<string | null>(null)
+  const periodSettings = data.settings.budgetPeriod
+  const viewPeriod = useMemo(() => homePeriodAt(periodSettings, viewStart ?? today, today), [periodSettings, viewStart, today])
+  const viewing = viewStart !== null && !isCurrentPeriod(viewPeriod, today)
+  const snapshot = useMemo(() => (viewing ? homeSnapshotAt(data, viewPeriod.end, { today }) : null), [viewing, data, viewPeriod.end, today])
+  const budget = snapshot?.budget ?? liveBudget
+  const canGoNext = nextPeriod(periodSettings, viewPeriod, today) !== null
+  const goPrev = () => setViewStart(previousPeriod(periodSettings, viewPeriod, today).start)
+  const goNext = () => {
+    const next = nextPeriod(periodSettings, viewPeriod, today)
+    setViewStart(next && !isCurrentPeriod(next, today) ? next.start : null)
+  }
+  const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 4), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
   const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
   const overLimits = useMemo(
-    () => limitStatuses(periodSummary(data, startOfMonth(today), endOfMonth(today)), data.categoryLimits).filter((l) => l.over),
+    () => data.plans.filter((p) => p.status === 'active').map((p) => ({ plan: p, progress: planProgress(data, p, today) })).filter((x) => x.progress.state === 'over'),
     [data, today],
   )
   const [payItem, setPayItem] = useState<PlanItem | null>(null)
@@ -49,6 +95,21 @@ export function Home() {
   const verification = useMemo(() => verificationSummary(data, today), [data, today])
   const exportBackup = useExportBackup()
   const snooze = useSnoozeBackup()
+  // K2: «Instala Clara», una sola vez, tras 3 días de uso y fuera de la app instalada.
+  const install = useInstallMode()
+  const [installCardDismissed, setInstallCardDismissed] = useState(() => readDeviceFlags().installCardDismissed === true)
+  const showInstall = showInstallCard({ mode: install.mode, daysOfUse: daysOfUse(data.createdAt, today, data.settings.timeZone), dismissed: installCardDismissed, isDemo: data.isDemo })
+  const dismissInstallCard = () => {
+    writeDeviceFlags({ installCardDismissed: true })
+    setInstallCardDismissed(true)
+  }
+  // K3: «Protege tus datos», una vez por dispositivo, tras la configuración o en la app instalada.
+  const [safetyAsked, setSafetyAsked] = useState(() => readDeviceFlags().safetyAsked === true)
+  const showSafety = showSafetyCard({ isDemo: data.isDemo, asked: safetyAsked, daysOfUse: daysOfUse(data.createdAt, today, data.settings.timeZone), standalone: install.mode === 'installed' })
+  const closeSafety = () => {
+    writeDeviceFlags({ safetyAsked: true })
+    setSafetyAsked(true)
+  }
 
   const rel = (date: string) => {
     const r = relativeDayKey(date, today)
@@ -64,11 +125,24 @@ export function Home() {
     })
   }
 
-  const horizonText = budget.horizon
-    ? budget.horizon.source === 'income'
-      ? t('home.untilIncome', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
-      : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
-    : t('home.noHorizonTitle')
+  const horizonText = budget.period
+    ? t(budget.period.daysLeft > 0 ? 'home.period.untilEnd' : 'home.period.ended', { label: periodLabel(t, fmt, budget.period), days: tn('home.periodDays', budget.period.daysLeft) })
+    : budget.horizon
+      ? budget.horizon.source === 'income'
+        ? t('home.untilIncome', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
+        : t('home.untilHorizon', { date: fmt.date(budget.horizon.endDate, { weekday: true }) })
+      : t('home.noHorizonTitle')
+  // Safe to spend (§6.3) sobre el periodo de calendario: base del periodo − comprometido hasta su fin.
+  const safeSettings = data.settings.safeToSpend
+  const safe = budget.period && safeSettings.showOnHome ? safeToSpend(budget.baseMinor, committedFor(safeSettings, budget.reservedTotalMinor, budget.goalsReservedMinor), budget.period.daysLeft) : null
+  const granularity = data.settings.safeToSpend?.granularity ?? 'day'
+  const setGranularity = (g: 'day' | 'week' | 'period') => void run((d, c) => updateSettings(d, { safeToSpend: { ...d.settings.safeToSpend, granularity: g } }, c))
+  const tourSeen = (data.settings.toursSeen ?? []).includes('home')
+  const [tourStep, setTourStep] = useState(0)
+  const isEmpty = data.transactions.length === 0 && !data.isDemo
+  const liveHero = useMemo(() => heroFigures(data, liveBudget, today), [data, liveBudget, today])
+  const hero = snapshot?.hero ?? liveHero
+  const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== 'home'), 'home'] }, c))
 
   const goalsForHome = data.goals.filter((g) => !g.plan?.paidAt).slice(0, 3)
   const showWeekly = data.settings.weeklyReview !== false
@@ -101,7 +175,7 @@ export function Home() {
             </a>
           }
         >
-          {t('home.alert.overdueBillsText')}
+          <Why short={t('home.alert.overdueBillsShort')}>{t('home.alert.overdueBillsText')}</Why>
         </Alert>
       ),
     },
@@ -128,6 +202,30 @@ export function Home() {
         </Alert>
       ),
     },
+    showInstall && {
+      key: 'install',
+      node: (
+        <div data-testid="install-card">
+        <Alert
+          tone="info"
+          icon="phone"
+          title={t('install.card.title')}
+          actions={
+            <>
+              <a className="btn btn--small btn--primary" href={href('/ajustes/instalar')} onClick={dismissInstallCard}>
+                {t('install.card.how')}
+              </a>
+              <button type="button" className="btn btn--small btn--secondary" onClick={dismissInstallCard}>
+                {t('install.card.dismiss')}
+              </button>
+            </>
+          }
+        >
+          {t('install.card.text')}
+        </Alert>
+        </div>
+      ),
+    },
     (budget.isBalanceStale && budget.balanceAgeDays !== null) && {
       key: 'stale',
       node: (
@@ -152,13 +250,13 @@ export function Home() {
           tone="warning"
           title={tn('home.alert.limitOverTitle', overLimits.length)}
           actions={
-            <a className="btn btn--small btn--secondary" href={href('/movimientos')}>
-              {t('home.alert.seeSummary')}
+            <a className="btn btn--small btn--secondary" href={href('/plan/planes')}>
+              {t('home.alert.seePlans')}
             </a>
           }
         >
           {t('home.alert.limitOverText', {
-            list: overLimits.map((l) => `${categoryLabel(t, l.categoryId)} (${t('limits.over', { amount: fmt.money(-l.remainingMinor) })})`).join(' · '),
+            list: overLimits.map((x) => `${planTitle(t, x.plan)} (${t('plans.exceededBy', { amount: fmt.money(-x.progress.remainingMinor) })})`).join(' · '),
           })}
         </Alert>
       ),
@@ -193,7 +291,9 @@ export function Home() {
       </h2>
       <ul className="tool-links">
         <li>
-          <a href={href('/pendientes')}>{pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}</a>
+          <a href={href('/pendientes')} data-testid="inbox-link">
+            {pendingCount > 0 ? tn('inbox.homeCount', pendingCount) : t('inbox.homeNone')}
+          </a>
         </li>
         <li>
           <a href={href('/plan/calendario')}>{t('home.seeCalendar')}</a>
@@ -211,12 +311,14 @@ export function Home() {
           <a href={href('/alcanza/escenarios')}>{t('scenario.title')}</a>
         </li>
       </ul>
-      <button type="button" className="btn btn--secondary" onClick={() => setPrefs((p) => ({ ...p, view: 'full' }))}>
+      <button type="button" className="btn btn--secondary" onClick={() => setPrefs((p) => ({ ...p, view: 'full' }))} data-testid="show-full-home">
         {t('home.tools.showFull')}
       </button>
     </Card>
   )
 
+  const visibleSections = prefs.sections.filter((x) => x.visible && !(x.id === 'weekly' && !week) && !(x.id === 'reminders' && otherReminders.length === 0 && cardReminders.length === 0))
+  const secondarySections = visibleSections.filter((x) => !PRIMARY_SECTIONS.has(x.id))
   const sectionNodes: Record<HomeSection, React.ReactNode> = {
     inbox: (
     <>
@@ -265,7 +367,7 @@ export function Home() {
               </li>
             ))}
           </ul>
-          <p className="note">{t('home.remindersNote')}</p>
+          <Why short={t('home.remindersShort')}>{t('home.remindersNote')}</Why>
         </Card>
       )}
     </>
@@ -280,6 +382,7 @@ export function Home() {
         </h2>
         {upcoming.length === 0 ? (
           <EmptyState
+            compact
             icon="calendar"
             title={t('home.upcomingEmpty')}
             action={
@@ -400,7 +503,7 @@ export function Home() {
             </li>
           )}
         </ul>
-        <p className="note">{t('home.freshnessNote')}</p>
+        <Why short={t('home.freshnessShort')}>{t('home.freshnessNote')}</Why>
         <div className="button-row">
           <a className="btn btn--primary" href={href('/conciliar')}>
             <Icon name="scale" />
@@ -423,6 +526,7 @@ export function Home() {
         </h2>
         {goalsForHome.length === 0 ? (
           <EmptyState
+            compact
             icon="target"
             title={t('goals.empty')}
             action={
@@ -460,37 +564,122 @@ export function Home() {
 
   return (
     <div className="stack">
-      <PageHeader title={t('home.title')}>
-        <button type="button" className="btn btn--ghost" aria-pressed={prefs.privacy} onClick={() => setPrefs((p) => ({ ...p, privacy: !p.privacy }))} data-testid="privacy-toggle">
-          <Icon name="lock" />
-          {prefs.privacy ? t('privacy.show') : t('privacy.hide')}
-        </button>
-      </PageHeader>
-      {prefs.privacy && (
+      {/* Sin título visible: la cabecera ya identifica la app y la cifra principal es lo primero (C1). */}
+      <h1 id="page-title" className="sr-only" tabIndex={-1}>
+        {t('home.title')}
+      </h1>
+      {prefs.privacy > 0 && (
         <p className="note note--icon" role="status">
           <Icon name="lock" size={16} /> {t('privacy.banner')}
         </p>
       )}
 
+      {!tourSeen && !data.isDemo && tourStep < 3 && (
+        <CoachMark
+          step={tourStep + 1}
+          total={3}
+          title={t(`tour.home.${tourStep + 1}.title` as Parameters<typeof t>[0])}
+          onNext={() => (tourStep === 2 ? endTour() : setTourStep(tourStep + 1))}
+          onDismiss={endTour}
+          nextLabel={tourStep === 2 ? t('tour.done') : t('tour.next')}
+          dismissLabel={t('tour.skip')}
+        >
+          {t(`tour.home.${tourStep + 1}.text` as Parameters<typeof t>[0])}
+        </CoachMark>
+      )}
+      {viewing && (
+        <div className="banner banner--warning period-banner" role="status" data-testid="period-banner">
+          <Icon name="alert" size={18} />
+          <span className="banner__text">{t('home.period.viewingOther')}</span>
+          <button type="button" className="btn btn--secondary btn--small" onClick={() => setViewStart(null)} data-testid="period-back">
+            {t('home.period.backToCurrent')}
+          </button>
+          <button type="button" className="btn btn--ghost btn--icon" onClick={() => setViewStart(null)} aria-label={t('common.close')}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+      )}
       <div className="home-grid">
         <div className="stack">
-          {/* Cifra principal */}
+          {/* Cifra principal: siempre la primera tarjeta (C1). */}
           <Card className="hero" labelledBy="hero-label">
+            <div className="hero__head">
+              {/* ‹ periodo ›: los pasados se ven al cierre, solo lectura; el futuro no se navega (D1). */}
+              <div className="hero__period-nav">
+                <button type="button" className="btn btn--ghost btn--icon hero__period-btn" onClick={goPrev} aria-label={t('home.period.prev')} data-testid="period-prev">
+                  <Icon name="chevronLeft" size={18} />
+                </button>
+                <span className="hero__period" data-testid="period-label" aria-live="polite">
+                  {/* Debajo de 480 px se ve el mes corto («Ago 2026»); el nombre completo sigue para lectores de pantalla. */}
+                  <span className="hero__period-long">{periodLabel(t, fmt, viewPeriod)}</span>
+                  {viewPeriod.type === 'month' && (
+                    <span className="hero__period-short" aria-hidden="true">
+                      {fmt.monthYearShort(viewPeriod.start)}
+                    </span>
+                  )}
+                </span>
+                <button type="button" className="btn btn--ghost btn--icon hero__period-btn" onClick={goNext} aria-label={t('home.period.next')} disabled={!canGoNext} data-testid="period-next">
+                  <Icon name="chevronRight" size={18} />
+                </button>
+              </div>
+              <span className="hero__tools">
+                <a className="hero__stats" href={href('/estadisticas')} data-testid="stats-link">
+                  <Icon name="chart" size={16} /> <span className="hero__stats-text">{t('stats.title')}</span>
+                </a>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--icon hero__privacy"
+                  aria-pressed={prefs.privacy > 0}
+                  title={t(`privacy.levelHint.${prefs.privacy}` as MessageKey)}
+                  onClick={() => {
+                    haptic('tick')
+                    setPrefs((p) => ({ ...p, privacy: nextPrivacyLevel(p.privacy) }))
+                  }}
+                  data-testid="privacy-toggle"
+                  data-privacy-level={prefs.privacy}
+                >
+                  <Icon name="lock" />
+                  <span className="sr-only">{t(`privacy.next.${prefs.privacy}` as MessageKey)}</span>
+                </button>
+              </span>
+            </div>
             <p className="hero__label" id="hero-label">
               {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
             </p>
             <p className="hero__value" data-testid="available">
-              {fmt.money(budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor)}
+              <CountUp valueMinor={budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor} format={(m) => fmt.money(m)} animate={!fmt.privacy} />
             </p>
             <p className="hero__sub">
-              {horizonText}
-              {budget.horizon && (
+              {viewing ? `${t('home.period.closedSub', { label: periodLabel(t, fmt, viewPeriod) })}${snapshot && snapshot.transactionCount === 0 ? ` ${t('home.period.noMovements')}` : ''}` : horizonText}
+              {budget.horizon && !budget.period && (
                 <>
                   {' · '}
                   {tn('home.periodDays', budget.horizon.days)}
                 </>
               )}
             </p>
+            {budget.status === 'ok' && (
+              <>
+                <div className="hero__boxes">
+                  <div className="hero__box" data-testid="period-income">
+                    <span className="hero__box-label">
+                      <Icon name="arrowUp" size={14} /> {t('home.hero.income')}
+                    </span>
+                    <span className="hero__box-value hero__box-value--income">{fmt.money(hero.incomeMinor, { sign: true })}</span>
+                  </div>
+                  <div className="hero__box" data-testid="period-expenses">
+                    <span className="hero__box-label">
+                      <Icon name="arrowDown" size={14} /> {t('home.hero.expenses')}
+                    </span>
+                    <span className="hero__box-value hero__box-value--expenses">{fmt.money(-hero.expensesMinor, { sign: true })}</span>
+                  </div>
+                </div>
+                <div className="hero__pct" data-testid="available-pct">
+                  <Meter fraction={hero.availablePct / 100} label={t('home.hero.availablePct', { pct: hero.availablePct })} valueText={t('home.hero.availablePct', { pct: hero.availablePct })} />
+                  <span className="hero__pct-text">{t('home.hero.availablePct', { pct: hero.availablePct })}</span>
+                </div>
+              </>
+            )}
             {budget.status === 'ok' && budget.availableMinor < 0 && (
               <Alert tone="critical" title={t('home.negativeTitle', { amount: fmt.money(-budget.availableMinor) })}>
                 {t('home.negativeText')}{' '}
@@ -499,27 +688,77 @@ export function Home() {
             )}
             {budget.status === 'needsHorizon' && <HorizonPicker />}
 
-            {budget.status === 'ok' && budget.dailyMinor !== null && budget.weeklyMinor !== null && (
-              <div className="stats">
-                <StatTile label={t('home.daily')} value={fmt.money(budget.dailyMinor)} hint={t('home.dailyHint')} />
-                <StatTile
-                  label={budget.weeklyDays === 7 ? t('home.weekly') : tn('home.weeklyShort', budget.weeklyDays ?? 0)}
-                  value={fmt.money(budget.weeklyMinor)}
-                  hint={t('home.weeklyHint')}
+            {/* Línea «por día»: una sola fila; las ayudas y el reparto del saldo viven en «¿Cómo se calculó?» (C1). */}
+            {budget.status === 'ok' && safe && (
+              <div className="safe safe--compact" data-testid="safe-to-spend">
+                <p className="hero__daily">
+                  <span className="stat__label">{granularity === 'day' ? t('home.daily') : granularity === 'week' ? t('home.weekly') : t('home.safe.period')}</span>{' '}
+                  <strong className="stat__value">{fmt.money(granularity === 'day' ? safe.perDayMinor : granularity === 'week' ? safe.perWeekMinor : safe.perPeriodMinor)}</strong>
+                </p>
+                <Segmented
+                  legend={t('home.safe.granularity')}
+                  name="safe-granularity"
+                  value={granularity}
+                  onChange={setGranularity}
+                  options={[
+                    { value: 'day', label: t('home.safe.day') },
+                    { value: 'week', label: t('home.safe.week') },
+                    { value: 'period', label: t('home.safe.period') },
+                  ]}
                 />
               </div>
             )}
+            {budget.status === 'ok' && !safe && budget.dailyMinor !== null && budget.weeklyMinor !== null && (
+              <p className="hero__daily" data-testid="daily-line">
+                <span className="stat__label">{t('home.daily')}</span> <strong className="stat__value">{fmt.money(budget.dailyMinor)}</strong>
+                <span className="hero__daily-sep" aria-hidden="true">
+                  {' · '}
+                </span>
+                <span className="stat__label">{budget.weeklyDays === 7 ? t('home.weekly') : tn('home.weeklyShort', budget.weeklyDays ?? 0)}</span>{' '}
+                <strong className="stat__value">{fmt.money(budget.weeklyMinor)}</strong>
+              </p>
+            )}
 
-            <CompositionBar
-              spendableMinor={budget.spendableMinor}
-              reservedMinor={budget.reservedTotalMinor}
-              goalsMinor={budget.goalsReservedMinor}
-              availableMinor={budget.availableMinor}
-              fmt={fmt}
-            />
-
-            <Explain>
+            <div className="hero__actions">
+              {/* Una sola acción secundaria («¿Me alcanza?»); registrar va por la pestaña «+» (B3). */}
+              {(viewing ? [] : essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
+                <a key={a} className="btn btn--secondary" href={href(QUICK[a].href)}>
+                  {QUICK[a].label}
+                </a>
+              ))}
+            <Explain className="explain--inline" summaryShort={t('common.howCalculatedShort')}>
               <div className="calc">
+                {budget.status === 'ok' && (
+                  <CompositionBar
+                    spendableMinor={budget.spendableMinor}
+                    reservedMinor={budget.reservedTotalMinor}
+                    goalsMinor={budget.goalsReservedMinor}
+                    availableMinor={budget.availableMinor}
+                    fmt={fmt}
+                  />
+                )}
+                {safe && (
+                  <p className="calc__detail">
+                    {t(granularity === 'day' ? 'home.safe.perDayHint' : granularity === 'week' ? 'home.safe.perWeekHint' : 'home.safe.perPeriodHint')} {t('home.safe.committed', { amount: fmt.money(safe.committedMinor) })}
+                  </p>
+                )}
+                {!safe && budget.dailyMinor !== null && (
+                  <p className="calc__detail">
+                    {t('home.dailyHint')} {t('home.weeklyHint')}
+                  </p>
+                )}
+                {budget.periodBalance && (
+                  <>
+                    {budget.periodBalance.carryOver ? (
+                      <CalcRow label={t('explain.period.carryOver')} value={fmt.money(budget.periodBalance.carryOverMinor)} />
+                    ) : (
+                      <p className="calc__detail">{t('explain.period.noCarry')}</p>
+                    )}
+                    <CalcRow op={budget.periodBalance.carryOver ? '+' : undefined} label={t('explain.period.income')} value={fmt.money(budget.periodBalance.incomeMinor)} />
+                    <CalcRow op="−" label={t('explain.period.expenses')} value={fmt.money(budget.periodBalance.expensesMinor)} />
+                    <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                  </>
+                )}
                 <CalcRow label={t('explain.balance')} value={fmt.money(budget.spendableMinor)} />
                 {budget.accountBalances.map((b) => (
                   <p className="calc__detail" key={b.account.id}>
@@ -562,7 +801,10 @@ export function Home() {
                       })}
                     </p>
                     <p className="calc__detail">
-                      {t(budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', {
+                      {t(budget.horizon.source === 'period' ? 'explain.period.days' : budget.horizon.source === 'income' ? 'explain.incomeDayExcluded' : 'explain.fallbackHorizon', {
+                        from: budget.period ? fmt.date(budget.period.start, { compact: true }) : '',
+                        to: budget.period ? fmt.date(budget.period.end, { compact: true }) : '',
+                        days: budget.period ? tn('home.periodDays', budget.period.daysLeft) : '',
                         date: fmt.date(budget.horizon.endDate),
                       })}
                     </p>
@@ -592,33 +834,34 @@ export function Home() {
                   <li>{t('explain.glossary.goals')}</li>
                   <li>{t('explain.glossary.card')}</li>
                 </ul>
-                <p className="calc__detail">
-                  <a href={href('/ajustes?seccion=formulas')}>{t('explain.moreInfo')}</a>
+                <p className="calc__detail" data-testid="explain-pct">
+                  {t('explain.hero.pct', { available: fmt.money(budget.availableMinor), start: fmt.money(hero.startBalanceMinor), income: fmt.money(hero.incomeMinor), pct: hero.availablePct })}{' '}
+                  {t('home.hero.periodNote', { from: fmt.date(hero.start, { compact: true }), to: fmt.date(hero.end, { compact: true }) })}
+                </p>
+                <p className="link-row">
+                  <a href={href('/cambios')} data-testid="what-changed-link">
+                    <Icon name="clock" size={16} /> {t('changes.link')}
+                  </a>
+                  <a href={href('/ajustes/formulas')}>{t('explain.moreInfo')}</a>
                 </p>
               </div>
             </Explain>
-
-            <p className="link-row">
-              <a href={href('/cambios')} data-testid="what-changed-link">
-                <Icon name="clock" size={16} /> {t('changes.link')}
-              </a>
-            </p>
-
-            <div className="button-row button-row--main">
-              <a className="btn btn--primary btn--large" href={href('/movimientos/nuevo')}>
-                <Icon name="plus" />
-                {t('home.addMovement')}
-              </a>
-              {!essential &&
-                prefs.quickActions.map((a) => (
-                  <a key={a} className="btn btn--secondary btn--large" href={href(QUICK[a].href)}>
-                    <Icon name={QUICK[a].icon} />
-                    {QUICK[a].label}
-                  </a>
-                ))}
             </div>
-            {!essential && <FavoriteChips returnTo="/" limit={4} />}
           </Card>
+          {viewing ? null : (
+          <>
+          {isEmpty && (
+            <div className="first-use" data-testid="first-use">
+              <Icon name="sparkles" size={18} />
+              <span className="first-use__text">
+                <strong>{t('home.empty.title')}</strong> {t('home.firstUse.line')}
+              </span>
+              <a className="btn btn--primary btn--small" href={href(withQuery('/asistente', { texto: t('assistant.exampleText'), returnTo: '/' }))} data-testid="try-assistant">
+                {t('home.empty.try')}
+              </a>
+            </div>
+          )}
+          {showSafety && <SafetyCard onClose={closeSafety} />}
           {/* Ingresos sin confirmar: explican por qué no se suman a la cifra principal */}
           {budget.overdueIncomes.map((item) => (
             <Alert
@@ -672,18 +915,53 @@ export function Home() {
               </div>
             </details>
           )}
+          {/* Favoritos: atajos para registrar; en ambas vistas, tras el primer aviso (C1). */}
+          <FavoriteChips returnTo="/" limit={4} />
           {essential ? toolsCard : null}
+          {essential && !hintSeen && (
+            <div className="note note--box view-hint" data-testid="view-hint">
+              <p>
+                <strong>{t('home.viewHint.title')}</strong> {t('home.viewHint.text')}
+              </p>
+              <div className="button-row">
+                <a className="btn btn--secondary btn--small" href={href('/ajustes?seccion=personalizar')}>
+                  {t('home.viewHint.action')}
+                </a>
+                <button type="button" className="btn btn--ghost btn--small" onClick={dismissHint}>
+                  {t('home.viewHint.dismiss')}
+                </button>
+              </div>
+            </div>
+          )}
+          </>
+          )}
         </div>
 
-        {!essential && (
+        {!essential && !viewing && (
           <div className="stack" data-testid="home-sections">
-            {prefs.sections
-              .filter((x) => x.visible && !(x.id === 'weekly' && !week) && !(x.id === 'reminders' && otherReminders.length === 0 && cardReminders.length === 0))
+            {visibleSections
+              .filter((x) => PRIMARY_SECTIONS.has(x.id))
               .map((x) => (
                 <div key={x.id} className="home-section" data-section={x.id}>
                   {sectionNodes[x.id]}
                 </div>
               ))}
+            {/* Lo secundario (semana, metas, datos, recordatorios) se pliega en una sola tarjeta (C1). */}
+            {secondarySections.length > 0 && (
+              <details className="explain home-more" data-testid="home-more">
+                <summary>
+                  <Icon name="list" size={16} />
+                  {t('home.more.title')} · {tn('home.more.count', secondarySections.length)}
+                </summary>
+                <div className="explain__body stack">
+                  {secondarySections.map((x) => (
+                    <div key={x.id} className="home-section" data-section={x.id}>
+                      {sectionNodes[x.id]}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         )}
       </div>

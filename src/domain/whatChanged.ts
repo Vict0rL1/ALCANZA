@@ -165,7 +165,17 @@ function dailyDiff(a: BudgetResult, b: BudgetResult): number | null {
   return a.dailyMinor === null || b.dailyMinor === null ? null : b.dailyMinor - a.dailyMinor
 }
 
-export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint): WhatChangedResult {
+/** Avance del cálculo: pasos ya rehechos de un total conocido desde el principio. */
+export interface WhatChangedProgress {
+  done: number
+  total: number
+}
+
+/**
+ * El mismo cálculo, paso a paso: cede el control después de cada `computeBudget` para que la
+ * pantalla pueda repartirlo en trozos sin bloquearse. El resultado es idéntico a `whatChanged`.
+ */
+export function* whatChangedSteps(data: AppData, today: LocalDate, point: ComparePoint): Generator<WhatChangedProgress, WhatChangedResult, void> {
   const resolved = resolveComparePoint(data, point)
   if (resolved.status !== 'ok') return resolved
   const { index, fromDate, fromAt } = resolved
@@ -173,8 +183,11 @@ export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint
   const start = stateBefore(data, index)
   if (!start) return { status: 'cut', cutAt: data.history[index]?.at ?? data.historyStartedAt }
 
-  const from = computeBudget(start, fromDate)
   const groups = groupEntries(data.history.slice(index))
+  // Un cálculo del disponible por paso, más el inicial, el de hoy rehecho y el actual.
+  const total = groups.length + 3
+  const from = computeBudget(start, fromDate)
+  yield { done: 1, total }
   const steps: ChangeStep[] = []
   let state = start
   let prev = from
@@ -186,10 +199,12 @@ export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint
     if (deltaMinor === 0 && group.entries.length === 1) neutralEntries++
     steps.push({ category: group.category, entries: group.entries, deltaMinor, dailyDeltaMinor: dailyDiff(prev, next) })
     prev = next
+    yield { done: steps.length + 1, total }
   }
 
   // Paso del tiempo: mismos datos, distinta fecha.
   const replayedToday = computeBudget(state, today)
+  yield { done: total - 1, total }
   const timeDelta = replayedToday.availableMinor - prev.availableMinor
   const before = reservedKey(prev)
   const after = reservedKey(replayedToday)
@@ -231,5 +246,13 @@ export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint
     unexplainedMinor,
     daily,
     neutralEntries,
+  }
+}
+
+export function whatChanged(data: AppData, today: LocalDate, point: ComparePoint): WhatChangedResult {
+  const run = whatChangedSteps(data, today, point)
+  for (;;) {
+    const step = run.next()
+    if (step.done) return step.value
   }
 }

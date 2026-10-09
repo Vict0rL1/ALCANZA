@@ -27,15 +27,16 @@ import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, type Tone } from '../components/common'
+import { Alert, Badge, CalcRow, Card, EmptyState, Explain, Meter, PageHeader, Why, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
-import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CheckboxField, MoneyField, Segmented, TextField } from '../components/fields'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { categoryLabel, fieldError, issueMessage, otherIssues, transactionTitle } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 import { href, type Route, useNavigateIfStillHere } from '../router'
+import { CategoryPicker } from '../components/CategoryPicker'
 
 const STATUS: Record<PeriodStatus, { tone: Tone; icon: IconName }> = {
   upcoming: { tone: 'info', icon: 'clock' },
@@ -101,12 +102,10 @@ export function PeriodBudgets() {
         </a>
       </div>
       <Alert tone="info" icon="info" title={t('period.notMoneyTitle')}>
-        {t('period.notMoneyText')}
+        <Why short={t('period.notMoneyShort')}>{t('period.notMoneyText')}</Why>
       </Alert>
       {active.length === 0 && archived.length === 0 ? (
-        <EmptyState icon="wallet" title={t('period.empty')} action={<a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>{t('period.new')}</a>}>
-          <p>{t('period.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="wallet" title={t('period.empty')} text={t('period.emptyText')} action={<a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>{t('period.new')}</a>} />
       ) : (
         <>
           {active.length > 1 && (
@@ -221,7 +220,7 @@ export function PeriodBudgetForm({ route }: { route: Route }) {
           <fieldset className="explain__body stack-sm">
             <legend className="sr-only">{t('period.ruleTitle')}</legend>
             <p className="field__hint">{t('period.ruleHint')}</p>
-            {categoriesForKind('expense', data.categories).map((c) => (
+            {categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => (
               <CheckboxField
                 key={c}
                 checked={ruleCategoryIds.includes(c)}
@@ -391,7 +390,7 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
           {t('period.moneyTitle')}
         </h2>
         <p>{t('period.availableToday', { amount: fmt.money(availableMinor) })}</p>
-        <p className="note">{t('period.notMoneyText')}</p>
+        <Why short={t('period.notMoneyShort')}>{t('period.notMoneyText')}</Why>
         {reserve ? (
           <p data-testid="period-reserve">{t('period.reserveLine', { amount: fmt.money(reserve.amountMinor), consumed: fmt.money(reserve.consumedMinor) })}</p>
         ) : (
@@ -426,17 +425,12 @@ export function PeriodBudgetDetail({ route }: { route: Route }) {
         <h2 id="period-movements" className="section-title">
           {t('period.movements')}
         </h2>
-        <p className="note">{t('period.movementsHint')}</p>
+        <Why short={t('period.movementsShort')}>{t('period.movementsHint')}</Why>
         {!budget.archived && (suggestions.length > 0 || suggestCategory) && (
           <div className="card stack-sm" data-testid="period-suggestions">
             <p>{tn('period.suggestText', suggestions.length)}</p>
             {suggestionCategories.length > 1 && (
-              <SelectField
-                label={t('period.suggestCategory')}
-                value={suggestCategory}
-                onChange={(e) => setSuggestCategory(e.target.value)}
-                options={[{ value: '', label: t('filters.allCategories') }, ...suggestionCategories.map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
-              />
+              <CategoryPicker label={t('period.suggestCategory')} kind="expense" data={data} value={suggestCategory} onChange={setSuggestCategory} only={suggestionCategories} placeholder={t('filters.allCategories')} includeArchived />
             )}
             {suggestions.length > 0 && (
               <button type="button" className="btn btn--secondary" onClick={() => void linkSuggestions()}>
@@ -543,7 +537,7 @@ function ReserveDialog({ budget, available, onClose }: { budget: PeriodBudget; a
         </>
       }
     >
-      <p className="note">{t('period.reserveExplain')}</p>
+      <Why short={t('period.reserveShort')}>{t('period.reserveExplain')}</Why>
       <MoneyField label={t('fields.amount')} value={amountText} onChange={setAmountText} fmt={fmt} autoFocus error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} hint={t('goals.maxAddBudget', { amount: fmt.money(Math.max(0, available)) })} />
       {typed.ok && <p>{t('period.reserveEffect', { before: fmt.money(available), after: fmt.money(available - typed.minor) })}</p>}
       {otherIssues(issues, ['amountMinor']).map((i, idx) => (

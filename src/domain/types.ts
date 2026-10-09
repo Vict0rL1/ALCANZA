@@ -15,7 +15,7 @@ export type Timestamp = string
 /** Código ISO 4217, por ejemplo 'CAD'. */
 export type CurrencyCode = string
 
-export const SCHEMA_VERSION = 8 as const
+export const SCHEMA_VERSION = 10 as const
 
 /**
  * 'credit' = tarjeta de crédito: su saldo es una DEUDA y se guarda como número
@@ -121,9 +121,25 @@ export interface Transaction {
    * al saldo por separado. Σ líneas = `amountMinor` exacto; `categoryId` = la de la 1.ª línea.
    */
   splits?: SplitLine[]
+  /* ---- v9 (opcionales) ---- */
+  /** Comercio o lugar (distinto de la nota). */
+  merchant?: string
+  tagIds?: string[]
+  /** Entrada común (favorito) desde la que se rellenó el formulario; solo para contar usos. */
+  favoriteId?: string
+  /** Cómo se registró. Ausente en datos anteriores a v9 = manual. */
+  source?: TransactionSource
+  /** Recibo asociado (URL de datos o referencia al almacén de archivos). */
+  receiptUri?: string
+  lat?: number
+  lng?: number
+  /** Saldo inicial registrado en el onboarding como ingreso (editable después). */
+  isInitialBalance?: boolean
   createdAt: Timestamp
   updatedAt: Timestamp
 }
+
+export type TransactionSource = 'manual' | 'ai_text' | 'voice' | 'photo' | 'scheduled' | 'common' | 'shortcut' | 'import'
 
 export interface SplitLine {
   id: string
@@ -142,7 +158,7 @@ export interface IncomeRange {
 
 export type IncomeScenario = 'min' | 'expected' | 'extra'
 
-export type Frequency = 'once' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'
+export type Frequency = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'
 export type ScheduleKind = 'income' | 'expense'
 
 /** Pago o ingreso programado (único o recurrente). */
@@ -166,6 +182,16 @@ export interface Schedule {
   /** Ocurrencias que el usuario decidió omitir. */
   skippedDates: LocalDate[]
   note?: string
+  /* ---- v9 (opcionales) ---- */
+  /** Solo `frequency: 'custom'`: cada N días. */
+  intervalDays?: number
+  /**
+   * `true`: la ocurrencia se registra sola al llegar su fecha (al abrir la app o a medianoche).
+   * Ausente o `false`: queda «por confirmar» (nunca se registra sin confirmación).
+   */
+  autoConfirm?: boolean
+  /** En pausa: no genera ocurrencias ni avisos hasta reanudar. */
+  paused?: boolean
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -234,18 +260,134 @@ export interface Goal {
   allocations: GoalAllocation[]
   /** Solo `kind: 'expense'`. */
   plan?: PlannedExpense
+  /* ---- v9 (opcionales) ---- */
+  icon?: string
+  color?: CategoryColor
+  /* ---- v10 (opcional) ---- */
+  /**
+   * Aporte periódico sugerido. Es un recordatorio: «Aportar ahora» lo propone como importe y la
+   * persona confirma. Nunca aparta dinero solo (los apartados son virtuales; ver decisión 33).
+   */
+  contribution?: GoalContribution
   createdAt: Timestamp
   updatedAt: Timestamp
 }
 
-/** Categoría creada por la persona. Las fijas viven en `categories.ts`. */
+export type ContributionFrequency = 'weekly' | 'biweekly' | 'monthly'
+
+export interface GoalContribution {
+  amountMinor: number
+  frequency: ContributionFrequency
+}
+
+/** Uno de los 16 colores de categoría (§4): el token CSS es `--cat-<color>`. */
+export type CategoryColor =
+  | 'emerald' | 'green' | 'lime' | 'yellow' | 'amber' | 'orange' | 'red' | 'rose'
+  | 'pink' | 'purple' | 'violet' | 'indigo' | 'blue' | 'sky' | 'cyan' | 'teal'
+
+/** Categoría creada por la persona. Las del sistema viven en `categories.ts` (+ `categoryPrefs`). */
 export interface CustomCategory {
-  /** Empieza por `c_` para no chocar nunca con una categoría fija. */
+  /** Empieza por `c_` para no chocar nunca con una categoría del sistema. */
   id: string
   name: string
   kind: 'expense' | 'income'
   /** Archivada: no se ofrece en formularios, pero los movimientos antiguos la conservan. */
   archived: boolean
+  /* ---- v9 (la migración los rellena; opcionales para datos y pruebas anteriores) ---- */
+  groupId?: string
+  icon?: string
+  color?: CategoryColor
+  sortOrder?: number
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+/**
+ * Categoría resuelta (del sistema o personalizada) con la forma de §5. Las del sistema se
+ * traducen por `nameKey`; `name` es el nombre escrito por la persona (personalizadas o renombradas).
+ */
+export interface Category {
+  id: string
+  kind: 'expense' | 'income'
+  nameKey?: string
+  name?: string
+  groupId: string
+  icon: string
+  color: CategoryColor
+  isCustom: boolean
+  archived: boolean
+  sortOrder: number
+}
+
+/** Ajustes de la persona sobre una categoría DEL SISTEMA (renombrar, archivar, mover, reordenar). */
+export interface CategoryPref {
+  name?: string
+  archived?: boolean
+  groupId?: string
+  icon?: string
+  color?: CategoryColor
+  sortOrder?: number
+}
+
+export interface CategoryGroup {
+  id: string
+  nameKey?: string
+  name?: string
+  color: CategoryColor
+  sortOrder: number
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+}
+
+export interface Tag {
+  id: string
+  name: string
+  color: CategoryColor
+  createdAt: Timestamp
+  updatedAt: Timestamp
+}
+
+/* ------------------------------------------------------------------ */
+/* Planes de gasto (límites) — v9                                      */
+/* ------------------------------------------------------------------ */
+
+export type BudgetPeriodType = 'week' | 'biweek' | 'month' | 'quarter' | 'semester' | 'year' | 'custom' | 'untilIncome'
+
+export interface PlanResult {
+  spentMinor: number
+  achieved: boolean
+  /** Positivo = quedó margen; negativo = se superó. */
+  deltaMinor: number
+  closedAt: Timestamp
+}
+
+/**
+ * Límite de gasto para una o varias categorías (vacío = todas) en un periodo. Informativo:
+ * no mueve dinero ni cambia el disponible. Las metas de ahorro son `Goal`.
+ */
+export interface Plan {
+  id: string
+  kind: 'limit'
+  /** Puede estar vacío: la interfaz muestra entonces la(s) categoría(s). */
+  name: string
+  categoryIds: string[]
+  amountMinor: number
+  currency: CurrencyCode
+  periodType: BudgetPeriodType
+  /**
+   * Ciclo en curso (ambos incluidos). Personalizados: fechas explícitas. Recurrentes: se fija al
+   * crear y se renueva al cerrar; si falta (datos migrados), el primer cierre lo rellena con el
+   * periodo que contiene «hoy».
+   */
+  startDate?: LocalDate
+  endDate?: LocalDate
+  recurring: boolean
+  status: 'active' | 'completed' | 'paused'
+  /** Plan del que se renovó (recurrencia) o se repitió; para el historial. */
+  previousPlanId?: string
+  alertAt80: boolean
+  alertAt100: boolean
+  result?: PlanResult
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -297,6 +439,10 @@ export interface Favorite {
   note?: string
   /** Posición en la lista (0, 1, 2…). */
   order: number
+  /* ---- v9 (opcionales) ---- */
+  usageCount?: number
+  lastUsedAt?: Timestamp
+  tagIds?: string[]
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -346,9 +492,57 @@ export interface BackupState {
   snoozedUntil?: LocalDate
 }
 
-export type NumberLocale ='es-MX' | 'es-ES' | 'en-CA' | 'fr-CA'
+export type NumberLocale = 'es-MX' | 'es-ES' | 'es-CO' | 'en-CA' | 'en-US' | 'fr-CA' | 'fr-FR' | 'pt-BR'
 export type DateStyle = 'short' | 'medium' | 'iso'
-export type Language = 'es' | 'en'
+export type Language = 'es' | 'en' | 'pt' | 'fr'
+
+/** 0 = domingo … 6 = sábado. */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+/**
+ * Periodo de presupuesto (§6). `untilIncome` es el modelo original de Clara (hasta el día
+ * anterior al próximo ingreso programado) y se conserva como opción.
+ */
+export interface BudgetPeriodSettings {
+  type: BudgetPeriodType
+  weekStartsOn: Weekday
+  customStart?: LocalDate
+  customEnd?: LocalDate
+}
+
+export interface SafeToSpendSettings {
+  showOnHome: boolean
+  granularity: 'day' | 'week' | 'period'
+  subtractScheduled: boolean
+  subtractGoalContributions: boolean
+}
+
+/** Hora local `HH:MM`. */
+export type ClockTime = string
+
+export interface NotificationSettings {
+  scheduledAlerts: boolean
+  dailyReminder: boolean
+  dailyReminderTime: ClockTime
+  dailySummary: boolean
+  dailySummaryTime: ClockTime
+  quietHours: boolean
+  quietFrom: ClockTime
+  quietTo: ClockTime
+  planAlerts: boolean
+}
+
+export interface ProStatus {
+  active: boolean
+  plan?: 'monthly' | 'annual'
+  expiresAt?: Timestamp
+}
+
+/** Uso del asistente remoto en el mes (`AAAA-MM`); el parser local no cuenta. */
+export interface AiUsage {
+  month: string
+  count: number
+}
 
 export interface Settings {
   currency: CurrencyCode
@@ -360,6 +554,26 @@ export interface Settings {
   fallbackHorizonDays: number | null
   /** Mostrar la revisión semanal en Inicio (por defecto sí). */
   weeklyReview?: boolean
+  /* ---- v9 ---- */
+  budgetPeriod: BudgetPeriodSettings
+  /** Arrastrar el saldo entre periodos (por defecto sí; Lukas no lo hace). */
+  carryOverBalance: boolean
+  safeToSpend: SafeToSpendSettings
+  notifications: NotificationSettings
+  biometricLock: boolean
+  onboardingDone: boolean
+  toursSeen: string[]
+  proStatus: ProStatus
+  aiUsage: AiUsage
+}
+
+export interface UserProfile {
+  id: string
+  isGuest: boolean
+  provider?: 'google' | 'apple'
+  email?: string
+  displayName?: string
+  avatarUrl?: string
 }
 
 export type PeriodTemplate = 'semester' | 'trip' | 'custom'
@@ -458,6 +672,15 @@ export interface AppData {
   schedules: Schedule[]
   goals: Goal[]
   categories: CustomCategory[]
+  /* ---- v9 ---- */
+  /** Ajustes sobre categorías del sistema, por id. */
+  categoryPrefs: Record<string, CategoryPref>
+  /** Grupos creados por la persona (los del sistema viven en `categories.ts`). */
+  categoryGroups: CategoryGroup[]
+  tags: Tag[]
+  /** Límites de gasto (planes). Las metas de ahorro son `goals`. */
+  plans: Plan[]
+  profile: UserProfile
   categoryLimits: CategoryLimit[]
   categoryRules: CategoryRule[]
   /** Movimientos eliminados que aún se pueden restaurar. */

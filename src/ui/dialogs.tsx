@@ -321,14 +321,14 @@ export function UpdateBalanceDialog({ onClose, initialAccountId }: { onClose: ()
   )
 }
 
-export function AllocateDialog({ goal, mode, onClose }: { goal: Goal; mode: 'add' | 'release'; onClose: () => void }) {
+export function AllocateDialog({ goal, mode, onClose, initialAmountMinor }: { goal: Goal; mode: 'add' | 'release'; onClose: () => void; initialAmountMinor?: number }) {
   const { t } = useT()
   const fmt = useFormat()
   const data = useData()
   const today = useToday()
   const run = useRun()
   const toast = useToast()
-  const [amountText, setAmountText] = useState('')
+  const [amountText, setAmountText] = useState(() => (initialAmountMinor ? fmt.moneyInput(initialAmountMinor) : ''))
   const [allocationId] = useState(newId)
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)

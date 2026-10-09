@@ -1,5 +1,5 @@
 /**
- * Tema de la interfaz: «Sistema», «Claro» u «Oscuro». Es una preferencia visual de este
+ * Tema de la interfaz: «Oscuro» (predeterminado), «Claro» o «Sistema». Es una preferencia visual de este
  * dispositivo (no forma parte de los datos ni de las copias). Cambiarlo solo pone un
  * atributo en <html>: no recarga ni desmonta pantallas, así que los formularios a medias
  * se conservan. `public/theme.js` lo aplica antes de pintar.
@@ -9,12 +9,15 @@ import { useEffect, useState } from 'react'
 export type ThemePreference = 'system' | 'light' | 'dark'
 export const THEME_KEY = 'clara.theme'
 
+/** Oscuro es el tema predeterminado (§4); «Sistema» se guarda de forma explícita. */
+export const DEFAULT_THEME: ThemePreference = 'dark'
+
 export function readTheme(): ThemePreference {
   try {
     const v = localStorage.getItem(THEME_KEY)
-    return v === 'light' || v === 'dark' ? v : 'system'
+    return v === 'light' || v === 'dark' || v === 'system' ? v : DEFAULT_THEME
   } catch {
-    return 'system'
+    return DEFAULT_THEME
   }
 }
 
@@ -45,8 +48,7 @@ export function useThemePreference(): [ThemePreference, (t: ThemePreference) => 
     applyTheme(next)
     setTheme(next)
     try {
-      if (next === 'system') localStorage.removeItem(THEME_KEY)
-      else localStorage.setItem(THEME_KEY, next)
+      localStorage.setItem(THEME_KEY, next)
     } catch {
       // Sin almacenamiento: se aplica solo en esta visita.
     }

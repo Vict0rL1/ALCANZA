@@ -11,13 +11,21 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined
 // equivale a Safari en un iPhone real (otro sistema, teclado, PWA y almacenamiento).
 const extraBrowsers = process.env.PLAYWRIGHT_ALL_BROWSERS === '1'
 
+// Tras un despliegue (J3), las pruebas rápidas se ejecutan contra la dirección publicada:
+// `BASE_URL=https://… npm run test:smoke -- --project=celular`. Entonces no se compila ni se
+// sirve nada en local.
+const baseURL = process.env.BASE_URL || 'http://localhost:4173'
+const local = !process.env.BASE_URL
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
-  retries: 0,
-  reporter: [['list']],
+  // En CI, un reintento: si una prueba falla y luego pasa, `--fail-on-flaky-tests` la marca como
+  // inestable y el trabajo falla igual (no se esconde). El informe HTML se sube como artefacto.
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL,
     trace: 'retain-on-failure',
     timezoneId: 'America/Toronto',
     locale: 'es-MX',
@@ -51,10 +59,12 @@ export default defineConfig({
         ]
       : []),
   ],
-  webServer: {
-    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: local
+    ? {
+        command: 'npm run build && npm run preview -- --port 4173 --strictPort',
+        url: 'http://localhost:4173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      }
+    : undefined,
 })

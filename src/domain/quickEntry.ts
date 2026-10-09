@@ -22,8 +22,8 @@ function latest(data: Pick<AppData, 'transactions'>, keep: (tx: Transaction) => 
  * Últimas categorías distintas usadas para este tipo (incluye las de compras divididas).
  * Excluye las archivadas o eliminadas.
  */
-export function recentCategories(data: Pick<AppData, 'transactions' | 'categories'>, kind: Exclude<TxKind, 'transfer' | 'adjustment'>, limit = 5): string[] {
-  const valid = new Set(categoriesForKind(kind, data.categories))
+export function recentCategories(data: Pick<AppData, 'transactions' | 'categories' | 'categoryPrefs'>, kind: Exclude<TxKind, 'transfer' | 'adjustment'>, limit = 5): string[] {
+  const valid = new Set(categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }))
   const want: TxKind = kind === 'refund' ? 'expense' : kind
   const recent = latest(data, (tx) => tx.kind === want, 40)
   const out: string[] = []

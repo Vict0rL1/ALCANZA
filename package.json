@@ -1,7 +1,7 @@
 {
   "name": "clara",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0-beta.1",
   "description": "Clara: prototipo local de finanzas personales (sin backend, sin conexión bancaria).",
   "type": "module",
   "engines": {
@@ -16,7 +16,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "test:smoke": "playwright test --grep @smoke",
+    "shots": "node scripts/shots.mjs",
+    "check": "npm run typecheck && npm run lint && npm run lint:i18n && npm run test",
+    "lint:i18n": "node scripts/find-literals.mjs",
+    "size": "node scripts/check-size.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",

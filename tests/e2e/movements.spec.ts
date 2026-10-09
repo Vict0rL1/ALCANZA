@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { available, go, movementCount, showAllNotices, startDemo, openDetails } from './helpers'
+import { openMonthSummary, available, go, movementCount, startDemo, openDetails } from './helpers'
 
-test('agregar, buscar, editar y eliminar con deshacer', async ({ page }) => {
+test('agregar, buscar, editar y eliminar con deshacer', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   const before = await movementCount(page)
 
@@ -32,7 +32,7 @@ test('agregar, buscar, editar y eliminar con deshacer', async ({ page }) => {
   await go(page, '/movimientos')
   await page.getByRole('searchbox', { name: 'Buscar' }).fill('café de prueba')
   await page.getByRole('link', { name: /Café de prueba/ }).click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
   await expect(page.locator('.summary-line')).toContainText(`${before} movimientos`)
   await page.getByRole('button', { name: 'Deshacer' }).click()
@@ -96,7 +96,9 @@ test('devolución parcial: no puede superar lo que queda por devolver', async ({
 test('resumen del mes: gasto por categoría ordenado y navegación entre meses', async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
+  // Cerrado por defecto: la cabecera resume el mes y el gasto neto (C2).
+  await expect(page.locator('.month-summary__toggle')).toContainText(/2026 · Gasto neto \$1,243\.18/)
+  const summary = await openMonthSummary(page)
   await expect(summary.getByRole('heading', { name: /Resumen de septiembre de 2026/i })).toBeVisible()
   // La renta (650.00) es el mayor gasto; el supermercado suma 243.90 en septiembre.
   await expect(summary.locator('.bars__row').first()).toContainText('Vivienda')
@@ -108,27 +110,11 @@ test('resumen del mes: gasto por categoría ordenado y navegación entre meses',
   await expect(summary.getByText('No hay gastos realizados en este mes.')).toBeVisible()
 })
 
-test('límite mensual por categoría: progreso, aviso en Inicio y quitar con deshacer', async ({ page }) => {
+test('el resumen del mes enlaza a Planes (los límites viven allí desde v10)', async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos')
-  const summary = page.locator('.month-summary')
-  await summary.getByRole('button', { name: 'Agregar límite' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Nuevo límite mensual' })
-  await dialog.getByLabel('Categoría').selectOption({ label: 'Comida fuera y café' })
-  await dialog.getByLabel('Límite por mes').fill('30')
-  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click()
-  // En septiembre la demo gasta 37.05 en comida fuera.
-  await expect(summary.getByText('$37.05 de $30.00')).toBeVisible()
-  await expect(summary.getByText('Pasado por $7.05')).toBeVisible()
-
-  await go(page, '/')
-  await showAllNotices(page)
-  await expect(page.getByText('Te pasaste del límite en 1 categoría')).toBeVisible()
-  await expect(page.getByTestId('available')).toHaveText('$136.78') // informativo: no cambia el disponible
-
-  await go(page, '/movimientos')
-  await summary.getByRole('button', { name: /Quitar.*Comida fuera/ }).click()
-  await expect(summary.getByText('Sin límites.', { exact: false })).toBeVisible()
-  await page.getByRole('button', { name: 'Deshacer' }).click()
-  await expect(summary.getByText('$37.05 de $30.00')).toBeVisible()
+  const summary = await openMonthSummary(page)
+  await summary.getByRole('link', { name: /ver Planes/ }).click()
+  await expect(page.getByRole('button', { name: 'Nuevo plan' })).toBeVisible()
+  await expect(page.getByTestId('plan-list')).toBeVisible()
 })

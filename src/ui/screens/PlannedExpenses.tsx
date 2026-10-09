@@ -3,7 +3,6 @@
  * Son metas `kind: 'expense'`; los cálculos viven en `domain/plannedExpenses.ts`.
  */
 import { useMemo, useState } from 'react'
-import { categoriesForKind } from '../../domain/categories'
 import { addDays } from '../../domain/dates'
 import { goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
@@ -15,14 +14,15 @@ import { LIMITS, type Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, Meter, PageHeader, type Tone } from '../components/common'
+import { Alert, Badge, Card, Meter, PageHeader, Why, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, issueMessage, otherIssues, planItemName } from '../labels'
+import { fieldError, issueMessage, otherIssues, planItemName } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 import { href, useNavigateIfStillHere } from '../router'
 
@@ -98,7 +98,7 @@ export function PlannedExpenseCard({ goal, onAllocate }: { goal: Goal; onAllocat
               </div>
             )}
           </dl>
-          <p className="note">{t('planned.planVsConfirmed')}</p>
+          <Why short={t('planned.planVsConfirmedShort')}>{t('planned.planVsConfirmed')}</Why>
           {s.state === 'overdue' && (
             <Alert tone="critical" title={t('planned.overdueTitle', { date: fmt.date(goal.targetDate!) })}>
               {t('planned.overdueText', { amount: fmt.money(p.remainingMinor) })}
@@ -347,7 +347,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
   return (
     <div className="stack">
       <PageHeader title={existing ? t('planned.editTitle') : t('planned.newTitle')} back={{ href: href('/plan/metas'), label: t('plan.goals') }} />
-      <p className="lead">{t('planned.intro')}</p>
+      <Why short={t('planned.introShort')}>{t('planned.intro')}</Why>
       <form
         className="form card"
         noValidate
@@ -396,12 +396,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
           options={REPEAT_OPTIONS.map((m) => ({ value: String(m), label: m === 0 ? t('planned.once') : tn('planned.repeatBadge', m) }))}
           hint={t('planned.repeatHint')}
         />
-        <SelectField
-          label={t('fields.category')}
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          options={categoriesForKind('expense', data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-        />
+        <CategoryPicker label={t('fields.category')} kind="expense" data={data} value={categoryId} onChange={setCategoryId} allowNew />
         <Segmented
           legend={t('goalForm.funding')}
           name="pfunding"

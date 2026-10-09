@@ -1,5 +1,5 @@
 /** Favoritos: crear, editar, ordenar y eliminar plantillas de movimientos. */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { sortedFavorites } from '../../domain/favorites'
 import { deleteFavorite, moveFavorite, restoreFavorite } from '../../domain/operations'
 import type { Favorite } from '../../domain/types'
@@ -15,13 +15,18 @@ import { accountName, categoryLabel } from '../labels'
 import { href, withQuery } from '../router'
 
 export function Favorites() {
-  const { t } = useT()
+  const { t, tn } = useT()
   const fmt = useFormat()
   const data = useData()
   const run = useRun()
   const toast = useToast()
   const [editing, setEditing] = useState<Favorite | 'new' | null>(null)
   const favorites = sortedFavorites(data)
+  const usage = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const tx of data.transactions) if (tx.favoriteId) m.set(tx.favoriteId, (m.get(tx.favoriteId) ?? 0) + 1)
+    return m
+  }, [data.transactions])
 
   const remove = async (f: Favorite) => {
     const { result, saved } = await run((d, c) => deleteFavorite(d, f.id, c))
@@ -45,7 +50,7 @@ export function Favorites() {
       <p className="note">{t('favorites.intro')}</p>
 
       {favorites.length === 0 ? (
-        <EmptyState icon="star" title={t('favorites.empty')} />
+        <EmptyState icon="star" title={t('favorites.empty')} text={t('favorites.emptyText')} />
       ) : (
         <Card>
           <ul className="item-list">
@@ -55,7 +60,7 @@ export function Favorites() {
                   <div className="item__main">
                     <p className="item__title">{f.name}</p>
                     <p className="item__meta">
-                      {t(`txKind.${f.kind}` as MessageKey)} · {categoryLabel(t, f.categoryId)} · {accountName(data.accounts, f.accountId, t)}
+                      {t(`txKind.${f.kind}` as MessageKey)} · {categoryLabel(t, f.categoryId)} · {accountName(data.accounts, f.accountId, t)} · {tn('favorites.uses', usage.get(f.id) ?? 0)}
                     </p>
                     {f.broken && (
                       <p className="item__badges">

@@ -11,6 +11,8 @@ import {
   markOccurrence,
   purgeTrash,
   restoreFromTrash,
+  restoreFromTrashMany,
+  trashTransactions,
 } from './operations'
 import { planItems } from './planItems'
 import { projectBalance } from './projection'
@@ -46,6 +48,26 @@ describe('papelera: eliminar, restaurar y eliminar definitivamente', () => {
     expect(restoreFromTrash(back.data, 'coffee', later)).toMatchObject({ ok: true, unchanged: true })
     // Eliminar dos veces tampoco duplica la entrada.
     expect(deleteTransaction(del.data, 'coffee', later)).toMatchObject({ ok: true, unchanged: true })
+  })
+
+  it('restaurar varios a la vez: todo o nada', () => {
+    const three = deepFreeze(
+      baseData({
+        transactions: [
+          tx({ id: 'a', amountMinor: 100, date: TODAY }),
+          tx({ id: 'b', amountMinor: 200, date: TODAY }),
+          tx({ id: 'c', amountMinor: 300, date: TODAY }),
+        ],
+      }),
+    )
+    const del = mustOk(trashTransactions(three, ['a', 'b', 'c'], later))
+    expect(del.data.transactions).toHaveLength(0)
+    const back = mustOk(restoreFromTrashMany(del.data, ['a', 'b', 'c'], later))
+    expect(back.data.transactions.map((t) => t.id).sort()).toEqual(['a', 'b', 'c'])
+    expect(back.data.trash).toEqual([])
+    expect(restoreFromTrashMany(back.data, ['a', 'b'], later)).toMatchObject({ ok: true, unchanged: true })
+    // Si uno no existe en ningún sitio, no se restaura ninguno.
+    expect(restoreFromTrashMany(del.data, ['a', 'zz', 'b'], later).ok).toBe(false)
   })
 
   it('persiste en la copia validada y se puede restaurar tras recargar', () => {

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { accountBalance } from './balances'
 import { computeBudget } from './budget'
-import { limitStatuses, periodSummary } from './insights'
+import { periodSummary } from './insights'
+import { planProgress } from './plans'
 import { deleteTransaction, importTransactions, restoreFromTrash, saveTransaction, type TransactionDraft } from './operations'
 import { projectBalance } from './projection'
 import { buildSearchIndex, search } from './search'
 import { inferRefundSplit, refundableByCategory, txCategoryIds } from './splits'
 import type { AppData, SplitLine } from './types'
 import { validateAppData } from '../storage/backup'
-import { baseData, ctx, TODAY } from '../test/fixtures'
+import { baseData, ctx, NOW, TODAY } from '../test/fixtures'
 
 function ok<T>(r: { ok: true; data: AppData; value: T } | { ok: false; issues: unknown[] }) {
   if (!r.ok) throw new Error(JSON.stringify(r.issues))
@@ -63,8 +64,8 @@ describe('compras divididas: reportes, límites y búsqueda', () => {
     const s = periodSummary(withPurchase(), '2026-09-01', '2026-09-30')
     expect(s.netSpendingMinor).toBe(12000)
     expect(Object.fromEntries(s.categories.map((c) => [c.categoryId, c.netMinor]))).toEqual({ groceries: 7500, housing: 3000, shopping: 1500 })
-    const limits = limitStatuses(s, [{ categoryId: 'shopping', monthlyLimitMinor: 1000 }])
-    expect(limits[0]).toMatchObject({ spentMinor: 1500, over: true })
+    const plan = { id: 'p', kind: 'limit' as const, name: '', categoryIds: ['shopping'], amountMinor: 1000, currency: 'CAD' as const, periodType: 'month' as const, startDate: '2026-09-01', endDate: '2026-09-30', recurring: true, status: 'active' as const, alertAt80: true, alertAt100: true, createdAt: NOW, updatedAt: NOW }
+    expect(planProgress(withPurchase(), plan, '2026-09-28')).toMatchObject({ spentMinor: 1500, state: 'over' })
   })
 
   it('se encuentra por cualquiera de sus categorías o notas de línea', () => {

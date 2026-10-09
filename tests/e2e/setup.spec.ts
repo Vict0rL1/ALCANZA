@@ -1,15 +1,20 @@
 import { expect, test } from '@playwright/test'
 import { openApp } from './helpers'
 
-test('configuración inicial con mis datos y recuperación tras recargar', async ({ page }) => {
+test('configuración inicial con mis datos y recuperación tras recargar', { tag: '@smoke' }, async ({ page }) => {
   await openApp(page)
   await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
 
-  // Paso 1: sin saldo muestra un error claro.
+  // Saldo: sin importe muestra un error claro.
   await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByText('Escribe un importe.')).toBeVisible()
   await page.getByLabel('Saldo disponible').fill('1200')
+  // Esta prueba comprueba la fórmula «hasta mi próximo ingreso» (el periodo mensual es el predeterminado).
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
 
   // Paso 2: próximo ingreso (el día del ingreso no cuenta en el periodo).
@@ -46,7 +51,11 @@ test('configuración inicial con mis datos y recuperación tras recargar', async
 test('sin fecha de ingreso pide un horizonte y no divide entre cero', async ({ page }) => {
   await openApp(page)
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('-25,50')
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('radio', { name: 'No tengo fecha' }).check()
   await page.getByRole('button', { name: 'Continuar' }).click()
@@ -62,6 +71,9 @@ test('sin fecha de ingreso pide un horizonte y no divide entre cero', async ({ p
 test('camino corto: saldo + próximo ingreso → resultado provisional sin pasos opcionales', async ({ page }) => {
   await openApp(page)
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('500')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Importe esperado').fill('800')

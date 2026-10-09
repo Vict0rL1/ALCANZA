@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { addDays, addMonthsClamped, endOfMonth, startOfMonth, weekday } from '../../domain/dates'
 import { closeOccurrence, deleteTransaction, revertTransaction, setOccurrenceSkipped } from '../../domain/operations'
 import { useRestoreFromTrash } from '../useDeleteTransaction'
-import { nextOccurrenceOnOrAfter } from '../../domain/recurrence'
+import { nextPendingOccurrence } from '../../domain/repeat'
+import { categoryVisual, categoryVisuals } from '../../domain/categories'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { planItems, type PlanItem } from '../../domain/planItems'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Alert, Badge, Card, EmptyState, type Tone } from '../components/common'
+import { Alert, Badge, Card, EmptyState, Why, type Tone } from '../components/common'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { MarkPaidDialog } from '../dialogs'
@@ -31,6 +33,7 @@ export function Calendar() {
 
   const monthEnd = endOfMonth(month)
   const monthItems = useMemo(() => planItems(data, { today, from: month, to: monthEnd }), [data, today, month, monthEnd])
+  const visuals = useMemo(() => categoryVisuals(data), [data])
   const overdueAll = useMemo(
     () => planItems(data, { today, from: today, to: today, includeOverdueBefore: true }).filter((i) => i.state === 'overdue' && i.date < month),
     [data, today, month],
@@ -176,7 +179,7 @@ export function Calendar() {
         </a>
       </div>
       <Alert tone="neutral" icon="info" title={t('calendar.remindersNoteTitle')}>
-        {t('calendar.remindersNote')}
+        <Why short={t('calendar.remindersShort')}>{t('calendar.remindersNote')}</Why>
       </Alert>
 
       {overdueAll.length > 0 && (
@@ -261,7 +264,7 @@ export function Calendar() {
             {t('calendar.showMonth')}
           </button>
         )}
-        {listed.length === 0 ? <EmptyState icon="calendar" title={t('calendar.empty')} /> : <ul className="item-list">{listed.map(renderItem)}</ul>}
+        {listed.length === 0 ? <EmptyState compact icon="calendar" title={t('calendar.empty')} /> : <ul className="item-list">{listed.map(renderItem)}</ul>}
       </Card>
 
       <Card labelledBy="schedules-title">
@@ -269,17 +272,15 @@ export function Calendar() {
           {t('calendar.allSchedules')}
         </h2>
         {data.schedules.length === 0 ? (
-          <EmptyState icon="calendar" title={t('calendar.noSchedules')} />
+          <EmptyState compact icon="calendar" title={t('calendar.noSchedules')} />
         ) : (
           <ul className="item-list">
             {data.schedules.map((s) => {
-              const next = nextOccurrenceOnOrAfter(s, today)
+              const next = nextPendingOccurrence(data, s, today)
               return (
                 <li key={s.id}>
                   <a className="item item--link" href={href(`/plan/programado/editar/${s.id}`)}>
-                    <span className={`item__icon item__icon--${s.kind}`}>
-                      <Icon name={s.kind === 'income' ? 'arrowDown' : 'arrowUp'} size={18} />
-                    </span>
+                    <CategoryIcon icon={categoryVisual(visuals, s.categoryId).icon} color={categoryVisual(visuals, s.categoryId).color} />
                     <span className="item__main">
                       <span className="item__title">{s.name}</span>
                       <span className="item__meta">

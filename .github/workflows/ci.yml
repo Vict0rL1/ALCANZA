@@ -1,0 +1,78 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  # En un PR, un push nuevo cancela la ejecución anterior; en main nunca se corta un despliegue.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # «Compilación» en Ajustes › Acerca de: el commit de la rama, no el de fusión del PR.
+      CLARA_BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      # «Enviar comentarios» (M2): dirección opcional; es una variable (no un secreto) porque queda en la app publicada.
+      VITE_FEEDBACK_EMAIL: ${{ vars.CLARA_FEEDBACK_EMAIL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run size
+      - uses: actions/upload-artifact@v7
+        with: { name: dist, path: dist/, retention-days: 7 }
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [celular, celular-pequeno, escritorio]
+    env: { CI: 'true' }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=${{ matrix.project }} --workers=2 --fail-on-flaky-tests
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          # Entre comillas: `${{ }}` dentro de un mapa `{ }` no es YAML válido.
+          name: 'playwright-${{ matrix.project }}'
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+  # Publicar solo cuando todo lo anterior está en verde (J3). La lógica vive en deploy.yml.
+  deploy-preview:
+    if: github.event_name == 'pull_request'
+    needs: [check, e2e]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: preview
+      branch: ${{ github.head_ref }}
+    secrets: inherit
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, e2e]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: production
+      branch: main
+    secrets: inherit

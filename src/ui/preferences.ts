@@ -24,14 +24,19 @@ export interface UiPreferences {
   view: 'full' | 'essential'
   sections: { id: HomeSection; visible: boolean }[]
   quickActions: QuickAction[]
-  privacy: boolean
+  /** 0 = visible; 1 = importes ocultos; 2 = además descripciones difuminadas (modo discreto). */
+  privacy: PrivacyLevel
 }
 
+export type PrivacyLevel = 0 | 1 | 2
+export const PRIVACY_LEVELS: readonly PrivacyLevel[] = [0, 1, 2]
+
 export const DEFAULT_PREFERENCES: UiPreferences = {
-  view: 'full',
+  // Quien empieza ve lo esencial; quien ya eligió «completa» conserva su elección (C1).
+  view: 'essential',
   sections: HOME_SECTIONS.map((id) => ({ id, visible: true })),
   quickActions: ['afford'],
-  privacy: false,
+  privacy: 0,
 }
 
 /** Lee y repara lo guardado: ids desconocidos fuera, secciones nuevas al final, visibles. */
@@ -47,7 +52,10 @@ export function normalizePreferences(raw: unknown): UiPreferences {
   }
   for (const id of HOME_SECTIONS) if (!seen.has(id)) sections.push({ id, visible: true })
   const quickActions = Array.isArray(r.quickActions) ? [...new Set(r.quickActions.filter((a): a is QuickAction => QUICK_ACTIONS.includes(a)))].slice(0, MAX_QUICK_ACTIONS) : DEFAULT_PREFERENCES.quickActions
-  return { view: r.view === 'essential' ? 'essential' : 'full', sections, quickActions, privacy: r.privacy === true }
+  // Antes era booleano: `true` pasa a nivel 1.
+  const rawPrivacy = (r as { privacy?: unknown }).privacy
+  const privacy: PrivacyLevel = rawPrivacy === true ? 1 : rawPrivacy === 2 ? 2 : rawPrivacy === 1 ? 1 : 0
+  return { view: r.view === 'full' ? 'full' : 'essential', sections, quickActions, privacy }
 }
 
 let cache: { raw: string | null; value: UiPreferences } | null = null
@@ -112,7 +120,15 @@ export function usePreferences(): [UiPreferences, (update: (p: UiPreferences) =>
 }
 
 export function usePrivacy(): boolean {
-  return useSyncExternalStore(subscribe, () => snapshot().privacy, () => false)
+  return useSyncExternalStore(subscribe, () => snapshot().privacy > 0, () => false)
+}
+
+export function usePrivacyLevel(): PrivacyLevel {
+  return useSyncExternalStore(subscribe, () => snapshot().privacy, () => 0 as PrivacyLevel)
+}
+
+export function nextPrivacyLevel(level: PrivacyLevel): PrivacyLevel {
+  return ((level + 1) % 3) as PrivacyLevel
 }
 
 /** Mueve una sección una posición (alternativa accesible a arrastrar). */

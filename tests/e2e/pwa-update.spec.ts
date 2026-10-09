@@ -48,8 +48,13 @@ test.afterAll(async () => {
 
 async function controlled(page: Page) {
   await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.active)
-  await page.reload()
-  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+  // Tras activarse, la página puede tardar una recarga más en quedar controlada (B7).
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await page.reload()
+    if (await page.evaluate(() => !!navigator.serviceWorker.controller)) return
+    await page.waitForTimeout(500 * (attempt + 1))
+  }
+  throw new Error('La página no quedó controlada por el service worker tras varias recargas')
 }
 const mark = (page: Page) => page.evaluate(() => ((window as unknown as { __mark: number }).__mark = 1))
 const marked = (page: Page) => page.evaluate(() => (window as unknown as { __mark?: number }).__mark === 1)

@@ -127,6 +127,8 @@ for (const size of sizes) {
       return ms(median(xs))
     }
     row.home = await nav('/', '[data-testid="available"]')
+    row.statistics = await nav('/estadisticas', '[data-testid="stats-tiles"]')
+    row.plans = await nav('/plan/planes', '[data-testid="plan-list"], .empty')
     row.movements = await nav('/movimientos', '.summary-line')
     const searches = []
     for (const q of ['super', 'café', 'xyz123']) {

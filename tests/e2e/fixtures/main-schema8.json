@@ -1,0 +1,335 @@
+{
+  "_about": "Datos guardados por la compilación real de main (esquema 8), capturados con scripts/capture-main-fixture.mjs. No se editan a mano: si main cambia, se vuelven a capturar con ese script. «expected» es lo que main mostraba.",
+  "capturedFrom": {
+    "branch": "main",
+    "commit": "ac19185",
+    "today": "2026-09-28",
+    "timeZone": "America/Toronto"
+  },
+  "expected": {
+    "available": "$313.30",
+    "transactions": 4
+  },
+  "data": {
+    "schemaVersion": 8,
+    "budgetId": "91dd6b04-5680-437a-b26e-9a5e6ce8cbc6",
+    "isDemo": false,
+    "settings": {
+      "currency": "CAD",
+      "numberLocale": "es-MX",
+      "dateStyle": "medium",
+      "timeZone": "America/Toronto",
+      "language": "es",
+      "fallbackHorizonDays": null,
+      "weeklyReview": true
+    },
+    "accounts": [
+      {
+        "id": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "name": "Cuenta principal",
+        "kind": "bank",
+        "includeInBudget": true,
+        "anchor": {
+          "amountMinor": 120000,
+          "date": "2026-09-28",
+          "setAt": "2026-09-28T16:00:00.530Z"
+        },
+        "createdAt": "2026-09-28T16:00:00.530Z",
+        "updatedAt": "2026-09-28T16:00:00.530Z"
+      }
+    ],
+    "transactions": [
+      {
+        "id": "469b2861-7dae-451c-9810-d9ac22c09a67",
+        "kind": "expense",
+        "status": "realized",
+        "amountMinor": 4520,
+        "currency": "CAD",
+        "date": "2026-09-28",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "groceries",
+        "note": "Súper de la semana",
+        "realizedAt": "2026-09-28T16:00:04.101Z",
+        "createdAt": "2026-09-28T16:00:04.101Z",
+        "updatedAt": "2026-09-28T16:00:04.101Z"
+      },
+      {
+        "id": "ac7bc873-2046-48ec-ad02-54cb4e7bfb83",
+        "kind": "expense",
+        "status": "realized",
+        "amountMinor": 450,
+        "currency": "CAD",
+        "date": "2026-09-28",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "c_8ce2f5b2-5c3c-401a-bdc6-744d825b4eab",
+        "note": "Café con leche",
+        "realizedAt": "2026-09-28T16:00:04.665Z",
+        "createdAt": "2026-09-28T16:00:04.665Z",
+        "updatedAt": "2026-09-28T16:00:04.665Z"
+      },
+      {
+        "id": "f4a6328d-9126-48ed-a31b-627f8d31576d",
+        "kind": "expense",
+        "status": "realized",
+        "amountMinor": 1200,
+        "currency": "CAD",
+        "date": "2026-09-28",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "transport",
+        "note": "Uber al trabajo",
+        "realizedAt": "2026-09-28T16:00:05.198Z",
+        "createdAt": "2026-09-28T16:00:05.198Z",
+        "updatedAt": "2026-09-28T16:00:05.198Z"
+      },
+      {
+        "id": "112807d9-0f7a-4bc2-a137-558e87d6a30f",
+        "kind": "expense",
+        "status": "realized",
+        "amountMinor": 2500,
+        "currency": "CAD",
+        "date": "2026-09-28",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "c_c0cb73bc-bb6f-4deb-9839-213ce6f6d4ea",
+        "note": "Croquetas",
+        "realizedAt": "2026-09-28T16:00:05.730Z",
+        "createdAt": "2026-09-28T16:00:05.730Z",
+        "updatedAt": "2026-09-28T16:00:05.730Z"
+      }
+    ],
+    "schedules": [
+      {
+        "id": "6a6f4f14-db86-4d4a-a383-8f2c63221441",
+        "name": "Sueldo",
+        "kind": "income",
+        "amountMinor": 80000,
+        "amountIsEstimate": false,
+        "currency": "CAD",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "salary",
+        "frequency": "biweekly",
+        "startDate": "2026-10-08",
+        "reminderDaysBefore": 0,
+        "skippedDates": [],
+        "createdAt": "2026-09-28T16:00:00.530Z",
+        "updatedAt": "2026-09-28T16:00:00.530Z"
+      },
+      {
+        "id": "2974348b-7e5e-44fb-af52-5c228407772f",
+        "name": "Renta",
+        "kind": "expense",
+        "amountMinor": 60000,
+        "amountIsEstimate": false,
+        "currency": "CAD",
+        "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+        "categoryId": "other_expense",
+        "frequency": "monthly",
+        "startDate": "2026-10-03",
+        "reminderDaysBefore": 2,
+        "skippedDates": [],
+        "createdAt": "2026-09-28T16:00:00.530Z",
+        "updatedAt": "2026-09-28T16:00:00.530Z"
+      }
+    ],
+    "goals": [
+      {
+        "id": "9c492908-9b2d-43fa-af4a-1815be3d1d6a",
+        "name": "Reserva de emergencia",
+        "kind": "emergency",
+        "targetMinor": 20000,
+        "currency": "CAD",
+        "fundedFrom": "budget",
+        "allocations": [
+          {
+            "id": "27ab4730-1216-4b22-a064-73a71a53483e",
+            "amountMinor": 20000,
+            "date": "2026-09-28",
+            "createdAt": "2026-09-28T16:00:00.530Z"
+          }
+        ],
+        "createdAt": "2026-09-28T16:00:00.530Z",
+        "updatedAt": "2026-09-28T16:00:00.530Z"
+      },
+      {
+        "id": "d6db2a6d-979d-446b-83e6-91ced12e83da",
+        "name": "Laptop",
+        "kind": "goal",
+        "targetMinor": 90000,
+        "targetDate": "2027-01-26",
+        "currency": "CAD",
+        "fundedFrom": "budget",
+        "allocations": [],
+        "createdAt": "2026-09-28T16:00:06.231Z",
+        "updatedAt": "2026-09-28T16:00:06.231Z"
+      }
+    ],
+    "categories": [
+      {
+        "id": "c_c0cb73bc-bb6f-4deb-9839-213ce6f6d4ea",
+        "name": "Mascotas",
+        "kind": "expense",
+        "archived": false,
+        "createdAt": "2026-09-28T16:00:01.131Z",
+        "updatedAt": "2026-09-28T16:00:01.131Z"
+      },
+      {
+        "id": "c_8ce2f5b2-5c3c-401a-bdc6-744d825b4eab",
+        "name": "Coffee shops",
+        "kind": "expense",
+        "archived": false,
+        "createdAt": "2026-09-28T16:00:02.583Z",
+        "updatedAt": "2026-09-28T16:00:02.583Z"
+      }
+    ],
+    "categoryLimits": [],
+    "categoryRules": [],
+    "trash": [],
+    "purgedImportRefs": [],
+    "favorites": [],
+    "reconciliations": [],
+    "backup": {
+      "reminder": "weekly"
+    },
+    "periodBudgets": [],
+    "scenarios": [],
+    "inbox": {
+      "snoozed": [],
+      "dismissed": []
+    },
+    "incomeDistributions": [],
+    "templates": [],
+    "history": [
+      {
+        "id": "c177e6f0-0573-4a70-b397-ff68cd095fec",
+        "at": "2026-09-28T16:00:04.101Z",
+        "source": "app",
+        "changes": [
+          {
+            "collection": "transactions",
+            "id": "469b2861-7dae-451c-9810-d9ac22c09a67",
+            "before": null,
+            "after": {
+              "id": "469b2861-7dae-451c-9810-d9ac22c09a67",
+              "kind": "expense",
+              "status": "realized",
+              "amountMinor": 4520,
+              "currency": "CAD",
+              "date": "2026-09-28",
+              "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+              "categoryId": "groceries",
+              "note": "Súper de la semana",
+              "realizedAt": "2026-09-28T16:00:04.101Z",
+              "createdAt": "2026-09-28T16:00:04.101Z",
+              "updatedAt": "2026-09-28T16:00:04.101Z"
+            }
+          }
+        ]
+      },
+      {
+        "id": "4f3e2aab-ce61-4690-8659-adbff0d0da75",
+        "at": "2026-09-28T16:00:04.665Z",
+        "source": "app",
+        "changes": [
+          {
+            "collection": "transactions",
+            "id": "ac7bc873-2046-48ec-ad02-54cb4e7bfb83",
+            "before": null,
+            "after": {
+              "id": "ac7bc873-2046-48ec-ad02-54cb4e7bfb83",
+              "kind": "expense",
+              "status": "realized",
+              "amountMinor": 450,
+              "currency": "CAD",
+              "date": "2026-09-28",
+              "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+              "categoryId": "c_8ce2f5b2-5c3c-401a-bdc6-744d825b4eab",
+              "note": "Café con leche",
+              "realizedAt": "2026-09-28T16:00:04.665Z",
+              "createdAt": "2026-09-28T16:00:04.665Z",
+              "updatedAt": "2026-09-28T16:00:04.665Z"
+            }
+          }
+        ]
+      },
+      {
+        "id": "f2190df0-01a4-4c54-b39b-3e497b8f5ca9",
+        "at": "2026-09-28T16:00:05.198Z",
+        "source": "app",
+        "changes": [
+          {
+            "collection": "transactions",
+            "id": "f4a6328d-9126-48ed-a31b-627f8d31576d",
+            "before": null,
+            "after": {
+              "id": "f4a6328d-9126-48ed-a31b-627f8d31576d",
+              "kind": "expense",
+              "status": "realized",
+              "amountMinor": 1200,
+              "currency": "CAD",
+              "date": "2026-09-28",
+              "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+              "categoryId": "transport",
+              "note": "Uber al trabajo",
+              "realizedAt": "2026-09-28T16:00:05.198Z",
+              "createdAt": "2026-09-28T16:00:05.198Z",
+              "updatedAt": "2026-09-28T16:00:05.198Z"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ed46cb65-6cb1-4d56-8e88-56982a45e1e3",
+        "at": "2026-09-28T16:00:05.730Z",
+        "source": "app",
+        "changes": [
+          {
+            "collection": "transactions",
+            "id": "112807d9-0f7a-4bc2-a137-558e87d6a30f",
+            "before": null,
+            "after": {
+              "id": "112807d9-0f7a-4bc2-a137-558e87d6a30f",
+              "kind": "expense",
+              "status": "realized",
+              "amountMinor": 2500,
+              "currency": "CAD",
+              "date": "2026-09-28",
+              "accountId": "92eb3b35-0d02-40ff-86a1-613fd997e618",
+              "categoryId": "c_c0cb73bc-bb6f-4deb-9839-213ce6f6d4ea",
+              "note": "Croquetas",
+              "realizedAt": "2026-09-28T16:00:05.730Z",
+              "createdAt": "2026-09-28T16:00:05.730Z",
+              "updatedAt": "2026-09-28T16:00:05.730Z"
+            }
+          }
+        ]
+      },
+      {
+        "id": "1d20b8ef-0b54-4065-a960-16533d85783b",
+        "at": "2026-09-28T16:00:06.231Z",
+        "source": "app",
+        "changes": [
+          {
+            "collection": "goals",
+            "id": "d6db2a6d-979d-446b-83e6-91ced12e83da",
+            "before": null,
+            "after": {
+              "id": "d6db2a6d-979d-446b-83e6-91ced12e83da",
+              "name": "Laptop",
+              "kind": "goal",
+              "targetMinor": 90000,
+              "targetDate": "2027-01-26",
+              "currency": "CAD",
+              "fundedFrom": "budget",
+              "allocations": [],
+              "createdAt": "2026-09-28T16:00:06.231Z",
+              "updatedAt": "2026-09-28T16:00:06.231Z"
+            }
+          }
+        ]
+      }
+    ],
+    "historyStartedAt": "2026-09-28T16:00:00.530Z",
+    "createdAt": "2026-09-28T16:00:00.530Z",
+    "updatedAt": "2026-09-28T16:00:06.231Z",
+    "revision": 10
+  }
+}

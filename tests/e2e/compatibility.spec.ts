@@ -12,7 +12,7 @@ test.describe('importes con formatos regionales', () => {
   ] as const) {
     test(`${locale}: «${typed}» se guarda como 1,234.56 exactos`, async ({ page }) => {
       await startDemo(page)
-      await go(page, '/ajustes')
+      await go(page, '/ajustes/formato')
       await page.getByLabel('Formato de números').selectOption(locale)
       await go(page, '/movimientos/nuevo')
       const amount = page.getByLabel('Importe', { exact: true })
@@ -47,7 +47,7 @@ test.describe('celular en horizontal', () => {
       await go(page, route)
       expect(await overflow(page), route).toBeLessThanOrEqual(0)
     }
-    await go(page, '/ajustes')
+    await go(page, '/ajustes/cuentas')
     await page.getByRole('button', { name: 'Agregar cuenta' }).click()
     const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
     await expect(dialog).toBeVisible()
@@ -93,7 +93,7 @@ test('diálogos con texto al 200 % en 320 px: sin desplazamiento horizontal y co
   await page.clock.install({ time: START })
   await startDemo(page)
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' })
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await page.getByRole('button', { name: 'Agregar cuenta' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nueva cuenta' })
   expect(await overflow(page)).toBeLessThanOrEqual(0)

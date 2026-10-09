@@ -10,11 +10,12 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, EmptyState, PageHeader } from '../components/common'
 import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, frequencyLabel, issueMessage, otherIssues, withCurrent } from '../labels'
+import { fieldError, frequencyLabel, issueMessage, otherIssues } from '../labels'
 import { href, type Route, useNavigateIfStillHere } from '../router'
 
 const REMINDER_OPTIONS = [0, 1, 2, 3, 7, 14]
@@ -42,6 +43,9 @@ export function ScheduleForm({ route }: { route: Route }) {
   const [extraText, setExtraText] = useState(existing?.range ? fmt.moneyInput(existing.range.extraMinor) : '')
   const [rangeErrors, setRangeErrors] = useState<{ min: string | null; extra: string | null }>({ min: null, extra: null })
   const [frequency, setFrequency] = useState<Frequency>(existing?.frequency ?? 'monthly')
+  const [intervalDays, setIntervalDays] = useState(String(existing?.intervalDays ?? 30))
+  const [autoConfirm, setAutoConfirm] = useState(!!existing?.autoConfirm)
+  const [paused, setPaused] = useState(!!existing?.paused)
   const [startDate, setStartDate] = useState(existing?.startDate ?? today)
   const [endDate, setEndDate] = useState(existing?.endDate ?? '')
   const [accountId, setAccountId] = useState(existing?.accountId ?? (data.accounts.find((a) => a.includeInBudget) ?? data.accounts[0]!).id)
@@ -63,7 +67,7 @@ export function ScheduleForm({ route }: { route: Route }) {
 
   const changeKind = (k: ScheduleKind) => {
     setKind(k)
-    if (!categoriesForKind(k, data.categories).includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
+    if (!categoriesForKind(k, data.categories, { prefs: data.categoryPrefs }).includes(categoryId)) setCategoryId(k === 'income' ? 'salary' : 'other_expense')
   }
 
   const submit = async () => {
@@ -92,10 +96,13 @@ export function ScheduleForm({ route }: { route: Route }) {
           accountId,
           categoryId,
           frequency,
+          ...(frequency === 'custom' ? { intervalDays: Number(intervalDays) } : {}),
           startDate,
           endDate: endDate || undefined,
           reminderDaysBefore: reminder,
           note,
+          ...(autoConfirm ? { autoConfirm: true } : {}),
+          ...(paused ? { paused: true } : {}),
         },
         c,
       ),
@@ -166,6 +173,9 @@ export function ScheduleForm({ route }: { route: Route }) {
           onChange={(e) => setFrequency(e.target.value as Frequency)}
           options={FREQUENCIES.map((f) => ({ value: f, label: frequencyLabel(t, f) }))}
         />
+        {frequency === 'custom' && (
+          <TextField label={t('scheduleForm.intervalDays')} type="number" inputMode="numeric" min={1} max={365} value={intervalDays} onChange={(e) => setIntervalDays(e.target.value)} hint={t('scheduleForm.intervalDaysHint')} error={fieldError(t, fmt, issues, 'intervalDays')} required />
+        )}
         <TextField
           label={t('scheduleForm.nextDate')}
           type="date"
@@ -179,7 +189,7 @@ export function ScheduleForm({ route }: { route: Route }) {
           <TextField label={t('scheduleForm.endDate')} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} hint={t('scheduleForm.endDateHint')} error={fieldError(t, fmt, issues, 'endDate')} />
         )}
         <SelectField label={t('fields.account')} value={accountId} onChange={(e) => setAccountId(e.target.value)} options={data.accounts.map((a) => ({ value: a.id, label: a.name }))} error={fieldError(t, fmt, issues, 'accountId')} />
-        <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={withCurrent(categoriesForKind(kind, data.categories), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))} />
+        <CategoryPicker label={t('fields.category')} kind={kind === 'income' ? 'income' : 'expense'} data={data} value={categoryId} onChange={setCategoryId} keep={existing?.categoryId} allowNew />
         <SelectField
           label={t('scheduleForm.reminder')}
           value={String(reminder)}
@@ -188,6 +198,8 @@ export function ScheduleForm({ route }: { route: Route }) {
           hint={t('scheduleForm.reminderHint')}
         />
         <TextField label={t('fields.noteOptional')} value={note} maxLength={LIMITS.noteMax} onChange={(e) => setNote(e.target.value)} />
+        <CheckboxField checked={autoConfirm} onChange={setAutoConfirm} label={t('scheduleForm.autoConfirm')} hint={t('scheduleForm.autoConfirmHint')} />
+        {existing && <CheckboxField checked={paused} onChange={setPaused} label={t('scheduleForm.paused')} hint={t('scheduleForm.pausedHint')} />}
         {existing && <p className="note">{t('scheduleForm.editNote')}</p>}
         {unknown.length > 0 && (
           <Alert tone="critical" title={t('common.fixErrors')} role="alert">

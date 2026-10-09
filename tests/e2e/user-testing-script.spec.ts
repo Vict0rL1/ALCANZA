@@ -8,12 +8,16 @@
  * 150.00 apartados para emergencias.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, openApp, openDetails } from './helpers'
+import { available, go, movementCount, openApp, openDetails, pickCategory } from './helpers'
 
 async function setUp(page: Page) {
   await openApp(page)
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+  // Paso de categorías: las propuestas vienen marcadas; se continúa.
+  await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Saldo disponible').fill('1240')
+  await page.getByLabel('Periodo del presupuesto').selectOption({ label: 'Hasta mi próximo ingreso' })
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByLabel('Importe esperado').fill('900')
   await page.getByLabel('Fecha del próximo ingreso').fill('2026-10-07')
@@ -61,9 +65,9 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await page.locator('a.item', { hasText: 'Supermercado' }).click()
   await page.getByRole('button', { name: 'Dividir entre categorías' }).click()
   const editor = page.getByTestId('split-editor')
-  await editor.getByLabel('Categoría de la línea 1').selectOption({ label: 'Supermercado' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 1'), 'Supermercado')
   await editor.getByLabel('Importe de la línea 1').fill('28.40')
-  await editor.getByLabel('Categoría de la línea 2').selectOption({ label: 'Vivienda' })
+  await pickCategory(page, editor.getByLabel('Categoría de la línea 2'), 'Vivienda y alquiler')
   await editor.getByLabel('Importe de la línea 2').fill('10')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(await available(page)).toHaveText('$401.60')
@@ -110,7 +114,7 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   expect(await movementCount(page)).toBe(before + 2)
 
   // T8. Exportar y restaurar: mismas cifras.
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/copia')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar copia' }).click()
   const file = await (await download).path()
@@ -119,12 +123,12 @@ test('guion de la prueba con usuarios: las 9 tareas se pueden completar y las ci
   await expect(await available(page)).toHaveText('$605.20')
 
   // T9. Inglés y de vuelta.
-  await go(page, '/ajustes')
-  await page.getByLabel('Idioma').selectOption('en')
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: /English/ }).click()
   await go(page, '/')
-  await expect(page.getByText('You can spend')).toBeVisible()
-  await go(page, '/ajustes')
-  await page.getByLabel('Language').selectOption('es')
+  await expect(page.getByText('You can spend', { exact: true })).toBeVisible()
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await go(page, '/')
   await expect(page.getByText('Puedes gastar', { exact: true })).toBeVisible()
 })

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { go, startDemo } from './helpers'
+import { openExplain, go, startDemo, settleAnimations } from './helpers'
 
 const ROUTES = [
   '/',
@@ -10,6 +10,12 @@ const ROUTES = [
   '/plan/calendario',
   '/plan/metas',
   '/plan/proyeccion',
+  '/plan/planes',
+  '/plan/planes/nuevo',
+  '/estadisticas',
+  '/cuenta',
+  '/pro',
+  '/legal/privacidad',
   '/ajustes',
   '/plan/programado/nuevo',
   '/plan/metas/nueva',
@@ -73,7 +79,8 @@ test('sin problemas de accesibilidad detectables automáticamente', async ({ pag
   for (const route of ROUTES) {
     await go(page, route)
     if (route === '/alcanza') await page.getByLabel('Precio').fill('45')
-    if (route === '/') await page.getByText('¿Cómo se calculó?').click()
+    if (route === '/') await openExplain(page)
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     const summary = results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)
     expect(summary, route).toEqual([])
@@ -87,6 +94,7 @@ test('modo oscuro también pasa la auditoría de contraste', async ({ browser })
   for (const route of ['/', '/alcanza', '/plan/calendario', '/plan/proyeccion', '/pendientes']) {
     await go(page, route)
     if (route === '/alcanza') await page.getByLabel('Precio').fill('45')
+    await settleAnimations(page)
     const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
     expect(results.violations.map((v) => v.nodes.map((n) => n.target.join(' ')).join(' | ')), route).toEqual([])
   }

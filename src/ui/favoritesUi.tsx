@@ -15,9 +15,10 @@ import { MoneyField, Segmented, SelectField, TextField } from './components/fiel
 import { Icon } from './components/Icon'
 import { useToast } from './components/toastContext'
 import { useFormat } from './format'
-import { categoryLabel, fieldError, issueMessage, otherIssues } from './labels'
+import { fieldError, issueMessage, otherIssues } from './labels'
 import { moneyErrorMessage, parseMoneyText } from './moneyText'
 import { href, withQuery } from './router'
+import { CategoryPicker } from './components/CategoryPicker'
 
 export function FavoriteDialog({
   favorite,
@@ -45,7 +46,7 @@ export function FavoriteDialog({
   })
   const [categoryId, setCategoryId] = useState(() => {
     const wanted = start.categoryId
-    return wanted && categoriesForKind(start.kind ?? 'expense', data.categories).includes(wanted) ? wanted : ''
+    return wanted && categoriesForKind(start.kind ?? 'expense', data.categories, { prefs: data.categoryPrefs }).includes(wanted) ? wanted : ''
   })
   const [amountText, setAmountText] = useState(start.amountMinor !== undefined ? fmt.moneyInput(start.amountMinor) : '')
   const [note, setNote] = useState(start.note ?? '')
@@ -99,7 +100,7 @@ export function FavoriteDialog({
         value={kind}
         onChange={(k) => {
           setKind(k)
-          if (!categoriesForKind(k, data.categories).includes(categoryId)) setCategoryId('')
+          if (!categoriesForKind(k, data.categories, { prefs: data.categoryPrefs }).includes(categoryId)) setCategoryId('')
         }}
         options={[
           { value: 'expense', label: t('txKind.expense') },
@@ -113,13 +114,7 @@ export function FavoriteDialog({
         options={[...(accountId ? [] : [choose]), ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]}
         error={fieldError(t, fmt, issues, 'accountId')}
       />
-      <SelectField
-        label={t('fields.category')}
-        value={categoryId}
-        onChange={(e) => setCategoryId(e.target.value)}
-        options={[...(categoryId ? [] : [choose]), ...categoriesForKind(kind, data.categories).map((c) => ({ value: c, label: categoryLabel(t, c) }))]}
-        error={fieldError(t, fmt, issues, 'categoryId')}
-      />
+      <CategoryPicker label={t('fields.category')} kind={kind} data={data} value={categoryId} onChange={setCategoryId} keep={favorite?.categoryId} error={fieldError(t, fmt, issues, 'categoryId')} />
       <MoneyField label={t('favorites.amountOptional')} hint={t('favorites.amountHint')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
       <TextField label={t('fields.noteOptional')} hint={t('favorites.noteHint')} value={note} maxLength={LIMITS.noteMax} onChange={(e) => setNote(e.target.value)} error={fieldError(t, fmt, issues, 'note')} />
       {unknown.length > 0 && (

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { available, go, movementCount, startDemo, openDetails } from './helpers'
+import { openMoreMenu, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function openCoffee(page: Page) {
   await go(page, '/movimientos')
@@ -13,7 +13,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   await startDemo(page)
   const before = await movementCount(page)
   await openCoffee(page)
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
   expect(await movementCount(page)).toBe(before - 1)
   // Ya no cuenta en el saldo: el disponible sube 4.25.
@@ -22,12 +22,12 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   // Persistente: tras recargar sigue en la papelera con sus detalles.
   await page.reload()
   await go(page, '/movimientos')
-  await page.getByRole('link', { name: /Papelera \(1\)/ }).click()
+  await (await openMoreMenu(page)).getByRole('link', { name: /Papelera \(1\)/ }).click()
   await expect(page.getByRole('heading', { name: 'Papelera' })).toBeVisible()
   const entry = page.locator('.item', { hasText: 'Café' })
   await expect(entry).toContainText('Eliminado el')
   await expect(entry).toContainText('$4.25')
-  await expect(entry).toContainText('Comida fuera y café')
+  await expect(entry).toContainText('Restaurantes y café')
 
   await entry.getByRole('button', { name: /^Restaurar/ }).click()
   await expect(page.getByText('Movimiento restaurado.')).toBeVisible()
@@ -36,7 +36,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
 
   // Eliminar definitivamente pide confirmación explícita.
   await openCoffee(page)
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await go(page, '/movimientos/papelera')
   await page.getByRole('button', { name: /^Eliminar definitivamente/ }).click()
   const dialog = page.getByRole('dialog', { name: '¿Eliminar definitivamente este movimiento?' })
@@ -49,7 +49,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   expect(await movementCount(page)).toBe(before - 1)
 })
 
-test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas cuentas', async ({ page }) => {
+test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas cuentas', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos/nuevo')
   await page.getByRole('radio', { name: 'Transferencia' }).check()
@@ -60,14 +60,14 @@ test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas
 
   await go(page, '/movimientos')
   await page.locator('a.item', { hasText: 'Cuenta de cheques → Ahorros' }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(await available(page)).toHaveText('$136.78')
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByText('Movimiento restaurado.')).toBeVisible()
   await expect(await available(page)).toHaveText('$116.78')
 
   // Ahorros también recuperó los 20.00 (el otro lado de la transferencia).
-  await go(page, '/ajustes')
+  await go(page, '/ajustes/cuentas')
   await expect(page.locator('.item', { hasText: 'Ahorros' }).locator('.item__amount')).toHaveText('$420.00')
 })
 
@@ -112,7 +112,7 @@ test('papelera: reimportar un CSV no restaura en silencio lo que está en la pap
   await expect(page.getByText('2 movimientos importados')).toBeVisible()
 
   await page.locator('a.item', { hasText: 'Librería' }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
 
   await load()
