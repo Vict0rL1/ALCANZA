@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectNoHorizontalScroll, go, movementCount, openAddSheet, openApp, setLanguage, startDemo, type UiLanguage } from './helpers'
+import { expectNoHorizontalScroll, go, movementCount, openAddSheet, openApp, setLanguage, startDemo, storedData, type UiLanguage } from './helpers'
 
 /**
  * Regresiones de la ronda 3: lo que la revisión externa encontró (F1 pegado de varias líneas,
@@ -249,6 +249,38 @@ test.describe('Bloque G · asistente y formulario', () => {
     await expect(lines.nth(1).getByTestId('assistant-implausible')).toHaveCount(0)
   })
 })
+
+test('D1 · ‹ › en Inicio: periodos pasados al cierre, aviso ámbar, el actual no cambia y nada se guarda', async ({ page }) => {
+  await startDemo(page)
+  const before = await storedData(page)
+  await expect(page.getByTestId('period-label')).toContainText(/septiembre/i)
+  await expect(page.getByTestId('period-next')).toBeDisabled()
+  await expect(page.getByTestId('available')).toHaveText('$136.78')
+
+  await page.getByTestId('period-prev').click()
+  await expect(page.getByTestId('period-label')).toContainText(/agosto/i)
+  await expect(page.getByTestId('period-banner')).toContainText('Estás viendo otro periodo')
+  await expect(page.locator('.hero__sub')).toContainText('Cifras al cierre')
+  await expect(page.getByTestId('period-next')).toBeEnabled()
+  // Solo lectura: sin «¿Me alcanza?», sin avisos ni secciones; la explicación sigue disponible.
+  await expect(page.getByRole('link', { name: '¿Me alcanza?' })).toHaveCount(0)
+  await expect(page.locator('main .alert')).toHaveCount(0)
+  await expect(page.locator('.hero .explain > summary')).toBeVisible()
+
+  await page.getByTestId('period-prev').click()
+  await expect(page.getByTestId('period-label')).toContainText(/julio/i)
+  await page.getByTestId('period-next').click()
+  await page.getByTestId('period-next').click()
+  await expect(page.getByTestId('period-banner')).toHaveCount(0)
+  await expect(page.getByTestId('period-label')).toContainText(/septiembre/i)
+  await expect(page.getByTestId('available')).toHaveText('$136.78')
+
+  await page.getByTestId('period-prev').click()
+  await page.getByTestId('period-back').click()
+  await expect(page.getByTestId('period-banner')).toHaveCount(0)
+  expect(await storedData(page)).toBe(before)
+})
+
 test.describe('D5 · selector de categoría', () => {
   test('búsqueda sin acentos, recientes, grupos y teclado (flechas, Enter, Esc)', async ({ page }) => {
     await startDemo(page)

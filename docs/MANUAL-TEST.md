@@ -135,6 +135,10 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
   without registering.
 - [ ] **K3.** **Ajustes** → **Formato** → **Français** → the toast reads **«Réglage enregistré»** (in
   French, not Spanish). Choose **Español** again → «Ajuste guardado».
+- [ ] **K4.** **Inicio** → tap **‹** next to the month in the main card → the label says the previous
+  month, an amber banner says **«Estás viendo otro periodo»**, the card shows the figures at the close
+  of that month and there is no «¿Me alcanza?». Tap **›** (or **Volver al periodo actual**) → back to
+  **$359.50**; nothing changed.
 - [ ] **K5.** **+** → **Gasto** → tap **Categoría** → a sheet with a search box, **Recientes** and the
   groups. Type `salu` → only **Salud**; press **Esc** → the sheet closes and the focus is
   back on the field.

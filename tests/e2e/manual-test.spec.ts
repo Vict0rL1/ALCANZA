@@ -248,6 +248,17 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await expect(page.getByText('Ajuste guardado')).toBeVisible()
 
+  // K4. ‹ › en Inicio: otro periodo con aviso ámbar; al volver, la misma cifra.
+  await go(page, '/')
+  await expect(page.getByTestId('available')).toHaveText('$359.50')
+  await page.getByTestId('period-prev').click()
+  await expect(page.getByTestId('period-banner')).toBeVisible()
+  await expect(page.getByTestId('period-label')).toContainText(/agosto/i)
+  await expect(page.getByRole('link', { name: '¿Me alcanza?' })).toHaveCount(0)
+  await page.getByTestId('period-next').click()
+  await expect(page.getByTestId('period-banner')).toHaveCount(0)
+  await expect(page.getByTestId('available')).toHaveText('$359.50')
+
   // K5. Selector de categoría: búsqueda y Esc devuelve el foco.
   await go(page, '/movimientos/nuevo')
   const categoryField = page.getByLabel('Categoría', { exact: true })

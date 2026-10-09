@@ -1001,3 +1001,17 @@ compactos ni se redondean para calcular.
   N = ⌊importe ÷ disponible⌋; sin disponible positivo, «más de lo que puedes gastar ahora»). Confirmar
   guarda el importe tal cual: no se corrige ni se bloquea. En la vista previa del asistente la fila queda
   marcada con el mismo aviso.
+
+## 40. Inicio en otro periodo (`domain/homeSnapshot.ts`, D1)
+
+- **Periodos navegables** = los del ajuste de periodo; con «hasta mi próximo ingreso», meses naturales.
+  Hacia atrás sin límite; hacia delante solo hasta el periodo que contiene hoy (el futuro no se navega).
+- **Instantánea al cierre** de un periodo pasado: se calcula sobre una copia de los datos en la que
+  (1) no existen los movimientos **realizados** con fecha posterior al cierre (los previstos se conservan:
+  nunca cambian saldos y, como entonces, se reservan si caen en el horizonte) y (2) cada cuenta cuyo saldo
+  de referencia es posterior al cierre lo retrocede: `referencia − Σ efecto(realizados incluidos en la
+  referencia con fecha > cierre)`, con fecha de referencia = cierre. Sobre esa copia se aplican
+  `computeBudget` y `heroFigures` con «hoy» = cierre: saldo, reservado, disponible, ingresos y gastos
+  tal como se habrían visto ese día.
+- El periodo actual no usa la instantánea: Inicio muestra las cifras vivas. La navegación nunca escribe.
+

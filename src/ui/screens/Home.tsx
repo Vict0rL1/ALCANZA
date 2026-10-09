@@ -3,6 +3,7 @@ import { backupStatus, SNOOZE_OPTIONS } from '../../domain/backupReminder'
 import { heroFigures } from '../../domain/heroFigures'
 import { FavoriteChips } from '../favoritesUi'
 import { computeBudget, upcomingItems } from '../../domain/budget'
+import { homePeriodAt, homeSnapshotAt, isCurrentPeriod, nextPeriod, previousPeriod } from '../../domain/homeSnapshot'
 import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
 import { cardPaymentReminders } from '../../domain/cards'
@@ -65,7 +66,20 @@ export function Home() {
     setHintSeen(true)
     writeHintSeen()
   }
-  const budget = useMemo(() => computeBudget(data, today), [data, today])
+  const liveBudget = useMemo(() => computeBudget(data, today), [data, today])
+  // D1: periodo que se muestra. null = el actual (cifras vivas); otro = instantánea al cierre, solo lectura.
+  const [viewStart, setViewStart] = useState<string | null>(null)
+  const periodSettings = data.settings.budgetPeriod
+  const viewPeriod = useMemo(() => homePeriodAt(periodSettings, viewStart ?? today, today), [periodSettings, viewStart, today])
+  const viewing = viewStart !== null && !isCurrentPeriod(viewPeriod, today)
+  const snapshot = useMemo(() => (viewing ? homeSnapshotAt(data, viewPeriod.end, { today }) : null), [viewing, data, viewPeriod.end, today])
+  const budget = snapshot?.budget ?? liveBudget
+  const canGoNext = nextPeriod(periodSettings, viewPeriod, today) !== null
+  const goPrev = () => setViewStart(previousPeriod(periodSettings, viewPeriod, today).start)
+  const goNext = () => {
+    const next = nextPeriod(periodSettings, viewPeriod, today)
+    setViewStart(next && !isCurrentPeriod(next, today) ? next.start : null)
+  }
   const upcoming = useMemo(() => upcomingItems(data, today, 14).slice(0, 4), [data, today])
   const reminderItems = useMemo(() => reminders(data, today), [data, today])
   const cardReminders = useMemo(() => cardPaymentReminders(data, today), [data, today])
@@ -109,7 +123,8 @@ export function Home() {
   const tourSeen = (data.settings.toursSeen ?? []).includes('home')
   const [tourStep, setTourStep] = useState(0)
   const isEmpty = data.transactions.length === 0 && !data.isDemo
-  const hero = useMemo(() => heroFigures(data, budget, today), [data, budget, today])
+  const liveHero = useMemo(() => heroFigures(data, liveBudget, today), [data, liveBudget, today])
+  const hero = snapshot?.hero ?? liveHero
   const endTour = () => void run((d, c) => updateSettings(d, { toursSeen: [...(d.settings.toursSeen ?? []).filter((x) => x !== 'home'), 'home'] }, c))
 
   const goalsForHome = data.goals.filter((g) => !g.plan?.paidAt).slice(0, 3)
@@ -529,14 +544,35 @@ export function Home() {
           {t(`tour.home.${tourStep + 1}.text` as Parameters<typeof t>[0])}
         </CoachMark>
       )}
+      {viewing && (
+        <div className="banner banner--warning period-banner" role="status" data-testid="period-banner">
+          <Icon name="alert" size={18} />
+          <span className="banner__text">{t('home.period.viewingOther')}</span>
+          <button type="button" className="btn btn--secondary btn--small" onClick={() => setViewStart(null)} data-testid="period-back">
+            {t('home.period.backToCurrent')}
+          </button>
+          <button type="button" className="btn btn--ghost btn--icon" onClick={() => setViewStart(null)} aria-label={t('common.close')}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+      )}
       <div className="home-grid">
         <div className="stack">
           {/* Cifra principal: siempre la primera tarjeta (C1). */}
           <Card className="hero" labelledBy="hero-label">
             <div className="hero__head">
-              <p className="hero__label" id="hero-label">
-                {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
-              </p>
+              {/* ‹ periodo ›: los pasados se ven al cierre, solo lectura; el futuro no se navega (D1). */}
+              <div className="hero__period-nav">
+                <button type="button" className="btn btn--ghost btn--icon hero__period-btn" onClick={goPrev} aria-label={t('home.period.prev')} data-testid="period-prev">
+                  <Icon name="chevronLeft" size={18} />
+                </button>
+                <span className="hero__period" data-testid="period-label" aria-live="polite">
+                  {periodLabel(t, fmt, viewPeriod)}
+                </span>
+                <button type="button" className="btn btn--ghost btn--icon hero__period-btn" onClick={goNext} aria-label={t('home.period.next')} disabled={!canGoNext} data-testid="period-next">
+                  <Icon name="chevronRight" size={18} />
+                </button>
+              </div>
               <span className="hero__tools">
                 <a className="hero__stats" href={href('/estadisticas')} data-testid="stats-link">
                   <Icon name="chart" size={16} /> {t('stats.title')}
@@ -558,11 +594,14 @@ export function Home() {
                 </button>
               </span>
             </div>
+            <p className="hero__label" id="hero-label">
+              {budget.status === 'ok' ? t('home.availableLabel') : t('home.balanceLabel')}
+            </p>
             <p className="hero__value" data-testid="available">
               <CountUp valueMinor={budget.status === 'ok' ? budget.availableMinor : budget.spendableMinor} format={(m) => fmt.money(m)} animate={!fmt.privacy} />
             </p>
             <p className="hero__sub">
-              {horizonText}
+              {viewing ? `${t('home.period.closedSub', { label: periodLabel(t, fmt, viewPeriod) })}${snapshot && snapshot.transactionCount === 0 ? ` ${t('home.period.noMovements')}` : ''}` : horizonText}
               {budget.horizon && !budget.period && (
                 <>
                   {' · '}
@@ -633,7 +672,7 @@ export function Home() {
 
             <div className="hero__actions">
               {/* Una sola acción secundaria («¿Me alcanza?»); registrar va por la pestaña «+» (B3). */}
-              {(essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
+              {(viewing ? [] : essential ? (['afford'] as QuickAction[]) : (['afford' as QuickAction, ...prefs.quickActions.filter((a) => a !== 'afford')] as QuickAction[])).map((a) => (
                 <a key={a} className="btn btn--secondary" href={href(QUICK[a].href)}>
                   {QUICK[a].label}
                 </a>
@@ -760,6 +799,8 @@ export function Home() {
             </Explain>
             </div>
           </Card>
+          {viewing ? null : (
+          <>
           {isEmpty && (
             <div className="first-use" data-testid="first-use">
               <Icon name="sparkles" size={18} />
@@ -842,9 +883,11 @@ export function Home() {
               </div>
             </div>
           )}
+          </>
+          )}
         </div>
 
-        {!essential && (
+        {!essential && !viewing && (
           <div className="stack" data-testid="home-sections">
             {visibleSections
               .filter((x) => PRIMARY_SECTIONS.has(x.id))

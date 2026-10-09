@@ -894,7 +894,7 @@ html {
 /* Héroe compacto (C1): menos separación, cabecera con enlace a Estadísticas, fila «por día» y
    acciones en una sola fila; el reparto del saldo y las ayudas van dentro de «¿Cómo se calculó?». */
 .card.hero {
-  gap: var(--space-2);
+  gap: 6px;
 }
 
 .hero__head {
@@ -944,6 +944,44 @@ html {
   align-items: center;
   gap: 4px;
   flex: none;
+}
+
+/* ‹ periodo › en la cabecera del héroe (D1). */
+.hero__period-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hero__period {
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero__period::first-letter {
+  text-transform: uppercase;
+}
+
+.hero__period-btn {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
+.period-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.period-banner .banner__text {
+  flex: 1 1 10rem;
+  font-weight: 600;
 }
 
 .hero__privacy {
