@@ -4193,6 +4193,22 @@ button.cat-chip:hover {
   z-index: 2;
 }
 
+/* D4: deslizar a la derecha revela «Editar» (azul) al lado izquierdo. */
+.swipe__action--secondary {
+  inset: 0 auto 0 0;
+  background: var(--accent, #1d4ed8);
+}
+
+.swipe.is-open-right .swipe__action:not(.swipe__action--secondary) {
+  opacity: 0;
+  z-index: 0;
+}
+
+.swipe.is-open-left .swipe__action--secondary {
+  opacity: 0;
+  z-index: 0;
+}
+
 .swipe__action:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: -3px;

@@ -1,14 +1,15 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { txAppliesToAccount } from '../../domain/balances'
-import { categoriesForKind } from '../../domain/categories'
 import { sumMinor } from '../../domain/money'
 import { txCategoryIds } from '../../domain/splits'
 import { transactionsToCsv } from '../../domain/csvExport'
 import { restoreFromTrashMany, trashTransactions } from '../../domain/operations'
+import { recategorizeTransactions, setCategoriesEach, setTagsEach, tagTransactions } from '../../domain/bulk'
+import { matchesTxFilter, SOURCE_GROUPS, type SourceGroup } from '../../domain/txFilters'
 import { useRun } from '../../state/hooks'
 import { downloadText } from '../backupActions'
 import { useDeleteTransaction } from '../useDeleteTransaction'
-import { BottomSheet, ListRow, SearchBar, SwipeRow } from '../components/base'
+import { BottomSheet, CategoryChip, ListRow, SearchBar, SwipeRow } from '../components/base'
 import { ConfirmDialog } from '../components/Dialog'
 import { useToast } from '../components/toastContext'
 import type { Transaction, TxKind, TxStatus } from '../../domain/types'
@@ -16,12 +17,14 @@ import { useT, type MessageKey } from '../../i18n'
 import { useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Badge, EmptyState, PageHeader } from '../components/common'
-import { SelectField, TextField } from '../components/fields'
+import { MoneyField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { Icon, type IconName } from '../components/Icon'
 import { MonthSummary } from '../components/MonthSummary'
 import { useFormat } from '../format'
 import { accountName, categoryLabel, transactionTitle } from '../labels'
-import { href, type Route } from '../router'
+import { href, navigate, type Route } from '../router'
+import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 
 const KIND_ICON: Record<TxKind, IconName> = { income: 'arrowDown', expense: 'arrowUp', transfer: 'transfer', refund: 'refund', adjustment: 'sliders' }
 const PAGE = 60
@@ -35,10 +38,17 @@ export function Movements({ route }: { route?: Route }) {
   const [kind, setKind] = useState<'all' | TxKind>('all')
   const [status, setStatus] = useState<'all' | TxStatus>('all')
   const [accountId, setAccountId] = useState('all')
-  const [categoryId, setCategoryId] = useState(() => route?.query.get('categoria') || 'all')
-  const [tagId, setTagId] = useState(() => route?.query.get('etiqueta') || 'all')
+  // D4: varias categorías y etiquetas («cualquiera»), rango de importe y origen del registro.
+  const [categoryIds, setCategoryIds] = useState<string[]>(() => (route?.query.get('categoria') ? [route.query.get('categoria')!] : []))
+  const [tagIds, setTagIds] = useState<string[]>(() => (route?.query.get('etiqueta') ? [route.query.get('etiqueta')!] : []))
   const [from, setFrom] = useState(() => route?.query.get('desde') || '')
   const [to, setTo] = useState(() => route?.query.get('hasta') || '')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
+  const [source, setSource] = useState<'all' | SourceGroup>('all')
+  const [bulkSheet, setBulkSheet] = useState<null | 'category' | 'tag'>(null)
+  const [bulkCategoryId, setBulkCategoryId] = useState('')
+  const [bulkTagIds, setBulkTagIds] = useState<string[]>([])
   const [limit, setLimit] = useState(PAGE)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -48,28 +58,32 @@ export function Movements({ route }: { route?: Route }) {
   const run = useRun()
   const toast = useToast()
 
+  // Importes escritos → enteros en unidades menores; un texto inválido no filtra y muestra su error.
+  const minParsed = amountMin.trim() ? parseMoneyText(amountMin, fmt, { allowZero: true }) : null
+  const maxParsed = amountMax.trim() ? parseMoneyText(amountMax, fmt, { allowZero: true }) : null
+  const minMinor = minParsed?.ok ? minParsed.minor : null
+  const maxMinor = maxParsed?.ok ? maxParsed.minor : null
+  const amountRange = minMinor != null && maxMinor != null ? `${fmt.money(minMinor)}–${fmt.money(maxMinor)}` : minMinor != null ? `≥ ${fmt.money(minMinor)}` : maxMinor != null ? `≤ ${fmt.money(maxMinor)}` : ''
+
   // Filtros activos como fichas con «quitar» (la búsqueda tiene su propio campo).
   const activeChips: { key: string; label: string; clear: () => void }[] = [
     ...(kind !== 'all' ? [{ key: 'kind', label: t(`txKind.${kind}` as MessageKey), clear: () => setKind('all') }] : []),
     ...(status !== 'all' ? [{ key: 'status', label: t(status === 'realized' ? 'status.realized' : 'status.planned'), clear: () => setStatus('all') }] : []),
     ...(accountId !== 'all' ? [{ key: 'account', label: accountName(data.accounts, accountId, t), clear: () => setAccountId('all') }] : []),
-    ...(categoryId !== 'all' ? [{ key: 'category', label: categoryLabel(t, categoryId), clear: () => setCategoryId('all') }] : []),
-    ...(tagId !== 'all' ? [{ key: 'tag', label: data.tags.find((x) => x.id === tagId)?.name ?? tagId, clear: () => setTagId('all') }] : []),
+    ...(categoryIds.length > 0 ? [{ key: 'category', label: categoryIds.map((c) => categoryLabel(t, c)).join(', '), clear: () => setCategoryIds([]) }] : []),
+    ...(tagIds.length > 0 ? [{ key: 'tag', label: tagIds.map((id) => data.tags.find((x) => x.id === id)?.name ?? id).join(', '), clear: () => setTagIds([]) }] : []),
+    ...(amountRange ? [{ key: 'amount', label: t('filters.amount.chip', { range: amountRange }), clear: () => { setAmountMin(''); setAmountMax('') } }] : []),
+    ...(source !== 'all' ? [{ key: 'source', label: t(`source.${source}` as MessageKey), clear: () => setSource('all') }] : []),
     ...(from ? [{ key: 'from', label: t('filters.from.chip', { date: fmt.date(from, { compact: true, today }) }), clear: () => setFrom('') }] : []),
     ...(to ? [{ key: 'to', label: t('filters.to.chip', { date: fmt.date(to, { compact: true, today }) }), clear: () => setTo('') }] : []),
   ]
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase()
+  // Sin useMemo manual: el compilador de React memoriza esta derivación por sus dependencias.
+  const criteria = { kind, status, accountId, categoryIds, tagIds, from, to, minMinor, maxMinor, source }
+  const q = query.trim().toLocaleLowerCase()
+  const filtered = (() => {
     return data.transactions.filter((tx) => {
-      if (kind !== 'all' && tx.kind !== kind) return false
-      if (status !== 'all' && tx.status !== status) return false
-      if (accountId !== 'all' && tx.accountId !== accountId && tx.toAccountId !== accountId) return false
-      // Una compra dividida aparece en cada categoría de sus líneas.
-      if (categoryId !== 'all' && !txCategoryIds(tx).includes(categoryId)) return false
-      if (tagId !== 'all' && !tx.tagIds?.includes(tagId)) return false
-      if (from && tx.date < from) return false
-      if (to && tx.date > to) return false
+      if (!matchesTxFilter(tx, criteria)) return false
       if (q) {
         const haystack = [tx.note, categoryLabel(t, tx.categoryId), accountName(data.accounts, tx.accountId, t), tx.toAccountId ? accountName(data.accounts, tx.toAccountId, t) : '', fmt.money(tx.amountMinor)]
           .join(' ')
@@ -78,7 +92,7 @@ export function Movements({ route }: { route?: Route }) {
       }
       return true
     })
-  }, [data, query, kind, status, accountId, categoryId, tagId, from, to, t, fmt])
+  })()
 
   const planned = filtered.filter((tx) => tx.status === 'planned').sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const realized = filtered
@@ -94,10 +108,13 @@ export function Movements({ route }: { route?: Route }) {
     setKind('all')
     setStatus('all')
     setAccountId('all')
-    setCategoryId('all')
-    setTagId('all')
+    setCategoryIds([])
+    setTagIds([])
     setFrom('')
     setTo('')
+    setAmountMin('')
+    setAmountMax('')
+    setSource('all')
   }
 
   const exportCsv = () => {
@@ -130,6 +147,58 @@ export function Movements({ route }: { route?: Route }) {
     toast({ message: saved ? tn('movements.bulkTrashed', ids.length) : t('save.error.generic'), tone: saved ? 'good' : 'critical', ...(saved ? { action: { label: t('common.undo'), onClick: () => void undo() } } : {}) })
   }
 
+  const selectedTxs = data.transactions.filter((x) => selected.has(x.id))
+  const bulkKind = selectedTxs.length > 0 && selectedTxs.every((x) => x.kind === 'income') ? 'income' : 'expense'
+
+  // D4: cambiar categoría o etiquetar en UNA operación (todo o nada) con «Deshacer» que restaura
+  // exactamente lo que tenía cada movimiento.
+  const bulkRecategorize = async () => {
+    const ids = [...selected]
+    const categoryId = bulkCategoryId
+    if (!categoryId || ids.length === 0) return
+    const previous = ids.map((id) => ({ id, categoryId: data.transactions.find((x) => x.id === id)?.categoryId }))
+    setBulkSheet(null)
+    const { result, saved } = await run((d, c) => recategorizeTransactions(d, ids, categoryId, c))
+    if (!result.ok || !saved) {
+      toast({ message: t('save.error.generic'), tone: 'critical' })
+      return
+    }
+    setSelected(new Set())
+    setSelecting(false)
+    setBulkCategoryId('')
+    const { changed, skipped } = result.value
+    const undo = async () => {
+      const r = await run((d, c) => setCategoriesEach(d, previous, c))
+      const ok = r.result.ok && r.saved
+      toast({ message: ok ? t('movements.bulkUndone') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+    }
+    const message = `${tn('movements.bulkRecategorized', changed)}${skipped > 0 ? ` · ${t('movements.bulkSkipped', { count: skipped })}` : ''}`
+    toast({ message, tone: 'good', ...(changed > 0 ? { action: { label: t('common.undo'), onClick: () => void undo() } } : {}) })
+  }
+
+  const bulkTag = async () => {
+    const ids = [...selected]
+    const tags = bulkTagIds
+    if (tags.length === 0 || ids.length === 0) return
+    const previous = ids.map((id) => ({ id, tagIds: data.transactions.find((x) => x.id === id)?.tagIds ?? [] }))
+    setBulkSheet(null)
+    const { result, saved } = await run((d, c) => tagTransactions(d, ids, tags, c))
+    if (!result.ok || !saved) {
+      toast({ message: t('save.error.generic'), tone: 'critical' })
+      return
+    }
+    setSelected(new Set())
+    setSelecting(false)
+    setBulkTagIds([])
+    const { changed } = result.value
+    const undo = async () => {
+      const r = await run((d, c) => setTagsEach(d, previous, c))
+      const ok = r.result.ok && r.saved
+      toast({ message: ok ? t('movements.bulkUndone') : t('save.error.generic'), tone: ok ? 'good' : 'critical' })
+    }
+    toast({ message: tn('movements.bulkTagged', changed), tone: 'good', ...(changed > 0 ? { action: { label: t('common.undo'), onClick: () => void undo() } } : {}) })
+  }
+
   // Estable entre renders: las filas memorizadas no se repintan al pasar de página.
   const toggleSelected = useCallback(
     (id: string) =>
@@ -142,10 +211,6 @@ export function Movements({ route }: { route?: Route }) {
     [],
   )
 
-  const categoryOptions = [
-    { value: 'all', label: t('filters.allCategories') },
-    ...[...categoriesForKind('expense', data.categories, { includeArchived: true }), ...categoriesForKind('income', data.categories, { includeArchived: true })].map((c) => ({ value: c, label: categoryLabel(t, c) })),
-  ]
 
   return (
     <div className="stack">
@@ -245,8 +310,23 @@ export function Movements({ route }: { route?: Route }) {
                 ]}
               />
               {data.accounts.length > 1 && <ChipGroup legend={t('fields.account')} value={accountId} onChange={setAccountId} options={[{ value: 'all', label: t('filters.allAccounts') }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]} />}
-              <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={categoryOptions} />
-              {data.tags.length > 0 && <ChipGroup legend={t('fields.tags')} value={tagId} onChange={setTagId} options={[{ value: 'all', label: t('filters.allTags') }, ...data.tags.map((tg) => ({ value: tg.id, label: tg.name }))]} />}
+              <CategoryPicker label={t('fields.category')} kind={kind === 'income' ? 'income' : 'expense'} data={data} multiple value={categoryIds} onChange={setCategoryIds} placeholder={t('filters.allCategories')} includeArchived testId="filter-category" />
+              {data.tags.length > 0 && (
+                <fieldset className="field">
+                  <legend className="field__label">{t('fields.tags')}</legend>
+                  <div className="chip-wrap" role="group" aria-label={t('fields.tags')}>
+                    {data.tags.map((tg) => (
+                      <CategoryChip key={tg.id} label={tg.name} icon="tag" color={tg.color} selected={tagIds.includes(tg.id)} onClick={() => setTagIds((ids) => (ids.includes(tg.id) ? ids.filter((x) => x !== tg.id) : [...ids, tg.id]))} />
+                    ))}
+                  </div>
+                  <p className="field__hint">{t('filters.tagsHint')}</p>
+                </fieldset>
+              )}
+              <div className="form-row">
+                <MoneyField label={t('filters.amountMin')} value={amountMin} onChange={setAmountMin} fmt={fmt} error={minParsed && !minParsed.ok ? moneyErrorMessage(t, minParsed) : null} />
+                <MoneyField label={t('filters.amountMax')} value={amountMax} onChange={setAmountMax} fmt={fmt} error={maxParsed && !maxParsed.ok ? moneyErrorMessage(t, maxParsed) : null} />
+              </div>
+              <ChipGroup legend={t('filters.source')} value={source} onChange={(v) => setSource(v as typeof source)} options={[{ value: 'all', label: t('filters.allSources') }, ...SOURCE_GROUPS.map((g) => ({ value: g, label: t(`source.${g}` as MessageKey) }))]} />
               <div className="form-row">
                 <TextField label={t('filters.from')} type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
                 <TextField label={t('filters.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
@@ -277,6 +357,16 @@ export function Movements({ route }: { route?: Route }) {
                   {t('movements.selectAll')}
                 </button>
                 <span className="muted">{tn('movements.selected', selected.size)}</span>
+                <button type="button" className="btn btn--ghost btn--small" disabled={selected.size === 0} onClick={() => setBulkSheet('category')} data-testid="bulk-category">
+                  <Icon name="folder" size={16} />
+                  {t('movements.bulkCategory')}
+                </button>
+                {data.tags.length > 0 && (
+                  <button type="button" className="btn btn--ghost btn--small" disabled={selected.size === 0} onClick={() => setBulkSheet('tag')} data-testid="bulk-tag">
+                    <Icon name="tag" size={16} />
+                    {t('movements.bulkTag')}
+                  </button>
+                )}
                 <button type="button" className="btn btn--danger-ghost btn--small" disabled={selected.size === 0} onClick={() => setConfirmBulk(true)}>
                   <Icon name="trash" size={16} />
                   {t('movements.bulkTrash')}
@@ -288,6 +378,40 @@ export function Movements({ route }: { route?: Route }) {
           <ConfirmDialog open={confirmBulk} title={t('movements.bulkTrashTitle', { count: selected.size })} confirmLabel={t('movements.bulkTrash')} destructive onCancel={() => setConfirmBulk(false)} onConfirm={() => void bulkTrash()}>
             <p>{t('movements.bulkTrashText')}</p>
           </ConfirmDialog>
+          <BottomSheet
+            open={bulkSheet === 'category'}
+            onClose={() => setBulkSheet(null)}
+            title={t('movements.bulkCategoryTitle', { count: selected.size })}
+            footer={
+              <button type="button" className="btn btn--primary btn--large" disabled={!bulkCategoryId} onClick={() => void bulkRecategorize()} data-testid="bulk-category-confirm">
+                {t('movements.bulkCategory')}
+              </button>
+            }
+          >
+            <div className="stack" data-testid="bulk-category-sheet">
+              <CategoryPicker label={t('fields.category')} kind={bulkKind} data={data} value={bulkCategoryId} onChange={setBulkCategoryId} allowNew testId="bulk-category-field" />
+              <p className="note">{t('movements.bulkSkipped', { count: selectedTxs.filter((x) => x.kind === 'transfer' || x.kind === 'adjustment' || (x.splits?.length ?? 0) > 0).length })}</p>
+            </div>
+          </BottomSheet>
+          <BottomSheet
+            open={bulkSheet === 'tag'}
+            onClose={() => setBulkSheet(null)}
+            title={t('movements.bulkTagTitle', { count: selected.size })}
+            footer={
+              <button type="button" className="btn btn--primary btn--large" disabled={bulkTagIds.length === 0} onClick={() => void bulkTag()} data-testid="bulk-tag-confirm">
+                {t('movements.bulkTag')}
+              </button>
+            }
+          >
+            <fieldset className="field" data-testid="bulk-tag-sheet">
+              <legend className="field__label">{t('fields.tags')}</legend>
+              <div className="chip-wrap" role="group" aria-label={t('fields.tags')}>
+                {data.tags.map((tg) => (
+                  <CategoryChip key={tg.id} label={tg.name} icon="tag" color={tg.color} selected={bulkTagIds.includes(tg.id)} onClick={() => setBulkTagIds((ids) => (ids.includes(tg.id) ? ids.filter((x) => x !== tg.id) : [...ids, tg.id]))} />
+                ))}
+              </div>
+            </fieldset>
+          </BottomSheet>
 
           {filtered.length === 0 && (
             <EmptyState icon="search" title={t('movements.noResults')} action={<button type="button" className="btn btn--secondary" onClick={clear}>{t('filters.clear')}</button>} />
@@ -313,7 +437,7 @@ export function Movements({ route }: { route?: Route }) {
                   {t('movements.showMore', { count: realized.length - shownRealized.length })}
                 </button>
               )}
-              {!selecting && <p className="note">{t('movements.swipeHint')}</p>}
+              {!selecting && <p className="note">{t('movements.swipeHint')} {t('movements.swipeHint2')}</p>}
             </section>
           )}
         </>
@@ -418,7 +542,7 @@ const TxRow = memo(function TxRow({
           {row}
         </label>
       ) : (
-        <SwipeRow actionLabel={t('movements.swipeDelete', { title })} onAction={() => void deleteTx(tx.id)}>
+        <SwipeRow actionLabel={t('movements.swipeDelete', { title })} onAction={() => void deleteTx(tx.id)} secondary={{ label: t('movements.swipeEdit', { title }), onAction: () => navigate(`/movimientos/editar/${tx.id}`) }}>
           {row}
         </SwipeRow>
       )}

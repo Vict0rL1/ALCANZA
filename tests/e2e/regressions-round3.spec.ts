@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectNoHorizontalScroll, go, movementCount, openAddSheet, openApp, setLanguage, startDemo, storedData, type UiLanguage } from './helpers'
+import { applyFilters, expectNoHorizontalScroll, go, movementCount, openAddSheet, openApp, openFilters, setLanguage, startDemo, storedData, type UiLanguage } from './helpers'
 
 /**
  * Regresiones de la ronda 3: lo que la revisión externa encontró (F1 pegado de varias líneas,
@@ -7,6 +7,8 @@ import { expectNoHorizontalScroll, go, movementCount, openAddSheet, openApp, set
  * que ya funcionaba y debe seguir así (doble toque en Guardar, deshacer tras recargar, modo privado
  * en seis pantallas, teclado en la hoja «+», la historia COP con formato colombiano).
  */
+
+const historyLength = (raw: string | null) => ((JSON.parse(raw ?? '{}') as { history?: unknown[] }).history ?? []).length
 
 const LANGUAGES: UiLanguage[] = ['Español', 'English', 'Português', 'Français']
 const ROUTES = ['/', '/movimientos', '/movimientos/nuevo', '/asistente', '/plan/planes', '/plan/calendario', '/plan/metas', '/plan/periodos', '/plan/proyeccion', '/estadisticas', '/ajustes', '/ajustes/formato', '/cuenta']
@@ -357,3 +359,91 @@ test('D6 · guardar con «Repetir · Cada mes» crea el programado; el calendari
   await expect(page.locator('.cal-day.has-items .cal-day__num', { hasText: /^28$/ })).toBeVisible()
 })
 
+test.describe('D4 · filtros y acciones en lote', () => {
+  test('dos categorías + importe 10–50 dan filas coherentes; las fichas activas resumen el filtro', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    const sheet = await openFilters(page)
+    await page.getByTestId('filter-category').click()
+    const picker = page.getByTestId('category-picker')
+    await picker.getByRole('option', { name: 'Restaurantes y café' }).first().click()
+    await picker.getByRole('option', { name: 'Transporte' }).first().click()
+    await page.getByRole('dialog').filter({ has: picker }).getByRole('button', { name: 'Listo' }).click()
+    await expect(picker).toBeHidden()
+    await sheet.getByLabel('Importe mínimo').fill('10')
+    await sheet.getByLabel('Importe máximo').fill('50')
+    await applyFilters(page)
+    // Comidas 14,75 y 11,80 entran; cafés (4,25 / 6,25), autobús (3,35) y pase (128,15) quedan fuera.
+    await expect(page.getByRole('link', { name: /Almuerzo con amigos/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Comida rápida/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Supermercado/ })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /Pase mensual de transporte/ })).toHaveCount(0)
+    await expect(page.getByTestId('history-tools')).toContainText('2 movimientos')
+    const chips = page.getByTestId('active-filters')
+    await expect(chips).toContainText('Restaurantes y café, Transporte')
+    await expect(chips).toContainText('Importe $10.00–$50.00')
+    await chips.getByRole('button', { name: /Quitar.*Importe/ }).click()
+    await expect(page.getByTestId('history-tools')).toContainText('7 movimientos')
+  })
+
+  test('origen «Programado» deja solo los que vienen del calendario', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    const sheet = await openFilters(page)
+    await sheet.getByRole('group', { name: 'Origen' }).getByRole('button', { name: 'Programado' }).click()
+    await applyFilters(page)
+    // Demo: 2 sueldos, renta, música, celular y transporte vienen del calendario.
+    await expect(page.getByTestId('history-tools')).toContainText('6 movimientos')
+    await expect(page.getByRole('link', { name: /Supermercado/ })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: /Renta de habitación/ }).first()).toBeVisible()
+  })
+
+  test('cambiar la categoría de 3 filas es una operación con Deshacer', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    const transport = page.locator('.item__meta', { hasText: 'Transporte' })
+    await expect(transport).toHaveCount(3)
+    await page.getByRole('button', { name: 'Seleccionar' }).click()
+    const boxes = page.getByRole('checkbox', { name: /Seleccionar «Supermercado»/ })
+    await boxes.nth(0).check()
+    await boxes.nth(1).check()
+    await boxes.nth(2).check()
+    await expect(page.getByText('3 seleccionados')).toBeVisible()
+    await page.getByTestId('bulk-category').click()
+    const sheet = page.getByRole('dialog', { name: 'Nueva categoría para 3 movimientos' })
+    await expect(sheet).toBeVisible()
+    await page.getByTestId('bulk-category-field').click()
+    await page.getByTestId('category-picker').getByRole('option', { name: 'Transporte' }).first().click()
+    await expect(page.getByTestId('bulk-category-field')).toHaveAttribute('data-value', 'transport')
+    const historyBefore = historyLength(await storedData(page))
+    await page.getByTestId('bulk-category-confirm').click()
+    await expect(page.getByText('3 movimientos con nueva categoría')).toBeVisible()
+    await expect(transport).toHaveCount(6)
+    // Una sola entrada en el historial con los 3 cambios (una operación, no tres).
+    expect(historyLength(await storedData(page))).toBe(historyBefore + 1)
+    await page.getByRole('button', { name: 'Deshacer' }).click()
+    await expect(page.getByText('Cambios deshechos')).toBeVisible()
+    await expect(transport).toHaveCount(3)
+    await expect(page.getByRole('checkbox')).toHaveCount(0)
+  })
+
+  test('deslizar a la derecha (o enfocar con teclado) ofrece «Editar» y abre el formulario', async ({ page, isMobile }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    const row = page.locator('.swipe').first()
+    if (isMobile) {
+      const box = (await row.boundingBox())!
+      const content = row.locator('.swipe__content')
+      await content.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: box.x + 40, clientY: box.y + 10, pointerId: 1, bubbles: true })
+      await content.dispatchEvent('pointermove', { pointerType: 'touch', clientX: box.x + 180, clientY: box.y + 10, pointerId: 1, bubbles: true })
+      await content.dispatchEvent('pointerup', { pointerType: 'touch', clientX: box.x + 180, clientY: box.y + 10, pointerId: 1, bubbles: true })
+      await expect(row).toHaveClass(/is-open-right/)
+    } else {
+      await row.getByRole('link').focus()
+      await expect(row).toHaveClass(/is-open/)
+      await expect(row.getByRole('button', { name: /^Eliminar «/ })).toBeVisible()
+    }
+    await row.getByRole('button', { name: /^Editar «/ }).click()
+    await expect(page.getByRole('heading', { name: 'Editar movimiento' })).toBeVisible()
+  })
+})

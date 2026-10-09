@@ -99,6 +99,9 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
 - Plan ante faltante (`domain/shortfall.ts`): palancas simuladas sobre copia; pagos programados
   nunca son palanca; aplicar solo planificación, con confirmación, todo o nada, como `plan` en el
   historial.
+- Filtros del historial (`domain/txFilters.ts`): categorías y etiquetas «cualquiera», importe inclusivo en
+  unidades menores, origen por marcas del registro. Lote (`domain/bulk.ts`): una operación, todo o nada;
+  transferencias, ajustes y divididas no se recategorizan; deshacer restaura por id lo exacto.
 - Preferencias de presentación y modo privado (`ui/preferences.ts`): del dispositivo; nunca
   cambian cifras, datos ni exportaciones; el modo privado no es autenticación ni cifrado.
 
