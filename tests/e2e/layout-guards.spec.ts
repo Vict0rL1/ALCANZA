@@ -24,6 +24,20 @@ test.describe('B1 · ninguna categoría se parte a media palabra', () => {
       await expectNoMidWordBreaks(page.locator('.cat-option__label'), `categorías en ${language}`)
     })
   }
+  test('pestañas y fichas de categoría sin guiones automáticos: cada navegador partiría distinto', async ({ page }) => {
+    // Con `hyphens: auto`, Chromium 153 partía «Movi-mientos» en la barra (más alta) y nombres de
+    // categoría; Chromium 141 no. Las palabras caben enteras (guarda de arriba): no hacen falta.
+    await openApp(page)
+    await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+    await expect(page.locator('.cat-option__label').first()).toBeVisible()
+    expect(await page.locator('.cat-option__label').first().evaluate((el) => getComputedStyle(el).hyphens)).toBe('manual')
+    await page.goto('about:blank')
+    await startDemo(page)
+    const tabs = await page.locator('.nav a, .nav button').evaluateAll((els) => els.map((el) => getComputedStyle(el).hyphens))
+    expect(tabs.length).toBeGreaterThan(0)
+    expect(new Set(tabs)).toEqual(new Set(['manual']))
+  })
+
   test('la tipografía Inter (autoalojada) carga y se usa: las medidas de estas guardas son con ella', async ({ page }) => {
     await openApp(page)
     await waitForFonts(page)

@@ -40,6 +40,18 @@ test('tema: claro/oscuro/sistema se recuerda, no cambia cifras ni borra un formu
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/)
 })
 
+test('el botón secundario de la guía mantiene el contraste AA al pasar el puntero (claro y oscuro)', async ({ page }) => {
+  // Antes: fondo verde suave sobre el fondo verde suave de la guía → 4,2:1 en claro.
+  await startDemo(page)
+  await go(page, '/galeria')
+  for (const theme of ['Claro', 'Oscuro']) {
+    await page.getByRole('radio', { name: theme }).check()
+    await page.locator('.coach__actions .btn--ghost').hover()
+    const results = await new AxeBuilder({ page }).include('.coach__actions').withRules(['color-contrast']).analyze()
+    expect(results.violations.flatMap((v) => v.nodes.map((n) => `${theme}: ${n.failureSummary}`))).toEqual([])
+  }
+})
+
 test('oscuro es el tema predeterminado; la galería de componentes pasa la auditoría en claro y oscuro', async ({ page }) => {
   await startDemo(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
