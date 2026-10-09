@@ -77,9 +77,8 @@ Clara se publica en Cloudflare Pages desde GitHub Actions: GitHub compila, prueb
 4. **Deja Cloudflare Web Analytics desactivado** (proyecto `clara` › **Metrics** › **Web Analytics**:
    no lo actives). Su script lo bloquearía la CSP de Clara y rompería la promesa de «sin terceros».
 5. **Dirección pública.** Tras el primer despliegue a producción, la app queda en
-   `https://clara.pages.dev` (si ese nombre ya estaba ocupado, Cloudflare añade un sufijo, p. ej.
-   `https://clara-abc.pages.dev`: lo verás en el proyecto, arriba). Escríbela en el README, en
-   «Dirección pública».
+   **`https://clara-d3m.pages.dev`** (`clara.pages.dev` ya estaba ocupado y Cloudflare añadió el sufijo
+   `-d3m`; el nombre del proyecto sigue siendo `clara`). Ya está escrita en el README.
 
 Hasta que existan los dos secretos, el trabajo `deploy-preview` de cada PR falla con el mensaje
 «Faltan los secretos de Cloudflare»: no se despliega nada y no se finge que se desplegó.
@@ -172,7 +171,7 @@ pruebas llega a Cloudflare y el resultado aparece como una comprobación más de
 | Cada push a `main` | `deploy-production / Cloudflare Pages` | Lo mismo como despliegue de producción y prueba rápida contra él. |
 
 - Las pruebas rápidas se ejecutan contra la dirección única de ese despliegue
-  (`https://<id>.clara.pages.dev`): es exactamente lo que se acaba de subir.
+  (`https://<id>.clara-d3m.pages.dev`): es exactamente lo que se acaba de subir.
 - Sin los secretos de Cloudflare el trabajo falla con «Faltan los secretos de Cloudflare» y no sube nada.
 - Para probar a mano cualquier dirección: `BASE_URL=https://… npm run test:smoke -- --project=celular`
   (con `BASE_URL` no se compila ni se sirve nada en local).

@@ -164,7 +164,7 @@ incógnito al terminar (se borra sola).
 Mándate por correo o mensajes este enlace (con tu dirección pública) y tócalo en el Android que tiene
 Clara instalada:
 
-`https://clara.pages.dev/#/movimientos/nuevo?importe=12,50&comercio=Starbucks&source=shortcut`
+`https://clara-d3m.pages.dev/#/movimientos/nuevo?importe=12,50&comercio=Starbucks&source=shortcut`
 
 Bien si: se abre la **app instalada** (sin barra del navegador) con el formulario relleno (12.50,
 Starbucks, «Llegó desde un atajo») y no se guarda nada hasta **Guardar**. Anota si en cambio se abrió

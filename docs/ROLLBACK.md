@@ -45,7 +45,7 @@ Responde «Sí» o «No» y por qué (código de salida 0 o 1).
    (`schemaVersion=…`). Comprueba con `node scripts/can-rollback.mjs <actual> <destino>` que dice «Sí».
 3. En esa fila, menú **⋯** › **Rollback to this deployment** › confirma.
 4. Comprueba lo publicado:
-   `BASE_URL=https://clara.pages.dev npm run test:smoke -- --project=celular`
+   `BASE_URL=https://clara-d3m.pages.dev npm run test:smoke -- --project=celular`
    (usa la dirección real si Cloudflare añadió un sufijo).
 5. Quien ya tenga la app abierta verá el aviso «Hay una versión nueva de Clara» y actualizará cuando
    no tenga un formulario a medias: el service worker trata la versión anterior como una más.

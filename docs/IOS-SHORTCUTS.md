@@ -11,10 +11,10 @@ rellena el formulario**: nunca guarda nada sin que pulses «Guardar».
 ## El enlace
 
 ```
-https://clara.pages.dev/#/movimientos/nuevo?kind=expense&importe=12.50&comercio=Starbucks&source=shortcut
+https://clara-d3m.pages.dev/#/movimientos/nuevo?kind=expense&importe=12.50&comercio=Starbucks&source=shortcut
 ```
 
-(Cambia `clara.pages.dev` por la dirección pública real si Cloudflare añadió un sufijo.)
+(Es la dirección pública. Ajustes › Atajos de cada Clara muestra las plantillas con su propia dirección.)
 
 | Parámetro | Qué hace |
 |---|---|
@@ -34,14 +34,14 @@ https://clara.pages.dev/#/movimientos/nuevo?kind=expense&importe=12.50&comercio=
    2. **Codificar URL** otra vez › **Entrada del atajo** › **Importe**.
    3. **Texto** y escribe exactamente (los dos `[…]` son las variables de los pasos 1 y 2; insértalas desde
       la barra de variables, no las escribas):
-      `https://clara.pages.dev/#/movimientos/nuevo?kind=expense&importe=[URL codificado 2]&comercio=[URL codificado 1]&source=shortcut`
+      `https://clara-d3m.pages.dev/#/movimientos/nuevo?kind=expense&importe=[URL codificado 2]&comercio=[URL codificado 1]&source=shortcut`
    4. **Abrir URL** con la variable **Texto**.
 5. Pulsa **OK**.
 
 ## Atajo B: «Tocar atrás» → formulario vacío de Clara
 
 1. **Atajos** › pestaña **Atajos** › **+**. Nombre: `Clara · nuevo gasto`.
-2. Añade **Abrir URL** con: `https://clara.pages.dev/#/movimientos/nuevo?source=shortcut`
+2. Añade **Abrir URL** con: `https://clara-d3m.pages.dev/#/movimientos/nuevo?source=shortcut`
 3. En el iPhone: **Ajustes** › **Accesibilidad** › **Tocar** › **Tocar atrás** › **Doble toque** › elige
    `Clara · nuevo gasto`.
 

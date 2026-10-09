@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml)
 
-**Dirección pública (beta):** _pendiente del primer despliegue — será `https://clara.pages.dev` o la que
-muestre Cloudflare (ver [Cómo publicar](#cómo-publicar))._
+**Dirección pública (beta):** <https://clara-d3m.pages.dev> — se activa con el primer despliegue a
+producción (al fusionar en `main`; ver [Cómo publicar](#cómo-publicar)). Cada PR tiene además su vista
+previa en `https://<id>.clara-d3m.pages.dev`.
 
 > **Nombre:** la app se llamaba «Margen». El nombre visible ahora es **Clara** (igual en
 > español e inglés). Los identificadores internos conservan el nombre anterior
