@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, pickCategory, openExplain, nav, openAddSheet, openApp } from './helpers'
+import { openDetails, go, pickCategory, openExplain, nav, openAddSheet, openApp } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -272,4 +272,17 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(picker).toBeHidden()
   await expect(categoryField).toBeFocused()
 
+  // K6. «Repetir»: movimiento + programado en una operación; el primero no se descuenta dos veces.
+  await page.getByLabel('Importe', { exact: true }).fill('10')
+  await openDetails(page)
+  await page.getByLabel('Nota (opcional)').fill('Gimnasio')
+  await page.getByRole('switch', { name: 'Repetir' }).click()
+  await page.getByLabel('Frecuencia').selectOption('monthly')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByText('Movimiento guardado y programado creado').first()).toBeVisible()
+  await nav(page, 'Inicio').click()
+  await expect(page.getByTestId('available')).toHaveText('$349.50')
+  await go(page, '/plan/calendario')
+  await expect(page.getByRole('link', { name: /Gimnasio/ }).first()).toBeVisible()
+  await expect(page.getByText(/próximo: 28 oct/)).toBeVisible()
 })

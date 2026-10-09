@@ -1015,3 +1015,19 @@ compactos ni se redondean para calcular.
   tal como se habrían visto ese día.
 - El periodo actual no usa la instantánea: Inicio muestra las cifras vivas. La navegación nunca escribe.
 
+## 41. «Repetir» al guardar un movimiento (`domain/repeat.ts`, D6)
+
+- Guardar con «Repetir» = `saveSchedule` + `saveTransaction` en **una** operación (todo o nada): si el
+  programado no es válido, tampoco se guarda el movimiento.
+- El programado empieza en la fecha del movimiento (`startDate = date`) con su importe, cuenta y
+  categoría; el movimiento se guarda con `scheduleId` + `occurrenceDate = date`, así esa ocurrencia es
+  **un movimiento y nunca además una reserva** (regla de §CLAUDE: pagada si hay movimiento realizado con
+  su `scheduleId` + `occurrenceDate`). La siguiente ocurrencia es la primera que se reserva y la que
+  aparece en el calendario.
+- Solo en movimientos nuevos, realizados, de gasto o ingreso, sin división ni vínculo previo.
+
+- «Próximo» en la lista de programados del calendario = primera ocurrencia en o después de hoy que no
+  está liquidada (sin movimiento realizado con su `scheduleId` + `occurrenceDate`, cobros parciales
+  aparte) ni omitida (`nextPendingOccurrence`). Tras «Repetir», la de hoy ya está pagada y el próximo es
+  el del periodo siguiente.
+

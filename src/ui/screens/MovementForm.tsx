@@ -8,6 +8,10 @@ import { computeBudget } from '../../domain/budget'
 import { implausibilityRatio, isImplausibleAmount } from '../../domain/plausibility'
 import { ConfirmDialog } from '../components/Dialog'
 import { CategoryPicker } from '../components/CategoryPicker'
+import { saveTransactionWithSchedule } from '../../domain/repeat'
+import { FREQUENCIES } from '../../domain/validation'
+import { Toggle } from '../components/base'
+import { frequencyLabel } from '../labels'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
 import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
 import { inferRefundSplit, refundableByCategory, suggestSplitFromHistory } from '../../domain/splits'
@@ -16,7 +20,7 @@ import { matchCategoryRule } from '../../domain/rules'
 import { lastUsedAccount, recentCategories } from '../../domain/quickEntry'
 import { resolveSplitTemplate } from '../../domain/templates'
 import { clearDraft, readDraft, writeDraft } from '../../storage/drafts'
-import type { AppData, CategoryRule, SplitLine, Transaction, TxKind, TxStatus } from '../../domain/types'
+import type { Frequency, AppData, CategoryRule, SplitLine, Transaction, TxKind, TxStatus } from '../../domain/types'
 import type { Issue } from '../../domain/validation'
 import { LIMITS } from '../../domain/validation'
 import { useT, type MessageKey } from '../../i18n'
@@ -192,6 +196,11 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   const [busy, setBusy] = useState(false)
   const [favoriteOpen, setFavoriteOpen] = useState(false)
   const submitting = useRef(false)
+  // D6: «Repetir» crea el programado en la misma operación; este movimiento es su primera ocurrencia.
+  const [repeat, setRepeat] = useState(false)
+  const [repeatFrequency, setRepeatFrequency] = useState<Frequency>('monthly')
+  const [repeatEnd, setRepeatEnd] = useState('')
+  const [scheduleId] = useState(() => `s_${newId()}`)
   // G5: un gasto desproporcionado pide confirmación una vez por movimiento.
   const [implausible, setImplausible] = useState<number | null | false>(false)
   const implausibleOk = useRef(false)
@@ -323,6 +332,8 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   // Propuesta: repartir como la última compra dividida con la misma descripción.
   const historySplit = kind === 'expense' && !splitDrafts ? suggestSplitFromHistory(data, note, parsedAmount.ok ? parsedAmount.minor : null, id) : null
 
+  const canRepeat = !existing && !linked && (kind === 'expense' || kind === 'income') && status === 'realized' && !splitDrafts
+
   const submit = async (another = false) => {
     const parsed = parseMoneyText(amountText, fmt)
     setAmountError(moneyErrorMessage(t, parsed))
@@ -393,7 +404,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
       )
     }
     toast({
-      message: saved ? t(existing ? 'movementForm.updated' : 'movementForm.saved') : t('save.error.generic'),
+      message: saved ? t(existing ? 'movementForm.updated' : repeat && canRepeat ? 'movementForm.repeatSaved' : 'movementForm.saved') : t('save.error.generic'),
       tone: saved ? 'good' : 'critical',
       // Tras registrar un ingreso recibido se ofrece repartirlo (nunca se hace solo).
       ...(canDistribute ? { action: { label: t('distribution.offer'), onClick: () => navigate(`/movimientos/distribuir/${savedTx.id}`) } } : {}),
@@ -421,28 +432,29 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
         c,
       )
     }
-    return saveTransaction(
-      d,
-      {
-        id,
-        kind,
-        status,
-        amountMinor,
-        date,
-        accountId,
-        ...(kind === 'transfer' ? { toAccountId } : { categoryId: splits?.[0]?.categoryId ?? categoryId }),
-        ...(splits ? { splits } : {}),
-        ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
-        note,
-        merchant: merchant.trim() || undefined,
-        ...(existing?.receiptUri && !keepReceipt ? { receiptUri: null } : {}),
-        tagIds: tagIds.filter((id) => d.tags.some((tg) => tg.id === id)),
-        ...(existing ? {} : favorite ? { favoriteId: favorite.id, source: 'common' as const } : { source: 'manual' as const }),
-        ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
-        alreadyInBalance,
-      },
-      c,
-    )
+    const draft = {
+      id,
+      kind,
+      status,
+      amountMinor,
+      date,
+      accountId,
+      ...(kind === 'transfer' ? { toAccountId } : { categoryId: splits?.[0]?.categoryId ?? categoryId }),
+      ...(splits ? { splits } : {}),
+      ...(kind === 'refund' && refundOfId ? { refundOfId } : {}),
+      note,
+      merchant: merchant.trim() || undefined,
+      ...(existing?.receiptUri && !keepReceipt ? { receiptUri: null } : {}),
+      tagIds: tagIds.filter((id) => d.tags.some((tg) => tg.id === id)),
+      ...(existing ? {} : favorite ? { favoriteId: favorite.id, source: 'common' as const } : { source: 'manual' as const }),
+      ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
+      alreadyInBalance,
+    }
+    if (repeat && canRepeat && (kind === 'expense' || kind === 'income')) {
+      const name = (note.trim() || merchant.trim() || categoryLabel(t, categoryId)).slice(0, 60)
+      return saveTransactionWithSchedule(d, draft, { id: scheduleId, name, kind, amountMinor, amountIsEstimate: false, accountId, categoryId, frequency: repeatFrequency, startDate: date, ...(repeatEnd ? { endDate: repeatEnd } : {}), reminderDaysBefore: 1 }, c)
+    }
+    return saveTransaction(d, draft, c)
   }
 
   const splitTemplates = data.templates.filter((x): x is Extract<typeof x, { kind: 'split' }> => x.kind === 'split')
@@ -714,6 +726,17 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             error={fieldError(t, fmt, issues, 'categoryId')}
             hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
           />
+        )}
+        {canRepeat && (
+          <div className="stack-sm" data-testid="repeat-block">
+            <Toggle checked={repeat} onChange={setRepeat} label={t('movementForm.repeat')} hint={repeat ? t('movementForm.repeatHint') : undefined} />
+            {repeat && (
+              <div className="form-row">
+                <SelectField label={t('fields.frequency')} value={repeatFrequency} onChange={(e) => setRepeatFrequency(e.target.value as Frequency)} options={FREQUENCIES.filter((f) => f !== 'once' && f !== 'custom').map((f) => ({ value: f, label: frequencyLabel(t, f) }))} />
+                <TextField label={t('scheduleForm.endDate')} type="date" value={repeatEnd} min={date} onChange={(e) => setRepeatEnd(e.target.value)} />
+              </div>
+            )}
+          </div>
         )}
 
         {kind === 'refund' && (

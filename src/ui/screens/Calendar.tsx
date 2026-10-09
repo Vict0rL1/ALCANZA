@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { addDays, addMonthsClamped, endOfMonth, startOfMonth, weekday } from '../../domain/dates'
 import { closeOccurrence, deleteTransaction, revertTransaction, setOccurrenceSkipped } from '../../domain/operations'
 import { useRestoreFromTrash } from '../useDeleteTransaction'
-import { nextOccurrenceOnOrAfter } from '../../domain/recurrence'
+import { nextPendingOccurrence } from '../../domain/repeat'
 import { planItems, type PlanItem } from '../../domain/planItems'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
@@ -273,7 +273,7 @@ export function Calendar() {
         ) : (
           <ul className="item-list">
             {data.schedules.map((s) => {
-              const next = nextOccurrenceOnOrAfter(s, today)
+              const next = nextPendingOccurrence(data, s, today)
               return (
                 <li key={s.id}>
                   <a className="item item--link" href={href(`/plan/programado/editar/${s.id}`)}>

@@ -2788,4 +2788,7 @@ export const en: Record<keyof typeof es, string> = {
   'picker.done': 'Done',
   'picker.newName': 'Name',
   'picker.newSave': 'Create and pick',
+  'movementForm.repeat': 'Repeat',
+  'movementForm.repeatHint': 'Creates a schedule with this amount from the next date; this movement is the first occurrence.',
+  'movementForm.repeatSaved': 'Movement saved and schedule created',
 }

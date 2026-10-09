@@ -2786,4 +2786,7 @@ export const fr: Record<keyof typeof es, string> = {
   'picker.done': 'Terminé',
   'picker.newName': 'Nom',
   'picker.newSave': 'Créer et choisir',
+  'movementForm.repeat': 'Répéter',
+  'movementForm.repeatHint': 'Crée un paiement programmé de ce montant à partir de la prochaine date ; ce mouvement est la première occurrence.',
+  'movementForm.repeatSaved': 'Mouvement enregistré et paiement programmé créé',
 }

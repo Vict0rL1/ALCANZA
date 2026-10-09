@@ -2786,4 +2786,7 @@ export const pt: Record<keyof typeof es, string> = {
   'picker.done': 'Pronto',
   'picker.newName': 'Nome',
   'picker.newSave': 'Criar e escolher',
+  'movementForm.repeat': 'Repetir',
+  'movementForm.repeatHint': 'Cria um programado com este valor a partir da próxima data; este movimento é a primeira ocorrência.',
+  'movementForm.repeatSaved': 'Movimento salvo e programado criado',
 }

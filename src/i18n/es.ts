@@ -2787,4 +2787,7 @@ export const es = {
   'picker.done': 'Listo',
   'picker.newName': 'Nombre',
   'picker.newSave': 'Crear y elegir',
+  'movementForm.repeat': 'Repetir',
+  'movementForm.repeatHint': 'Crea un programado con este importe desde la siguiente fecha; este movimiento es la primera ocurrencia.',
+  'movementForm.repeatSaved': 'Movimiento guardado y programado creado',
 } as const

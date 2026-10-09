@@ -142,6 +142,10 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
 - [ ] **K5.** **+** → **Gasto** → tap **Categoría** → a sheet with a search box, **Recientes** and the
   groups. Type `salu` → only **Salud**; press **Esc** → the sheet closes and the focus is
   back on the field.
+- [ ] **K6.** Still in the form: Importe **10**, Nota **Gimnasio**, switch **Repetir** on, Frecuencia
+  **Cada mes**, tap **Guardar** → «Movimiento guardado y programado creado». Home: **$349.50**
+  (359.50 − 10, not − 20). **Plan › Calendario** lists **Gimnasio** with «próximo: 28 oct».
+
 ---
 
 ## I. Things this test found

@@ -339,3 +339,21 @@ test.describe('D5 · selector de categoría', () => {
   })
 })
 
+test('D6 · guardar con «Repetir · Cada mes» crea el programado; el calendario muestra el mes siguiente y nada se cuenta dos veces', async ({ page }) => {
+  await startDemo(page)
+  const before = await movementCount(page)
+  await go(page, '/movimientos/nuevo')
+  await page.getByLabel('Importe', { exact: true }).fill('10')
+  await page.getByRole('switch', { name: 'Repetir' }).click()
+  await page.getByLabel('Frecuencia').selectOption('monthly')
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByText('Movimiento guardado y programado creado').first()).toBeVisible()
+  expect(await movementCount(page)).toBe(before + 1)
+  await go(page, '/')
+  await expect(page.getByTestId('available')).toHaveText('$126.78') // 136.78 − 10, no − 20
+  await go(page, '/plan/calendario')
+  await expect(page.getByText(/próximo: 28 oct/)).toBeVisible()
+  await page.getByRole('button', { name: 'Mes siguiente' }).click()
+  await expect(page.locator('.cal-day.has-items .cal-day__num', { hasText: /^28$/ })).toBeVisible()
+})
+
