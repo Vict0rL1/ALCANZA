@@ -21,6 +21,7 @@ export interface SettingsSection {
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { id: 'formato', titleKey: 'settings.format.title', group: 'general', icon: 'globe' },
   { id: 'personalizar', titleKey: 'personalize.title', group: 'general', icon: 'sliders' },
+  { id: 'instalar', titleKey: 'install.title', group: 'general', icon: 'phone' },
   { id: 'cuentas', titleKey: 'settings.toc.accounts', group: 'expenses', icon: 'wallet' },
   { id: 'categorias', titleKey: 'settings.toc.categories', group: 'expenses', icon: 'tag', href: '/ajustes/categorias' },
   { id: 'reglas', titleKey: 'rules.title', group: 'expenses', icon: 'sparkles' },

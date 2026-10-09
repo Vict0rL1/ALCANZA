@@ -6,6 +6,7 @@ import { computeBudget, upcomingItems } from '../../domain/budget'
 import { homePeriodAt, homeSnapshotAt, isCurrentPeriod, nextPeriod, previousPeriod } from '../../domain/homeSnapshot'
 import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
+import { daysOfUse, readDeviceFlags, showInstallCard, useInstallMode, writeDeviceFlags } from '../install'
 import { cardPaymentReminders } from '../../domain/cards'
 import { localDateInTimeZone } from '../../domain/dates'
 import { planProgress } from '../../domain/plans'
@@ -93,6 +94,14 @@ export function Home() {
   const verification = useMemo(() => verificationSummary(data, today), [data, today])
   const exportBackup = useExportBackup()
   const snooze = useSnoozeBackup()
+  // K2: «Instala Clara», una sola vez, tras 3 días de uso y fuera de la app instalada.
+  const install = useInstallMode()
+  const [installCardDismissed, setInstallCardDismissed] = useState(() => readDeviceFlags().installCardDismissed === true)
+  const showInstall = showInstallCard({ mode: install.mode, daysOfUse: daysOfUse(data.createdAt, today, data.settings.timeZone), dismissed: installCardDismissed, isDemo: data.isDemo })
+  const dismissInstallCard = () => {
+    writeDeviceFlags({ installCardDismissed: true })
+    setInstallCardDismissed(true)
+  }
 
   const rel = (date: string) => {
     const r = relativeDayKey(date, today)
@@ -183,6 +192,30 @@ export function Home() {
         >
           {backup.neverExported ? t('home.backup.textNever') : t('home.backup.textOld', { date: fmt.date(localDateInTimeZone(new Date(backup.lastExportAt!), data.settings.timeZone)) })}
         </Alert>
+      ),
+    },
+    showInstall && {
+      key: 'install',
+      node: (
+        <div data-testid="install-card">
+        <Alert
+          tone="info"
+          icon="phone"
+          title={t('install.card.title')}
+          actions={
+            <>
+              <a className="btn btn--small btn--primary" href={href('/ajustes/instalar')} onClick={dismissInstallCard}>
+                {t('install.card.how')}
+              </a>
+              <button type="button" className="btn btn--small btn--secondary" onClick={dismissInstallCard}>
+                {t('install.card.dismiss')}
+              </button>
+            </>
+          }
+        >
+          {t('install.card.text')}
+        </Alert>
+        </div>
       ),
     },
     (budget.isBalanceStale && budget.balanceAgeDays !== null) && {

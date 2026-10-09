@@ -38,6 +38,7 @@ import { parseCardFields, useCardFields, type CardErrors } from '../cardFields'
 import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
+import { InstallSection } from './settings/InstallSection'
 import { AssistantSection } from './settings/AssistantSection'
 import { BackupsSection } from './settings/BackupsSection'
 import { PassphraseDialog } from './settings/PassphraseDialog'
@@ -389,6 +390,8 @@ export function Settings({ route }: { route: Route }) {
       )}
 
       {section?.id === 'personalizar' && <PersonalizeSection />}
+
+      {section?.id === 'instalar' && <InstallSection />}
 
       {section?.id === 'cuentas' && (
       <Card labelledBy="accounts-title">
