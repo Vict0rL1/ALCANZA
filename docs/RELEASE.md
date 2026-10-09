@@ -120,6 +120,9 @@ pruebas llega a Cloudflare y el resultado aparece como una comprobación más de
 - Para probar a mano cualquier dirección: `BASE_URL=https://… npm run test:smoke -- --project=celular`
   (con `BASE_URL` no se compila ni se sirve nada en local).
 
+Si algo sale mal después de publicar: [`docs/ROLLBACK.md`](ROLLBACK.md). Cada despliegue lleva en su
+mensaje `schemaVersion=N build=<hash>`, y solo se vuelve a uno con el mismo esquema.
+
 ### Pruebas rápidas (`npm run test:smoke`)
 
 Unas diez pruebas marcadas con `@smoke` recorren lo esencial: configuración inicial, agregar un gasto,

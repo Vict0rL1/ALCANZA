@@ -347,6 +347,9 @@ Clara se publica en Cloudflare Pages desde GitHub Actions; no hay que compilar n
 2. Cada PR recibe una vista previa con su dirección en un comentario, tras pasar todas las pruebas.
 3. Al fusionar en `main`, CI publica en producción y comprueba lo publicado con las pruebas rápidas.
 
+Volver a una versión anterior tiene una regla: solo con el mismo `SCHEMA_VERSION` (los datos del
+navegador pueden haber cambiado de formato). Ver [`docs/ROLLBACK.md`](docs/ROLLBACK.md).
+
 ## 9. Solución de problemas
 
 - **`npm: command not found` / `node no se reconoce`:** instala Node.js y abre una

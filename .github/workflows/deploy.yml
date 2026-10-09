@@ -50,6 +50,8 @@ jobs:
           # Solo caracteres seguros en el nombre de rama que recibe wrangler.
           echo "branch=$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._/-' '-')" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          # «schemaVersion=N build=<hash>»: el mensaje del despliegue dice si se puede volver a él (ROLLBACK.md).
+          echo "message=$(node scripts/can-rollback.mjs --message "$SHA")" >> "$GITHUB_OUTPUT"
           test -f dist/index.html && test -f dist/_headers
       - name: Publicar en Cloudflare Pages
         id: deploy
@@ -60,7 +62,7 @@ jobs:
           wranglerVersion: '4'
           command: >-
             pages deploy dist --project-name=clara --branch=${{ steps.meta.outputs.branch }}
-            --commit-hash=${{ steps.meta.outputs.sha }}
+            --commit-hash=${{ steps.meta.outputs.sha }} --commit-message="${{ steps.meta.outputs.message }}"
       - name: Dirección publicada
         id: url
         env:
@@ -71,7 +73,7 @@ jobs:
           echo "deployment=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "alias=$ALIAS_URL" >> "$GITHUB_OUTPUT"
           {
-            echo "### Clara publicada (${{ inputs.target }})"
+            echo "### Clara publicada (${{ inputs.target }}) · ${{ steps.meta.outputs.message }}"
             echo "- Este despliegue: $DEPLOYMENT_URL"
             if [ -n "$ALIAS_URL" ]; then echo "- Dirección de la rama: $ALIAS_URL"; fi
           } >> "$GITHUB_STEP_SUMMARY"
