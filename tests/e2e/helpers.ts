@@ -215,6 +215,7 @@ export async function openExplain(page: Page) {
  * de una franja que se desplaza a propósito (pestañas, fichas) no cuentan.
  */
 export async function expectNoHorizontalScroll(page: Page, label?: string) {
+  await waitForFonts(page)
   const result = await page.evaluate(() => {
     const limit = window.innerWidth + 1
     const docOverflow = document.documentElement.scrollWidth - window.innerWidth
@@ -302,11 +303,23 @@ export async function openAddSheet(page: Page) {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Espera a que terminen de cargar las fuentes de la página (Inter, autoalojada, con
+ * `font-display: swap`). Hasta entonces el texto usa la fuente del sistema, con otras medidas:
+ * las guardas de maquetación miden la página ya con Inter.
+ */
+export async function waitForFonts(page: Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready
+  })
+}
+
+/**
  * Ninguna palabra se parte a media línea: dentro del localizador, cada salto de línea
  * renderizado (medido carácter a carácter con `Range.getClientRects()`) ocurre tras un espacio,
  * un guion o un guion suave; nunca en mitad de una palabra.
  */
 export async function expectNoMidWordBreaks(locator: Locator, label?: string) {
+  await waitForFonts(locator.page())
   const problems = await locator.evaluateAll((els) => {
     const out: string[] = []
     for (const el of els) {
@@ -380,6 +393,7 @@ function overlapsSomewhere(a: Box, b: Box, maxScroll: number): boolean {
  * página también cuenta. Se calcula con geometría, sin desplazar la página.
  */
 export async function expectNoOverlap(page: Page, a: Locator, b: Locator, label?: string) {
+  await waitForFonts(page)
   await page.evaluate(() => window.scrollTo(0, 0))
   const maxScroll = await page.evaluate(() => Math.max(0, document.scrollingElement!.scrollHeight - window.innerHeight))
   const as = await boxesOf(a)
@@ -401,6 +415,7 @@ export async function tabBarHeight(page: Page): Promise<number> {
 
 /** El elemento cabe en la primera pantalla: su borde inferior queda por encima de la barra inferior. */
 export async function expectAboveFold(page: Page, locator: Locator, label?: string) {
+  await waitForFonts(page)
   await page.evaluate(() => window.scrollTo(0, 0))
   expect(await locator.count(), `${label ?? 'elemento'}: existe`).toBeGreaterThan(0)
   const box = await locator.first().boundingBox()
@@ -415,6 +430,7 @@ export async function expectAboveFold(page: Page, locator: Locator, label?: stri
  * en los `<select>`, el texto de la opción elegida cabe en el ancho del control.
  */
 export async function expectNoTruncatedControls(page: Page, label?: string) {
+  await waitForFonts(page)
   const truncated = await page.evaluate(() => {
     const out: string[] = []
     const visible = (el: HTMLElement) => el.getClientRects().length > 0 && el.clientWidth > 0
@@ -450,6 +466,7 @@ export async function expectNoTruncatedControls(page: Page, label?: string) {
 
 /** Altura de la página en pantallas (1 = cabe sin desplazarse). */
 export async function pageHeightInScreens(page: Page): Promise<number> {
+  await waitForFonts(page)
   return page.evaluate(() => document.scrollingElement!.scrollHeight / window.innerHeight)
 }
 

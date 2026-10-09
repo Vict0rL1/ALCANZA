@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openDetails, go, pickCategory, openExplain, nav, openAddSheet, openApp } from './helpers'
+import { openDetails, go, pickCategory, openExplain, nav, openAddSheet, openApp, storedData } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -55,6 +55,8 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   // B1. Recorrido de 3 pasos, una sola vez.
   await expect(page.getByText('Paso 1 de 3')).toBeVisible()
   await page.getByRole('button', { name: 'Omitir' }).click()
+  // «Omitir» se guarda (IndexedDB, asíncrono): recargar en el mismo instante podría adelantarse.
+  await expect.poll(async () => (JSON.parse((await storedData(page)) ?? '{}') as { settings?: { toursSeen?: string[] } }).settings?.toursSeen ?? []).toContain('home')
   await page.reload()
   await expect(page.getByTestId('available')).toHaveText('$400.00')
   await expect(page.getByText('Paso 1 de 3')).toHaveCount(0)
@@ -288,7 +290,9 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
 
   // K7. Cambiar la categoría en lote con «Deshacer».
   await nav(page, 'Movimientos').click()
-  const gym = page.locator('.item', { hasText: 'Gimnasio' }).first()
+  // La fila del movimiento (no la del programado «Gimnasio», que también es un `.item`).
+  const gym = page.locator('.tx-group .item', { hasText: 'Gimnasio' }).first()
+  await expect(gym).toBeVisible()
   const before = (await gym.locator('.item__meta').textContent()) ?? ''
   await page.getByRole('button', { name: 'Seleccionar' }).click()
   await page.getByRole('checkbox', { name: /Seleccionar «Gimnasio»/ }).check()
@@ -296,10 +300,10 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await pickCategory(page, page.getByTestId('bulk-category-field'), 'Salud')
   await page.getByTestId('bulk-category-confirm').click()
   await expect(page.getByText('1 movimiento con nueva categoría')).toBeVisible()
-  await expect(page.locator('.item', { hasText: 'Gimnasio' }).first().locator('.item__meta')).toContainText('Salud')
+  await expect(gym.locator('.item__meta')).toContainText('Salud')
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByText('Cambios deshechos')).toBeVisible()
-  await expect(page.locator('.item', { hasText: 'Gimnasio' }).first().locator('.item__meta')).toHaveText(before)
+  await expect(gym.locator('.item__meta')).toHaveText(before)
 
   // K8. Una frase + «¿Por qué?»; listas vacías con el estado común.
   await go(page, '/plan/metas')

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { expectAboveFold, expectNoHorizontalScroll, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setLanguage, setupFirstUse, showFullHome, startDemo, tabBarHeight } from './helpers'
+import { expectAboveFold, expectNoHorizontalScroll, expectNoMidWordBreaks, expectNoOverlap, expectNoTruncatedControls, go, openApp, pageHeightInScreens, setLanguage, setupFirstUse, showFullHome, startDemo, tabBarHeight, waitForFonts } from './helpers'
 
 /**
  * Guardas de maquetación y jerarquía (ronda 2 de pulido). Cada prueba corresponde a un punto
@@ -24,6 +24,18 @@ test.describe('B1 · ninguna categoría se parte a media palabra', () => {
       await expectNoMidWordBreaks(page.locator('.cat-option__label'), `categorías en ${language}`)
     })
   }
+  test('la tipografía Inter (autoalojada) carga y se usa: las medidas de estas guardas son con ella', async ({ page }) => {
+    await openApp(page)
+    await waitForFonts(page)
+    const fonts = await page.evaluate(() => ({
+      usable: document.fonts.check('600 13px Inter'),
+      loaded: [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === 'Inter' && f.status === 'loaded').length,
+      family: getComputedStyle(document.body).fontFamily,
+    }))
+    expect(fonts.family).toMatch(/^"?Inter"?,/)
+    expect(fonts.loaded, 'caras de Inter cargadas').toBeGreaterThanOrEqual(1)
+    expect(fonts.usable, 'Inter disponible para texto en latín').toBe(true)
+  })
   test('gestión de categorías en Ajustes', async ({ page }) => {
     await startDemo(page)
     await go(page, '/ajustes/categorias')
@@ -121,6 +133,8 @@ test('C2 · Movimientos: título, búsqueda y al menos 3 filas en la primera pan
   await go(page, '/movimientos')
   await expectAboveFold(page, page.locator('#page-title'), 'título')
   await expectAboveFold(page, page.getByRole('searchbox'), 'búsqueda')
+  await expect(page.locator('.tx-group .item').first()).toBeVisible()
+  await waitForFonts(page)
   const limit = page.viewportSize()!.height - (await tabBarHeight(page))
   const rows = await page.locator('.tx-group .item').evaluateAll((els, max) => els.filter((el) => el.getBoundingClientRect().bottom <= max).length, limit)
   // A 320 × 640 caben el título, la búsqueda, el resumen del mes y la primera fila (DECISIONS).
