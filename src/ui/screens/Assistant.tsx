@@ -195,6 +195,48 @@ export function Assistant({ route }: { route: Route }) {
     if (saved) leave(returnTo)
   }
 
+  // D8: nivel de la voz (AnalyserNode) y tiempo transcurrido mientras se graba; con
+  // `prefers-reduced-motion` una barra fija. Si el navegador no da micrófono, solo el tiempo.
+  const [voiceLevel, setVoiceLevel] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
+  const audio = useRef<{ ctx: AudioContext; stream: MediaStream; frame: number; timer: number } | null>(null)
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const stopMeter = () => {
+    const a = audio.current
+    if (!a) return
+    cancelAnimationFrame(a.frame)
+    window.clearInterval(a.timer)
+    a.stream.getTracks().forEach((track) => track.stop())
+    void a.ctx.close()
+    audio.current = null
+    setVoiceLevel(0)
+    setElapsed(0)
+  }
+  const startMeter = async () => {
+    const started = Date.now()
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 500)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const ctx = new AudioContext()
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      ctx.createMediaStreamSource(stream).connect(analyser)
+      const buffer = new Uint8Array(analyser.fftSize)
+      const tick = () => {
+        analyser.getByteTimeDomainData(buffer)
+        let sum = 0
+        for (const v of buffer) sum += (v - 128) * (v - 128)
+        setVoiceLevel(Math.min(1, Math.sqrt(sum / buffer.length) / 40))
+        if (audio.current) audio.current.frame = requestAnimationFrame(tick)
+      }
+      audio.current = { ctx, stream, frame: reducedMotion ? 0 : requestAnimationFrame(tick), timer }
+    } catch {
+      audio.current = null
+      window.clearInterval(timer)
+    }
+  }
+  useEffect(() => () => stopMeter(), [])
+
   const toggleVoice = () => {
     if (!speech) return
     if (listening) {
@@ -209,10 +251,17 @@ export function Assistant({ route }: { route: Route }) {
       const transcript = Array.from(e.results, (res) => res[0]?.transcript ?? '').join(' ').trim()
       if (transcript) setText((prev) => (prev ? `${prev}\n${transcript}` : transcript))
     }
-    r.onend = () => setListening(false)
-    r.onerror = () => setListening(false)
+    r.onend = () => {
+      setListening(false)
+      stopMeter()
+    }
+    r.onerror = () => {
+      setListening(false)
+      stopMeter()
+    }
     recognizer.current = r
     setListening(true)
+    void startMeter()
     r.start()
   }
 
@@ -283,6 +332,15 @@ export function Assistant({ route }: { route: Route }) {
           {provider.id === 'remote' && !gate('aiRemote', data.settings, { today, devMode: DEV_MODE }).allowed && <p className="note">{t('assistant.aiLimitReached')}</p>}
           {!speech && <p className="note">{t('assistant.voiceUnavailable')}</p>}
           <p className="note">{ocrAvailable() ? t('assistant.photoHint') : t('assistant.photoNoOcr')}</p>
+          {listening && (
+            <div className="voice-meter" role="status" data-testid="voice-meter">
+              <span className="voice-meter__time">{t('assistant.recording', { time: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}` })}</span>
+              <div className="voice-meter__track" role="meter" aria-label={t('assistant.levelAria')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(voiceLevel * 100)}>
+                <div className={`voice-meter__bar${reducedMotion ? ' voice-meter__bar--static' : ''}`} style={reducedMotion ? undefined : { width: `${Math.round(voiceLevel * 100)}%` }} />
+              </div>
+              {reducedMotion && <span className="sr-only">{t('assistant.levelStatic')}</span>}
+            </div>
+          )}
           {speech && <p className="note">{t('assistant.voiceHint')}</p>}
         </form>
       </Card>

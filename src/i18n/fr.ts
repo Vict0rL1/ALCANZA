@@ -2797,4 +2797,7 @@ export const fr: Record<keyof typeof es, string> = {
   'goals.etaOk': 'À ce rythme, vous y arriveriez le {date} ({perDay} par jour sur les 30 derniers jours).',
   'goals.etaTooFew': 'La date estimée apparaît après au moins deux versements (vous en avez {count}).',
   'goals.etaNoRecent': 'Sans versement sur les 30 derniers jours, aucune date ne peut être estimée.',
+  'assistant.recording': 'Enregistrement · {time}',
+  'assistant.levelAria': 'Niveau de la voix',
+  'assistant.levelStatic': 'Micro actif',
 }

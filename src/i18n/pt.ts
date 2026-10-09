@@ -2797,4 +2797,7 @@ export const pt: Record<keyof typeof es, string> = {
   'goals.etaOk': 'Nesse ritmo você chegaria em {date} ({perDay} por dia nos últimos 30 dias).',
   'goals.etaTooFew': 'A data estimada aparece com pelo menos dois aportes (você tem {count}).',
   'goals.etaNoRecent': 'Sem aportes nos últimos 30 dias não é possível estimar uma data.',
+  'assistant.recording': 'Gravando · {time}',
+  'assistant.levelAria': 'Nível da voz',
+  'assistant.levelStatic': 'Microfone ativo',
 }

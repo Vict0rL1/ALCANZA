@@ -4998,6 +4998,40 @@ html.is-discreet .item:focus-within .item__title {
   outline-offset: 2px;
 }
 
+/* Dictado (D8): tiempo y nivel de la voz mientras se graba. */
+.voice-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-meter__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.voice-meter__track {
+  flex: 1 1 auto;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.voice-meter__bar {
+  height: 100%;
+  background: var(--primary);
+  transition: width 80ms linear;
+}
+
+.voice-meter__bar--static {
+  width: 60%;
+  transition: none;
+  background: repeating-linear-gradient(90deg, var(--primary) 0 8px, transparent 8px 12px);
+}
+
 /* Gráfico de meta (D7): línea de «hoy». */
 .goal-chart__today {
   stroke: var(--muted);

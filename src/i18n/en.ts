@@ -2799,4 +2799,7 @@ export const en: Record<keyof typeof es, string> = {
   'goals.etaOk': 'At this pace you would get there on {date} ({perDay} a day over the last 30 days).',
   'goals.etaTooFew': 'The estimated date appears after at least two contributions (you have {count}).',
   'goals.etaNoRecent': 'Without contributions in the last 30 days no date can be estimated.',
+  'assistant.recording': 'Recording · {time}',
+  'assistant.levelAria': 'Voice level',
+  'assistant.levelStatic': 'Microphone on',
 }

@@ -2798,4 +2798,7 @@ export const es = {
   'goals.etaOk': 'A este ritmo llegarías el {date} ({perDay} al día en los últimos 30 días).',
   'goals.etaTooFew': 'La fecha estimada aparece con al menos dos aportes (llevas {count}).',
   'goals.etaNoRecent': 'Sin aportes en los últimos 30 días no se puede estimar una fecha.',
+  'assistant.recording': 'Grabando · {time}',
+  'assistant.levelAria': 'Nivel de la voz',
+  'assistant.levelStatic': 'Micrófono activo',
 } as const
