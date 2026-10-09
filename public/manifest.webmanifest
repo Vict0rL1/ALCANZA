@@ -1,5 +1,6 @@
 {
-  "name": "Clara (prototipo local)",
+  "id": "/",
+  "name": "Clara",
   "short_name": "Clara",
   "description": "Cuánto puedes gastar después de reservar tus pagos y ahorros. Datos solo en este dispositivo.",
   "lang": "es",
@@ -9,10 +10,71 @@
   "orientation": "any",
   "background_color": "#0b1220",
   "theme_color": "#10b981",
+  "categories": [
+    "finance"
+  ],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Gasto",
+      "short_name": "Gasto",
+      "description": "Registrar un gasto",
+      "url": "/#/movimientos/nuevo?kind=expense",
+      "icons": [
+        {
+          "src": "/shortcut-gasto.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ingreso",
+      "short_name": "Ingreso",
+      "description": "Registrar un ingreso",
+      "url": "/#/movimientos/nuevo?kind=income",
+      "icons": [
+        {
+          "src": "/shortcut-ingreso.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Asistente",
+      "short_name": "Asistente",
+      "description": "Escribir o dictar movimientos",
+      "url": "/#/asistente",
+      "icons": [
+        {
+          "src": "/shortcut-asistente.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
