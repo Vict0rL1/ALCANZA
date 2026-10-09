@@ -22,7 +22,7 @@ async function analyze(page: Page, text: string) {
 }
 
 test.describe('F1 · varias líneas en el asistente', () => {
-  test('pegar tres líneas da tres filas con sus importes', async ({ page }) => {
+  test('pegar tres líneas da tres filas con sus importes', { tag: '@smoke' }, async ({ page }) => {
     await startDemo(page)
     const lines = await analyze(page, 'café 4.50\nuber 12\nsupermercado 45.20')
     await expect(lines).toHaveCount(3)

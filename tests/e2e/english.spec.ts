@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { showFullHome, go, openApp } from './helpers'
 
-test('la app funciona en inglés y se puede volver a español', async ({ page }) => {
+test('la app funciona en inglés y se puede volver a español', { tag: '@smoke' }, async ({ page }) => {
   await openApp(page)
   await page.getByRole('radio', { name: 'English' }).check()
   await expect(page.getByRole('heading', { name: 'Hi, this is Clara' })).toBeVisible()

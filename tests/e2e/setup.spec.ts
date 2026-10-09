@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { openApp } from './helpers'
 
-test('configuración inicial con mis datos y recuperación tras recargar', async ({ page }) => {
+test('configuración inicial con mis datos y recuperación tras recargar', { tag: '@smoke' }, async ({ page }) => {
   await openApp(page)
   await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { waitForPrecache, waitForServiceWorkerControl } from './helpers'
 
-test('tras la primera visita, la app abre sin conexión y conserva los datos', async ({ page, context }) => {
+test('tras la primera visita, la app abre sin conexión y conserva los datos', { tag: '@smoke' }, async ({ page, context }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Explorar con datos de demostración' }).click()
   await expect(page.getByTestId('available')).toBeVisible()

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { openMonthSummary, available, go, movementCount, startDemo, openDetails } from './helpers'
 
-test('agregar, buscar, editar y eliminar con deshacer', async ({ page }) => {
+test('agregar, buscar, editar y eliminar con deshacer', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   const before = await movementCount(page)
 

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { openExplain, go, startDemo, storedData } from './helpers'
 
-test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin cambiar datos ni cifras', async ({ page }) => {
+test('modo privado: oculta importes en pantalla y en etiquetas accesibles, sin cambiar datos ni cifras', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   await go(page, '/')
   await expect(page.getByTestId('available')).toHaveText('$136.78')

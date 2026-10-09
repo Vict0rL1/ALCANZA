@@ -82,7 +82,7 @@ test('dos pestañas: la segunda no sobrescribe en silencio lo que guardó la pri
   await expect(other.locator('a.item', { hasText: 'Desde la pestaña B' })).toBeVisible()
 })
 
-test('H4 · datos de una versión más nueva (esquema 11): se explican, sin «Empezar de nuevo», y ningún botón los toca', async ({ page }) => {
+test('H4 · datos de una versión más nueva (esquema 11): se explican, sin «Empezar de nuevo», y ningún botón los toca', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   const d = JSON.parse((await stored(page))!)
   d.schemaVersion = 11

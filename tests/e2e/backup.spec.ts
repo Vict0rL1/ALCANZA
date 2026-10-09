@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { available, go, startDemo, storedData, writeStoredData } from './helpers'
 
-test('exportar, rechazar copias inválidas sin tocar datos e importar una válida', async ({ page }) => {
+test('exportar, rechazar copias inválidas sin tocar datos e importar una válida', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   await go(page, '/ajustes/copia')
 

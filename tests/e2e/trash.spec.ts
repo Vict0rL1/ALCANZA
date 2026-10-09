@@ -49,7 +49,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   expect(await movementCount(page)).toBe(before - 1)
 })
 
-test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas cuentas', async ({ page }) => {
+test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas cuentas', { tag: '@smoke' }, async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos/nuevo')
   await page.getByRole('radio', { name: 'Transferencia' }).check()
