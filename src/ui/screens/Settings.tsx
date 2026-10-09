@@ -39,6 +39,7 @@ import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 import { InstallSection } from './settings/InstallSection'
+import { usePersistStatus } from '../persist'
 import { AssistantSection } from './settings/AssistantSection'
 import { BackupsSection } from './settings/BackupsSection'
 import { PassphraseDialog } from './settings/PassphraseDialog'
@@ -871,28 +872,13 @@ function AccountDialog({ account, onClose }: { account: Account | null; onClose:
   )
 }
 
-type PersistState = 'unsupported' | 'granted' | 'notGranted' | 'checking'
-
 /**
  * Pedir al navegador que no borre los datos del sitio por falta de espacio
- * (`navigator.storage.persist`). Es una función estándar del navegador, sin servicios
- * externos. El navegador decide; reduce el riesgo pero no lo elimina.
+ * (`navigator.storage.persist`, ver `ui/persist.ts`). El navegador decide.
  */
 function PersistentStorage() {
   const { t } = useT()
-  const supported = typeof navigator !== 'undefined' && !!navigator.storage?.persisted && !!navigator.storage.persist
-  const [status, setStatus] = useState<PersistState>(supported ? 'checking' : 'unsupported')
-  useEffect(() => {
-    if (!supported) return
-    let alive = true
-    navigator.storage
-      .persisted()
-      .then((p) => alive && setStatus(p ? 'granted' : 'notGranted'))
-      .catch(() => alive && setStatus('unsupported'))
-    return () => {
-      alive = false
-    }
-  }, [supported])
+  const { status, request } = usePersistStatus()
   if (status === 'checking') return null
   return (
     <div className="stack-sm" data-testid="persist-storage">
@@ -900,14 +886,7 @@ function PersistentStorage() {
         <Icon name={status === 'granted' ? 'check' : 'info'} size={16} /> {t(`settings.storage.persist.${status}` as 'settings.storage.persist.granted')}
       </p>
       {status === 'notGranted' && (
-        <button
-          type="button"
-          className="btn btn--secondary"
-          onClick={async () => {
-            const granted = await navigator.storage.persist().catch(() => false)
-            setStatus(granted ? 'granted' : 'notGranted')
-          }}
-        >
+        <button type="button" className="btn btn--secondary" onClick={() => void request()}>
           {t('settings.storage.persist.request')}
         </button>
       )}

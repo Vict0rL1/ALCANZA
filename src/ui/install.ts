@@ -35,6 +35,14 @@ export function showInstallCard(input: { mode: InstallMode; daysOfUse: number; d
   return input.mode !== 'installed' && !input.isDemo && !input.dismissed && input.daysOfUse >= INSTALL_CARD_AFTER_DAYS
 }
 
+/**
+ * K3 · «Protege tus datos»: se pregunta una vez por dispositivo, justo después de la
+ * configuración (el presupuesto se creó hoy) o al abrir por primera vez la app instalada.
+ */
+export function showSafetyCard(input: { isDemo: boolean; asked: boolean; daysOfUse: number; standalone: boolean }): boolean {
+  return !input.isDemo && !input.asked && (input.daysOfUse === 0 || input.standalone)
+}
+
 /* ------------------------------------------------------------------ */
 /* Navegador                                                           */
 /* ------------------------------------------------------------------ */
@@ -106,6 +114,8 @@ export const DEVICE_KEY = 'clara.device.v1'
 export interface DeviceFlags {
   /** La tarjeta «Instala Clara» de Inicio ya se cerró (solo sale una vez). */
   installCardDismissed?: boolean
+  /** «Protege tus datos» ya se preguntó en este dispositivo (K3). */
+  safetyAsked?: boolean
 }
 
 export function readDeviceFlags(): DeviceFlags {

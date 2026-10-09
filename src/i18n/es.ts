@@ -2866,4 +2866,13 @@ export const es = {
   'install.card.text': 'Se abre como una app, funciona sin conexión y es más fácil de encontrar.',
   'install.card.how': 'Ver cómo',
   'install.card.dismiss': 'Ahora no',
+  'safety.title': 'Protege tus datos',
+  'safety.text': 'Clara guarda todo solo en este dispositivo, sin servidor. Dos pasos ayudan a no perderlo.',
+  'safety.step1': '1. Pedir al navegador que conserve los datos',
+  'safety.step2': '2. Hacer la primera copia',
+  'safety.backupDone': 'Copia hecha. Guarda el archivo fuera de este dispositivo (Archivos, iCloud Drive, correo…).',
+  'safety.backupNotYet': 'Todavía no hay ninguna copia.',
+  'safety.reminder': 'Clara te seguirá recordando hacer una copia nueva (cada cuánto: Ajustes › Copias de seguridad).',
+  'safety.done': 'Listo',
+  'safety.later': 'Ahora no',
 } as const

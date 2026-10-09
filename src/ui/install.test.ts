@@ -35,3 +35,15 @@ describe('K2 · guía para instalar Clara', () => {
     expect(showInstallCard({ ...base, mode: 'manual' })).toBe(true)
   })
 })
+
+describe('K3 · «Protege tus datos» una sola vez', () => {
+  it('justo después de la configuración (día 0) o al abrir por primera vez la app instalada; nunca en la demo ni dos veces', async () => {
+    const { showSafetyCard } = await import('./install')
+    const base = { isDemo: false, asked: false, daysOfUse: 0, standalone: false }
+    expect(showSafetyCard(base)).toBe(true)
+    expect(showSafetyCard({ ...base, daysOfUse: 5 })).toBe(false)
+    expect(showSafetyCard({ ...base, daysOfUse: 5, standalone: true })).toBe(true)
+    expect(showSafetyCard({ ...base, asked: true })).toBe(false)
+    expect(showSafetyCard({ ...base, isDemo: true })).toBe(false)
+  })
+})

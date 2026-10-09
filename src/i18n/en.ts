@@ -2867,4 +2867,13 @@ export const en: Record<keyof typeof es, string> = {
   'install.card.text': 'It opens like an app, works offline and is easier to find.',
   'install.card.how': 'See how',
   'install.card.dismiss': 'Not now',
+  'safety.title': 'Protect your data',
+  'safety.text': 'Clara keeps everything only on this device, with no server. Two steps help you not lose it.',
+  'safety.step1': '1. Ask the browser to keep the data',
+  'safety.step2': '2. Make the first backup',
+  'safety.backupDone': 'Backup made. Keep the file off this device (Files, iCloud Drive, email…).',
+  'safety.backupNotYet': 'No backup yet.',
+  'safety.reminder': 'Clara will keep reminding you to make a new backup (how often: Settings › Backups).',
+  'safety.done': 'Done',
+  'safety.later': 'Not now',
 }

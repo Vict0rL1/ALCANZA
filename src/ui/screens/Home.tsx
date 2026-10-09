@@ -6,7 +6,8 @@ import { computeBudget, upcomingItems } from '../../domain/budget'
 import { homePeriodAt, homeSnapshotAt, isCurrentPeriod, nextPeriod, previousPeriod } from '../../domain/homeSnapshot'
 import { verificationSummary } from '../../domain/reconcile'
 import { useExportBackup, useSnoozeBackup } from '../backupActions'
-import { daysOfUse, readDeviceFlags, showInstallCard, useInstallMode, writeDeviceFlags } from '../install'
+import { daysOfUse, readDeviceFlags, showInstallCard, showSafetyCard, useInstallMode, writeDeviceFlags } from '../install'
+import { SafetyCard } from '../safetyCard'
 import { cardPaymentReminders } from '../../domain/cards'
 import { localDateInTimeZone } from '../../domain/dates'
 import { planProgress } from '../../domain/plans'
@@ -101,6 +102,13 @@ export function Home() {
   const dismissInstallCard = () => {
     writeDeviceFlags({ installCardDismissed: true })
     setInstallCardDismissed(true)
+  }
+  // K3: «Protege tus datos», una vez por dispositivo, tras la configuración o en la app instalada.
+  const [safetyAsked, setSafetyAsked] = useState(() => readDeviceFlags().safetyAsked === true)
+  const showSafety = showSafetyCard({ isDemo: data.isDemo, asked: safetyAsked, daysOfUse: daysOfUse(data.createdAt, today, data.settings.timeZone), standalone: install.mode === 'installed' })
+  const closeSafety = () => {
+    writeDeviceFlags({ safetyAsked: true })
+    setSafetyAsked(true)
   }
 
   const rel = (date: string) => {
@@ -853,6 +861,7 @@ export function Home() {
               </a>
             </div>
           )}
+          {showSafety && <SafetyCard onClose={closeSafety} />}
           {/* Ingresos sin confirmar: explican por qué no se suman a la cifra principal */}
           {budget.overdueIncomes.map((item) => (
             <Alert

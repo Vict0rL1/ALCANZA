@@ -2865,4 +2865,13 @@ export const fr: Record<keyof typeof es, string> = {
   'install.card.text': 'Elle s’ouvre comme une app, fonctionne hors ligne et se retrouve plus facilement.',
   'install.card.how': 'Voir comment',
   'install.card.dismiss': 'Pas maintenant',
+  'safety.title': 'Protégez vos données',
+  'safety.text': 'Clara garde tout uniquement sur cet appareil, sans serveur. Deux étapes aident à ne rien perdre.',
+  'safety.step1': '1. Demander au navigateur de conserver les données',
+  'safety.step2': '2. Faire la première copie',
+  'safety.backupDone': 'Copie faite. Gardez le fichier hors de cet appareil (Fichiers, iCloud Drive, e-mail…).',
+  'safety.backupNotYet': 'Aucune copie pour l’instant.',
+  'safety.reminder': 'Clara continuera à vous rappeler de faire une nouvelle copie (fréquence : Réglages › Sauvegardes).',
+  'safety.done': 'Terminé',
+  'safety.later': 'Pas maintenant',
 }
