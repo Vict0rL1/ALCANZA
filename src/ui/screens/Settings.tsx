@@ -39,6 +39,7 @@ import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 import { InstallSection } from './settings/InstallSection'
+import { ErrorReport } from './settings/ErrorReport'
 import { FeedbackSection } from './settings/FeedbackSection'
 import { IosShortcutsSection } from './settings/IosShortcutsSection'
 import { usePersistStatus } from '../persist'
@@ -705,6 +706,7 @@ export function Settings({ route }: { route: Route }) {
         ) : (
           <p className="note">{t('settings.about.noContact')}</p>
         )}
+        <ErrorReport />
       </Card>
       )}
 

@@ -26,6 +26,7 @@ import { Home } from './ui/screens/Home'
 import { MovementForm } from './ui/screens/MovementForm'
 import { Movements } from './ui/screens/Movements'
 import { Setup } from './ui/screens/Setup'
+import { logError } from './ui/errorLog'
 
 // Pantallas secundarias: se cargan aparte (el service worker las guarda igual para usarlas sin conexión).
 const Plan = lazy(() => import('./ui/screens/Plan').then((m) => ({ default: m.Plan })))
@@ -534,6 +535,9 @@ class ScreenBoundary extends Component<{ children: ReactNode }, { failed: boolea
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    logError(error)
   }
   render() {
     return this.state.failed ? <ScreenFailed /> : this.props.children

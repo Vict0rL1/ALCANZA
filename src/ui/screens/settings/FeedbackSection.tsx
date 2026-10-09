@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useT } from '../../../i18n'
 import { Card } from '../../components/common'
+import { CheckboxField } from '../../components/fields'
 import { useToast } from '../../components/toastContext'
+import { readErrors, reportText } from '../../errorLog'
 import { describeBrowser, feedbackEmail, feedbackMailto, feedbackText } from '../../feedback'
 import { isStandalone } from '../../install'
 import { APP_VERSION, BUILD_HASH } from '../../version'
@@ -23,8 +26,11 @@ export function FeedbackSection() {
     viewport: `${window.innerWidth} × ${window.innerHeight}`,
     language,
   }
+  // El informe de errores (M3) solo se añade si la persona lo marca, y entonces se ve en el texto.
+  const [errors] = useState(() => readErrors())
+  const [withErrors, setWithErrors] = useState(false)
   const subject = t('feedback.subject', { version: APP_VERSION })
-  const body = feedbackText(info, (k) => t(k as Parameters<typeof t>[0]))
+  const body = feedbackText(info, (k) => t(k as Parameters<typeof t>[0]), withErrors ? reportText(errors, { version: APP_VERSION, build: BUILD_HASH }) : undefined)
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(`${t('feedback.subjectLabel')}: ${subject}\n\n${body}`)
@@ -41,6 +47,9 @@ export function FeedbackSection() {
       <div className="stack-sm" data-testid="feedback">
         <p>{t('feedback.intro')}</p>
         <p className="note">{t('feedback.private')}</p>
+        {errors.length > 0 && (
+          <CheckboxField label={t('feedback.includeErrors', { count: errors.length })} checked={withErrors} onChange={setWithErrors} />
+        )}
         <h3 className="section-title">{t('feedback.previewLabel')}</h3>
         <pre className="text-preview" data-testid="feedback-preview">
           {`${t('feedback.subjectLabel')}: ${subject}\n\n${body}`}
