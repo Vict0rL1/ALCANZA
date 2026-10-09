@@ -264,7 +264,7 @@ export function Calendar() {
             {t('calendar.showMonth')}
           </button>
         )}
-        {listed.length === 0 ? <EmptyState icon="calendar" title={t('calendar.empty')} /> : <ul className="item-list">{listed.map(renderItem)}</ul>}
+        {listed.length === 0 ? <EmptyState compact icon="calendar" title={t('calendar.empty')} /> : <ul className="item-list">{listed.map(renderItem)}</ul>}
       </Card>
 
       <Card labelledBy="schedules-title">
@@ -272,7 +272,7 @@ export function Calendar() {
           {t('calendar.allSchedules')}
         </h2>
         {data.schedules.length === 0 ? (
-          <EmptyState icon="calendar" title={t('calendar.noSchedules')} />
+          <EmptyState compact icon="calendar" title={t('calendar.noSchedules')} />
         ) : (
           <ul className="item-list">
             {data.schedules.map((s) => {

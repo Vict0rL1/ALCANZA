@@ -8,7 +8,7 @@ import type { Issue } from '../../../domain/validation'
 import { useT } from '../../../i18n'
 import { useRun } from '../../../state/hooks'
 import { useData } from '../../../state/store'
-import { Card } from '../../components/common'
+import { Card, EmptyState } from '../../components/common'
 import { Dialog } from '../../components/Dialog'
 import { TextField } from '../../components/fields'
 import { Icon } from '../../components/Icon'
@@ -38,7 +38,7 @@ export function TagsSection() {
       </h2>
       <p className="note">{t('tags.intro')}</p>
       {data.tags.length === 0 ? (
-        <p className="note">{t('tags.empty')}</p>
+        <EmptyState compact icon="tag" title={t('tags.empty')} />
       ) : (
         <ul className="item-list" data-testid="tag-list">
           {data.tags.map((tag) => {

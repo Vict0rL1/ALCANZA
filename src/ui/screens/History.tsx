@@ -60,9 +60,7 @@ export function History() {
       </Alert>
       {error && <Alert tone="critical" title={error} role="alert" />}
       {entries.length === 0 ? (
-        <EmptyState icon="clock" title={t('history.empty')}>
-          <p>{t('history.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="clock" title={t('history.empty')} text={t('history.emptyText')} />
       ) : (
         <ul className="item-list history-list" aria-label={t('history.title')}>
           {shown.map((entry) => {

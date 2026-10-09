@@ -245,14 +245,13 @@ export function Movements({ route }: { route?: Route }) {
         <EmptyState
           icon="list"
           title={t('movements.emptyTitle')}
+          text={t('movements.emptyText')}
           action={
             <a className="btn btn--primary" href={href('/movimientos/nuevo')}>
               {t('movements.add')}
             </a>
           }
-        >
-          <p>{t('movements.emptyText')}</p>
-        </EmptyState>
+        />
       ) : (
         <>
           <div className="movements__top">

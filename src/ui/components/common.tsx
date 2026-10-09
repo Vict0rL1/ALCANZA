@@ -91,12 +91,16 @@ export function Meter({ fraction, label, valueText }: { fraction: number; label:
   )
 }
 
-export function EmptyState({ icon, title, children, action }: { icon: IconName; title: string; children?: ReactNode; action?: ReactNode }) {
+/**
+ * Estado vacío común (E3): icono, título de una línea, como mucho una línea de texto y una acción.
+ * `compact` para dentro de una tarjeta (menos aire, icono de 24 px).
+ */
+export function EmptyState({ icon, title, text, action, compact, testId }: { icon: IconName; title: string; text?: string; action?: ReactNode; compact?: boolean; testId?: string }) {
   return (
-    <div className="empty">
-      <Icon name={icon} size={32} className="empty__icon" />
+    <div className={`empty${compact ? ' empty--compact' : ''}`} data-testid={testId}>
+      <Icon name={icon} size={compact ? 24 : 32} className="empty__icon" />
       <p className="empty__title">{title}</p>
-      {children && <div className="empty__text">{children}</div>}
+      {text && <p className="empty__text">{text}</p>}
       {action}
     </div>
   )

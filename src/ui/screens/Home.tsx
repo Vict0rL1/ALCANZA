@@ -341,6 +341,7 @@ export function Home() {
         </h2>
         {upcoming.length === 0 ? (
           <EmptyState
+            compact
             icon="calendar"
             title={t('home.upcomingEmpty')}
             action={
@@ -484,6 +485,7 @@ export function Home() {
         </h2>
         {goalsForHome.length === 0 ? (
           <EmptyState
+            compact
             icon="target"
             title={t('goals.empty')}
             action={

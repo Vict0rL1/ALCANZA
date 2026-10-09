@@ -65,7 +65,7 @@ export function Goals() {
           </a>
         </div>
         {planned.length === 0 ? (
-          <p className="note">{t('planned.empty')}</p>
+          <EmptyState compact icon="calendar" title={t('planned.emptyTitle')} text={t('planned.empty')} />
         ) : (
           <ul className="goal-list">
             {planned.map((g) => (
@@ -79,9 +79,7 @@ export function Goals() {
 
       <h2 className="section-title">{t('planned.otherGoals')}</h2>
       {goals.length === 0 ? (
-        <EmptyState icon="target" title={t('goals.empty')} action={<a className="btn btn--primary" href={href('/plan/metas/nueva')}>{t('goals.new')}</a>}>
-          <p>{t('goals.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="target" title={t('goals.empty')} text={t('goals.emptyText')} action={<a className="btn btn--primary" href={href('/plan/metas/nueva')}>{t('goals.new')}</a>} />
       ) : (
         <ul className="goal-list">
           {goals.map((g) => {

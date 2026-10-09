@@ -104,9 +104,7 @@ export function PeriodBudgets() {
         {t('period.notMoneyText')}
       </Alert>
       {active.length === 0 && archived.length === 0 ? (
-        <EmptyState icon="wallet" title={t('period.empty')} action={<a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>{t('period.new')}</a>}>
-          <p>{t('period.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="wallet" title={t('period.empty')} text={t('period.emptyText')} action={<a className="btn btn--primary" href={href('/plan/periodos/nuevo')}>{t('period.new')}</a>} />
       ) : (
         <>
           {active.length > 1 && (

@@ -177,9 +177,7 @@ export function Gallery() {
         <Alert tone="warning" title={t('gallery.state.warning')} />
         <Alert tone="critical" title={t('gallery.state.exceeded')} />
         <Alert tone="good" title={t('gallery.state.complete')} />
-        <EmptyState icon="sparkles" title={t('gallery.emptyTitle')} action={<SecondaryButton small icon="plus">{t('gallery.emptyAction')}</SecondaryButton>}>
-          {t('gallery.emptyText')}
-        </EmptyState>
+        <EmptyState icon="sparkles" title={t('gallery.emptyTitle')} text={t('gallery.emptyText')} action={<SecondaryButton small icon="plus">{t('gallery.emptyAction')}</SecondaryButton>} />
         <p className="muted">{t('gallery.skeleton')}</p>
         <Skeleton lines={3} />
         {coach && (

@@ -84,7 +84,7 @@ export function Templates() {
         </h2>
         <p className="note">{t(kind === 'split' ? 'templates.splitIntro' : 'templates.distributionIntro')}</p>
         {list.length === 0 ? (
-          <p className="note">{t('templates.none')}</p>
+          <EmptyState compact icon="list" title={t('templates.none')} />
         ) : (
           <ul className="item-list">
             {list.map((tpl) => {

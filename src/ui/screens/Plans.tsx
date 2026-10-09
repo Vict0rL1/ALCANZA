@@ -107,9 +107,7 @@ export function Plans({ route }: { route: Route }) {
         </button>
       </div>
       {plans.length === 0 && goals.length === 0 ? (
-        <EmptyState icon="target" title={t(view === 'completed' ? 'plans.empty.completed' : 'plans.empty.title')} action={view === 'active' ? <PrimaryButton onClick={() => setSheet(true)}>{t('plans.empty.cta')}</PrimaryButton> : undefined}>
-          {view === 'active' && <p>{t('plans.empty.text')}</p>}
-        </EmptyState>
+        <EmptyState icon="target" title={t(view === 'completed' ? 'plans.empty.completed' : 'plans.empty.title')} text={view === 'active' ? t('plans.empty.text') : undefined} action={view === 'active' ? <PrimaryButton onClick={() => setSheet(true)}>{t('plans.empty.cta')}</PrimaryButton> : undefined} />
       ) : (
         <ul className="plan-cards" data-testid="plan-list">
           {plans.map(({ plan, progress }) => {

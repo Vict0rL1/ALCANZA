@@ -193,3 +193,68 @@ test.describe('E1 · un solo estilo de categoría en toda la app', () => {
     await expectOneCategoryStyle(page)
   })
 })
+
+/**
+ * E3: cada lista vacía usa el estado vacío común: icono, título de una línea, texto de una línea
+ * (dos a 320 px) y como mucho una acción; ningún gráfico vacío pasa de 160 px.
+ */
+async function expectEmptyStates(page: Page, min: number, maxLines: number) {
+  const empties = page.locator('main .empty')
+  await expect(empties.first()).toBeVisible()
+  expect(await empties.count(), 'estados vacíos en la pantalla').toBeGreaterThanOrEqual(min)
+  const problems = await empties.evaluateAll(
+    (els, max) =>
+      els.flatMap((el) => {
+        const out: string[] = []
+        const lines = (node: Element | null) => {
+          if (!node) return 0
+          const lh = parseFloat(getComputedStyle(node).lineHeight) || 20
+          return Math.round(node.getBoundingClientRect().height / lh)
+        }
+        const title = el.querySelector('.empty__title')
+        const text = el.querySelector('.empty__text')
+        const label = (title?.textContent ?? '').slice(0, 40)
+        if (el.querySelectorAll(':scope > svg.empty__icon').length !== 1) out.push(`${label}: sin icono`)
+        if (!title) out.push('sin título')
+        if (lines(title) > max) out.push(`${label}: título en ${lines(title)} líneas`)
+        if (text && lines(text) > max) out.push(`${label}: texto en ${lines(text)} líneas`)
+        if (el.querySelector('.empty__text p, .empty__text ul')) out.push(`${label}: párrafos dentro del texto`)
+        const actions = el.querySelectorAll('a, button').length
+        if (actions > 1) out.push(`${label}: ${actions} acciones`)
+        return out
+      }),
+    maxLines,
+  )
+  expect(problems).toEqual([])
+}
+
+test.describe('E3 · estados vacíos con el componente común', () => {
+  test('primer uso: historial, metas, planes, estadísticas, papelera, favoritos, plantillas, etiquetas y reglas', async ({ page }, info) => {
+    test.setTimeout(120_000)
+    const max = info.project.name === 'celular-pequeno' ? 2 : 1
+    await setupFirstUse(page)
+    const routes: [string, number][] = [
+      ['/movimientos', 1],
+      ['/plan/metas', 1], // la configuración ya crea la meta de la reserva: queda vacío «Gastos planificados»
+      ['/estadisticas', 1],
+      ['/movimientos/papelera', 1],
+      ['/movimientos/favoritos', 1],
+      ['/movimientos/plantillas', 1],
+      ['/ajustes/etiquetas', 1],
+      ['/ajustes/reglas', 1],
+      ['/plan/periodos', 1],
+    ]
+    for (const [route, min] of routes) {
+      await go(page, route)
+      await expectEmptyStates(page, min, max)
+    }
+    // Plan › Planes: tras la introducción, «Activos» está vacío (la meta de la reserva ya está completa).
+    await go(page, '/plan/planes')
+    await page.getByRole('button', { name: 'Omitir' }).click()
+    await expectEmptyStates(page, 1, max)
+    // Sin datos, Estadísticas no dibuja gráficos vacíos (y ninguno pasa de 160 px).
+    await go(page, '/estadisticas')
+    const tall = await page.locator('main svg').evaluateAll((svgs) => svgs.filter((s) => s.getBoundingClientRect().height > 160).map((s) => s.getAttribute('class')))
+    expect(tall).toEqual([])
+  })
+})

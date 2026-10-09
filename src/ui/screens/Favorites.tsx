@@ -50,7 +50,7 @@ export function Favorites() {
       <p className="note">{t('favorites.intro')}</p>
 
       {favorites.length === 0 ? (
-        <EmptyState icon="star" title={t('favorites.empty')} />
+        <EmptyState icon="star" title={t('favorites.empty')} text={t('favorites.emptyText')} />
       ) : (
         <Card>
           <ul className="item-list">

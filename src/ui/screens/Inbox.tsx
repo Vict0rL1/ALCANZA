@@ -71,9 +71,7 @@ export function Inbox() {
         {tn('inbox.count', view.active.length)}
       </p>
       {view.active.length === 0 && (
-        <EmptyState icon="checkCircle" title={t('inbox.empty')}>
-          <p>{t('inbox.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="checkCircle" title={t('inbox.empty')} text={t('inbox.emptyText')} />
       )}
       {groups.map((g) => {
         const shown = expanded[g.kind] ? g.items : g.items.slice(0, PAGE)

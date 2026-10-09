@@ -9,7 +9,7 @@ import type { Issue } from '../../domain/validation'
 import { useT } from '../../i18n'
 import { useRun } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { Card } from '../components/common'
+import { Card, EmptyState } from '../components/common'
 import { Dialog } from '../components/Dialog'
 import { Segmented, SelectField, TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
@@ -42,7 +42,7 @@ export function RulesSection() {
       </h2>
       <p className="note">{t('rules.text')}</p>
       {rules.length === 0 ? (
-        <p>{t('rules.empty')}</p>
+        <EmptyState compact icon="sparkles" title={t('rules.empty')} />
       ) : (
         <ul className="item-list">
           {rules.map((r) => (

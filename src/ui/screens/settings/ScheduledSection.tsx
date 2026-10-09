@@ -8,7 +8,7 @@ import { useT } from '../../../i18n'
 import { useRun, useToday } from '../../../state/hooks'
 import { useData } from '../../../state/store'
 import { Toggle } from '../../components/base'
-import { Badge, Card } from '../../components/common'
+import { Badge, Card, EmptyState } from '../../components/common'
 import { Icon } from '../../components/Icon'
 import { useToast } from '../../components/toastContext'
 import { useFormat } from '../../format'
@@ -36,7 +36,7 @@ export function ScheduledSection() {
       </h2>
       <p className="note">{t('scheduled.intro')}</p>
       {data.schedules.length === 0 ? (
-        <p className="note">{t('calendar.noSchedules')}</p>
+        <EmptyState compact icon="calendar" title={t('calendar.noSchedules')} />
       ) : (
         <ul className="item-list" data-testid="scheduled-list">
           {data.schedules.map((s) => {

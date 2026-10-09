@@ -131,9 +131,7 @@ export function Statistics({ route }: { route: Route }) {
       {!stats.previousComparable && <p className="note">{t('stats.notComparable')}</p>}
 
       {noData ? (
-        <EmptyState icon="chart" title={t('stats.empty')}>
-          <p>{t('stats.emptyText')}</p>
-        </EmptyState>
+        <EmptyState icon="chart" title={t('stats.empty')} text={t('stats.emptyText')} />
       ) : (
         <>
           <Card labelledBy="stats-cat-title">
@@ -141,7 +139,7 @@ export function Statistics({ route }: { route: Route }) {
               {t('stats.byCategory')}
             </h2>
             {breakdown.categories.length === 0 ? (
-              <p className="note">{t('stats.noExpenses')}</p>
+              <EmptyState compact icon="chart" title={t('stats.noExpenses')} />
             ) : (
               <CategoryDonut categories={breakdown.categories} total={breakdown.total} fmt={fmt} label={(id) => categoryLabel(t, id)} color={color} icon={icon} onSelect={(id) => navigate(withQuery('/movimientos', { categoria: id, desde: range.start, hasta: range.end }))} />
             )}
@@ -166,7 +164,7 @@ export function Statistics({ route }: { route: Route }) {
               {t('stats.topTitle')}
             </h2>
             {top.length === 0 ? (
-              <p className="note">{t('stats.topEmpty')}</p>
+              <EmptyState compact icon="list" title={t('stats.topEmpty')} />
             ) : (
               <ol className="top-list" data-testid="stats-top">
                 {top.map((e) => (
