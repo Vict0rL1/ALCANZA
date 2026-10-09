@@ -320,7 +320,8 @@ test.describe('D5 · selector de categoría', () => {
     await page.getByTestId('picker-new-name').fill('Acuario')
     await page.getByTestId('picker-new-save').click()
     await expect(page.getByTestId('category-picker')).toBeHidden()
-    await expect(page.getByLabel('Categoría', { exact: true })).toContainText('Acuario')
+    // El campo (no la hoja que aún se cierra, que también se llama «Categoría»).
+    await expect(page.getByTestId('category-field')).toContainText('Acuario')
     await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
     await expect(page.locator('.item__meta', { hasText: 'Acuario' }).first()).toBeVisible()
