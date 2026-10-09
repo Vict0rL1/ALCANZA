@@ -5,6 +5,8 @@
  */
 import { useId, useState, type ReactNode } from 'react'
 import type { CategoryShare, FutureBalance, SeriesPoint, TrendPoint } from '../../domain/statistics'
+import { idealAt, type GoalTrajectory } from '../../domain/goalChart'
+import { daysBetween } from '../../domain/dates'
 import type { CategoryColor } from '../../domain/types'
 import { useT } from '../../i18n'
 import type { Formatter } from '../format'
@@ -274,6 +276,66 @@ export function FutureBalanceChart({ future, fmt, today }: { future: FutureBalan
                 <td className="num">{fmt.money(m.pessimisticMinor)}</td>
                 <td className="num">{fmt.money(m.baseMinor)}</td>
                 <td className="num">{fmt.money(m.optimisticMinor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableToggle>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Meta: acumulado frente a la recta ideal (D7)                        */
+/* ------------------------------------------------------------------ */
+
+export function GoalChart({ trajectory, fmt, today }: { trajectory: GoalTrajectory; fmt: Formatter; today: string }) {
+  const { t } = useT()
+  if (fmt.privacy) return <HiddenChart />
+  const W = 320
+  const H = 120
+  const pad = { l: 8, r: 8, t: 10, b: 18 }
+  const end = trajectory.end && trajectory.end > today ? trajectory.end : today
+  const span = Math.max(1, daysBetween(trajectory.start, end))
+  const max = Math.max(1, trajectory.targetMinor, ...trajectory.points.map((p) => p.savedMinor))
+  const x = (date: string) => pad.l + ((W - pad.l - pad.r) * Math.min(span, Math.max(0, daysBetween(trajectory.start, date)))) / span
+  const y = (v: number) => pad.t + (H - pad.t - pad.b) * (1 - v / max)
+  const saved = trajectory.points.map((p) => `${x(p.date).toFixed(1)},${y(p.savedMinor).toFixed(1)}`).join(' ')
+  const ideal = trajectory.end ? `${x(trajectory.start).toFixed(1)},${y(0).toFixed(1)} ${x(trajectory.end).toFixed(1)},${y(trajectory.targetMinor).toFixed(1)}` : null
+  const last = trajectory.points[trajectory.points.length - 1]!
+  return (
+    <div className="trend goal-chart" data-testid="goal-chart">
+      <svg viewBox={`0 0 ${W} ${H}`} className="trend__svg" role="img" aria-label={t('goals.chartAria', { saved: fmt.money(last.savedMinor), target: fmt.money(trajectory.targetMinor), ideal: fmt.money(idealAt(trajectory, today)) })}>
+        {ideal && <polyline points={ideal} fill="none" className="trend__prev" />}
+        <polyline points={saved} fill="none" className="trend__cur" />
+        <line x1={x(today)} x2={x(today)} y1={pad.t} y2={H - pad.b} className="goal-chart__today" />
+      </svg>
+      <ul className="legend" aria-hidden="true">
+        <li>
+          <span className="legend__swatch series-1" /> {t('goals.chartSaved')}
+        </li>
+        {ideal && (
+          <li>
+            <span className="legend__swatch legend__swatch--ideal" /> {t('goals.chartIdeal')}
+          </li>
+        )}
+      </ul>
+      <TableToggle>
+        <table className="data-table">
+          <caption className="sr-only">{t('goals.chartTitle')}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t('goals.chartDate')}</th>
+              <th scope="col">{t('goals.chartSaved')}</th>
+              {ideal && <th scope="col">{t('goals.chartIdeal')}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {trajectory.points.map((p) => (
+              <tr key={p.date}>
+                <td>{fmt.date(p.date, { compact: true, today })}</td>
+                <td className="num">{fmt.money(p.savedMinor)}</td>
+                {ideal && <td className="num">{fmt.money(idealAt(trajectory, p.date))}</td>}
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { computeBudget, scheduledIncomeItems } from '../../domain/budget'
 import { addDays } from '../../domain/dates'
+import { goalEta, goalTrajectory } from '../../domain/goalChart'
+import { GoalChart } from '../components/statsCharts'
 import { goalPlan, goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
 import { deleteGoal, restoreGoal, saveGoal } from '../../domain/operations'
@@ -111,6 +113,17 @@ export function Goals() {
                   <Meter fraction={p.fraction} label={g.name} valueText={valueText} />
                   <p className="goal__progress">{valueText}</p>
                   {!p.complete && <p className="item__meta">{t('goals.remaining', { amount: fmt.money(p.remainingMinor) })}</p>}
+                  {/* D7: acumulado frente a la recta ideal y fecha estimada (solo con ≥ 2 aportes). */}
+                  {g.allocations.length > 0 && <GoalChart trajectory={goalTrajectory(g, today)} fmt={fmt} today={today} />}
+                  {(() => {
+                    const eta = goalEta(g, today)
+                    if (eta.status === 'complete') return null
+                    return (
+                      <p className="item__meta" data-testid="goal-eta">
+                        {eta.status === 'ok' ? t('goals.etaOk', { date: fmt.date(eta.date), perDay: fmt.money(eta.perDayMinor) }) : eta.status === 'tooFew' ? t('goals.etaTooFew', { count: eta.contributions }) : t('goals.etaNoRecent')}
+                      </p>
+                    )
+                  })()}
                   <div className="goal__plan">
                     {plan.status === 'ok' && (
                       <>

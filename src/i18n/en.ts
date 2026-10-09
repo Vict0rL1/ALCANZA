@@ -2791,4 +2791,12 @@ export const en: Record<keyof typeof es, string> = {
   'movementForm.repeat': 'Repeat',
   'movementForm.repeatHint': 'Creates a schedule with this amount from the next date; this movement is the first occurrence.',
   'movementForm.repeatSaved': 'Movement saved and schedule created',
+  'goals.chartTitle': 'Progress against the plan',
+  'goals.chartAria': 'Saved {saved} of {target}; the ideal line marks {ideal} for today.',
+  'goals.chartSaved': 'Saved',
+  'goals.chartIdeal': 'Ideal pace',
+  'goals.chartDate': 'Date',
+  'goals.etaOk': 'At this pace you would get there on {date} ({perDay} a day over the last 30 days).',
+  'goals.etaTooFew': 'The estimated date appears after at least two contributions (you have {count}).',
+  'goals.etaNoRecent': 'Without contributions in the last 30 days no date can be estimated.',
 }

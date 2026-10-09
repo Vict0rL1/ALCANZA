@@ -2789,4 +2789,12 @@ export const fr: Record<keyof typeof es, string> = {
   'movementForm.repeat': 'Répéter',
   'movementForm.repeatHint': 'Crée un paiement programmé de ce montant à partir de la prochaine date ; ce mouvement est la première occurrence.',
   'movementForm.repeatSaved': 'Mouvement enregistré et paiement programmé créé',
+  'goals.chartTitle': 'Progression par rapport au plan',
+  'goals.chartAria': 'Épargné {saved} sur {target} ; la droite idéale indique {ideal} pour aujourd’hui.',
+  'goals.chartSaved': 'Épargné',
+  'goals.chartIdeal': 'Rythme idéal',
+  'goals.chartDate': 'Date',
+  'goals.etaOk': 'À ce rythme, vous y arriveriez le {date} ({perDay} par jour sur les 30 derniers jours).',
+  'goals.etaTooFew': 'La date estimée apparaît après au moins deux versements (vous en avez {count}).',
+  'goals.etaNoRecent': 'Sans versement sur les 30 derniers jours, aucune date ne peut être estimée.',
 }

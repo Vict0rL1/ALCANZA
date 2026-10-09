@@ -4998,3 +4998,9 @@ html.is-discreet .item:focus-within .item__title {
   outline-offset: 2px;
 }
 
+/* Gráfico de meta (D7): línea de «hoy». */
+.goal-chart__today {
+  stroke: var(--muted);
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+}

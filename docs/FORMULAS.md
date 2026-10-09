@@ -1031,3 +1031,15 @@ compactos ni se redondean para calcular.
   aparte) ni omitida (`nextPendingOccurrence`). Tras «Repetir», la de hoy ya está pagada y el próximo es
   el del periodo siguiente.
 
+## 42. Progreso de una meta y fecha estimada (`domain/goalChart.ts`, D7)
+
+- Curva «Apartado»: acumulado de `allocations` por fecha, empezando en 0 el día de inicio (primer
+  apartado o creación de la meta, lo anterior). Las liberaciones y pagos cuentan en el acumulado con su
+  signo; solo las aportaciones positivas cuentan como «aportes».
+- Recta ideal: `ideal(d) = ⌊objetivo × (d − inicio) ÷ (fecha objetivo − inicio)⌋`, 0 antes del inicio y
+  el objetivo después del fin. Sin fecha objetivo no hay recta.
+- Fecha estimada: solo con ≥ 2 aportes. `Σ30` = aportes de los últimos 30 días (hoy incluido). Si
+  `Σ30 = 0` no se estima («sin aportes recientes»). Si no, `días = ceilDiv(restante × 30, Σ30)` y
+  `fecha = hoy + días`; «al día» = `⌊Σ30 ÷ 30⌋`. Enteros en unidades menores, nunca flotantes ni
+  división entre cero. Meta completa → sin estimación.
+- La estimación es orientativa: cambia con cada aporte y no es una promesa ni un plan.

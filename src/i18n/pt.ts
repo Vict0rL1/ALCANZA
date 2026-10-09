@@ -2789,4 +2789,12 @@ export const pt: Record<keyof typeof es, string> = {
   'movementForm.repeat': 'Repetir',
   'movementForm.repeatHint': 'Cria um programado com este valor a partir da próxima data; este movimento é a primeira ocorrência.',
   'movementForm.repeatSaved': 'Movimento salvo e programado criado',
+  'goals.chartTitle': 'Progresso em relação ao plano',
+  'goals.chartAria': 'Guardado {saved} de {target}; a linha ideal marca {ideal} para hoje.',
+  'goals.chartSaved': 'Guardado',
+  'goals.chartIdeal': 'Ritmo ideal',
+  'goals.chartDate': 'Data',
+  'goals.etaOk': 'Nesse ritmo você chegaria em {date} ({perDay} por dia nos últimos 30 dias).',
+  'goals.etaTooFew': 'A data estimada aparece com pelo menos dois aportes (você tem {count}).',
+  'goals.etaNoRecent': 'Sem aportes nos últimos 30 dias não é possível estimar uma data.',
 }

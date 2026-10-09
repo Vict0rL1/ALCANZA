@@ -2790,4 +2790,12 @@ export const es = {
   'movementForm.repeat': 'Repetir',
   'movementForm.repeatHint': 'Crea un programado con este importe desde la siguiente fecha; este movimiento es la primera ocurrencia.',
   'movementForm.repeatSaved': 'Movimiento guardado y programado creado',
+  'goals.chartTitle': 'Progreso frente al plan',
+  'goals.chartAria': 'Apartado {saved} de {target}; la recta ideal marca {ideal} para hoy.',
+  'goals.chartSaved': 'Apartado',
+  'goals.chartIdeal': 'Ritmo ideal',
+  'goals.chartDate': 'Fecha',
+  'goals.etaOk': 'A este ritmo llegarías el {date} ({perDay} al día en los últimos 30 días).',
+  'goals.etaTooFew': 'La fecha estimada aparece con al menos dos aportes (llevas {count}).',
+  'goals.etaNoRecent': 'Sin aportes en los últimos 30 días no se puede estimar una fecha.',
 } as const
