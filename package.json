@@ -19,7 +19,8 @@
     "test:smoke": "playwright test --grep @smoke",
     "shots": "node scripts/shots.mjs",
     "check": "npm run typecheck && npm run lint && npm run lint:i18n && npm run test",
-    "lint:i18n": "node scripts/find-literals.mjs"
+    "lint:i18n": "node scripts/find-literals.mjs",
+    "size": "node scripts/check-size.mjs"
   },
   "dependencies": {
     "react": "^19.3.0",

@@ -22,6 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - run: npm run size
       - uses: actions/upload-artifact@v7
         with: { name: dist, path: dist/, retention-days: 7 }
   e2e:
