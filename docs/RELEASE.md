@@ -81,6 +81,13 @@ Clara se publica en Cloudflare Pages desde GitHub Actions: GitHub compila, prueb
 Hasta que existan los dos secretos, el trabajo `deploy-preview` de cada PR falla con el mensaje
 «Faltan los secretos de Cloudflare»: no se despliega nada y no se finge que se desplegó.
 
+### C. Prueba de Atajos en tu iPhone (unos 10 minutos, cuando haya dirección pública)
+
+1. Sigue `docs/IOS-SHORTCUTS.md` para crear el atajo A (Apple Pay) y el B (Tocar atrás).
+2. Haz las cuatro pruebas de la tabla (Clara instalada y en una pestaña de Safari) y rellénala.
+3. Pega la tabla en el PR o en un issue: con eso se decide si queda el enlace o el paso por el
+   portapapeles (L3).
+
 ---
 
 ## Cómo funciona
