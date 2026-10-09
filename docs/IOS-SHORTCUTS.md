@@ -75,3 +75,27 @@ Anota también la versión de iOS (Ajustes › General › Información).
   comprueba en `docs/DEVICE-TEST.md`.
 
 El resultado y la decisión se anotan en `docs/DECISIONS.md`.
+
+## Lo que ya hay en Clara mientras tanto (L3)
+
+Hasta que la prueba diga qué camino sirve, Clara ofrece **los dos** y lo dice tal cual
+(`docs/DECISIONS.md`, línea 125):
+
+- **Ajustes › Atajos de iPhone**: los pasos del portapapeles y las dos plantillas de enlace (Apple Pay
+  y «Tocar atrás») con la dirección de **esta** Clara y un botón **Copiar**. Avisa de que todavía no está
+  comprobado dónde abre iOS los enlaces.
+- **Hoja «+» › Pegar del atajo** (solo si el navegador permite leer el portapapeles).
+
+### Atajo A con portapapeles (en vez de «Abrir URL»)
+
+Igual que el atajo A de arriba, pero en el paso 4:
+
+1. **Texto** con las variables **Comercio** e **Importe** separadas por un espacio (por ejemplo,
+   `Starbucks 12.50`).
+2. **Copiar al portapapeles** con la variable **Texto**.
+3. Abre Clara tú mismo (pantalla de inicio o Safari, donde tengas tus datos) › **+** › **Pegar del atajo**.
+   Si el iPhone muestra el botón **Pegar**, tócalo.
+
+Clara abre la vista previa del asistente con la fila leída («Llegó desde un atajo · revisa y
+registra»). No se guarda nada hasta que pulses **Registrar**. Si el portapapeles no tiene un importe,
+Clara lo dice y no crea nada.

@@ -303,6 +303,14 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Plantilla de enlace (Ajustes › Atajos de iPhone): una URL larga sin espacios se parte donde haga falta. */
+.url-template {
+  display: block;
+  padding: 0.5rem 0.625rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;

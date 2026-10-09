@@ -66,6 +66,9 @@ export function Assistant({ route }: { route: Route }) {
   const leave = useNavigateIfStillHere()
   const returnTo = route.query.get('returnTo') || '/'
   const [text, setText] = useState(() => route.query.get('texto') ?? '')
+  // «Pegar del atajo» (L3): llega con el texto y `analizar=1`; se analiza al abrir, pero nada se registra sin «Registrar».
+  const fromShortcut = route.query.get('origen') === 'atajo'
+  const autoAnalyze = useRef(route.query.get('analizar') === '1')
   const [lines, setLines] = useState<Line[] | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [busy, setBusy] = useState(false)
@@ -157,6 +160,14 @@ export function Assistant({ route }: { route: Route }) {
     if (active.id === 'remote') void run((d, c) => recordAiUsage(d, c))
   }
 
+  useEffect(() => {
+    if (!autoAnalyze.current) return
+    autoAnalyze.current = false
+    void analyze()
+    // Solo al abrir: después, la persona decide cuándo volver a analizar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const update = (id: string, patch: Partial<Line>) => setLines((ls) => ls?.map((l) => (l.id === id ? { ...l, ...patch } : l)) ?? null)
 
   const transferRows = lines?.filter((l) => l.review === 'transfer').length ?? 0
@@ -178,7 +189,7 @@ export function Assistant({ route }: { route: Route }) {
         errs.push({ path: `entries[${i}].amountMinor`, code: 'invalidAmount' })
         return
       }
-      entries.push({ id: l.id, kind: l.kind, amountMinor: parsed.minor, date: l.date, accountId, categoryId: l.categoryId, note: l.note.trim() || undefined, merchant: l.entry.merchant, ...(l.receiptUri ? { receiptUri: l.receiptUri, source: 'photo' as const } : { source: 'ai_text' as const }) })
+      entries.push({ id: l.id, kind: l.kind, amountMinor: parsed.minor, date: l.date, accountId, categoryId: l.categoryId, note: l.note.trim() || undefined, merchant: l.entry.merchant, ...(l.receiptUri ? { receiptUri: l.receiptUri, source: 'photo' as const } : { source: fromShortcut ? ('shortcut' as const) : ('ai_text' as const) }) })
     })
     if (errs.length) {
       setIssues(errs)
@@ -272,6 +283,11 @@ export function Assistant({ route }: { route: Route }) {
     <div className="stack">
       <PageHeader title={t('assistant.title')} back={{ href: href(returnTo), label: t('common.back') }} />
       <p className="muted">{t('assistant.intro')}</p>
+      {fromShortcut && (
+        <div data-testid="shortcut-banner">
+          <Alert tone="info" icon="sparkles" title={t('assistant.fromShortcut')} />
+        </div>
+      )}
       <Card>
         <form
           className="form"

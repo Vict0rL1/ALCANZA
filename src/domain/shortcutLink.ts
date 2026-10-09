@@ -15,9 +15,9 @@
  */
 import { categoriesForKind } from './categories'
 import { parseMoney, SUPPORTED_CURRENCIES } from './money'
-import { dictionaryCategory, learnCategories, significantWords } from './parser'
+import { dictionaryCategory, learnCategories, parseText, significantWords } from './parser'
 import { matchCategoryRule, normalizeText } from './rules'
-import type { AppData, CurrencyCode } from './types'
+import type { AppData, CurrencyCode, Language } from './types'
 import { LIMITS } from './validation'
 
 /** Prefijos «C$», «CA$», «US$», «MX$», «R$», «COL$» → moneda. */
@@ -108,4 +108,19 @@ export function suggestCategoryForMerchant(
     if (id && allowed.has(id)) return id
   }
   return dictionaryCategory(norm, kind, allowed)
+}
+
+/** Texto copiado por un atajo más largo que esto no se lee (no es una entrada de gasto). */
+export const MAX_CLIPBOARD_CHARS = 2000
+
+/**
+ * L3 · Paso por el portapapeles: el atajo copia, por ejemplo, «Starbucks 12.50» y la persona toca
+ * «Pegar del atajo». Devuelve el texto a analizar solo si contiene al menos un importe; si no, `null`
+ * (se dice y no se crea nada). Lo que se registre después pasa por la vista previa del asistente.
+ */
+export function clipboardEntryText(text: string, ctx: { today: string; currency: string; language: Language }): string | null {
+  const trimmed = text.trim()
+  if (!trimmed || trimmed.length > MAX_CLIPBOARD_CHARS) return null
+  const entries = parseText(trimmed, { today: ctx.today, currency: ctx.currency, language: ctx.language, categories: [] })
+  return entries.some((e) => e.amountMinor !== null) ? trimmed : null
 }

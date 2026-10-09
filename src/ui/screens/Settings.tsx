@@ -39,6 +39,7 @@ import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 import { InstallSection } from './settings/InstallSection'
+import { IosShortcutsSection } from './settings/IosShortcutsSection'
 import { usePersistStatus } from '../persist'
 import { AssistantSection } from './settings/AssistantSection'
 import { BackupsSection } from './settings/BackupsSection'
@@ -393,6 +394,8 @@ export function Settings({ route }: { route: Route }) {
       {section?.id === 'personalizar' && <PersonalizeSection />}
 
       {section?.id === 'instalar' && <InstallSection />}
+
+      {section?.id === 'atajos-iphone' && <IosShortcutsSection />}
 
       {section?.id === 'cuentas' && (
       <Card labelledBy="accounts-title">

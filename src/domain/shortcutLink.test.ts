@@ -72,3 +72,15 @@ describe('L1 · enlace externo a «nuevo movimiento»', () => {
     expect(sourceGroupOf({ source: 'shortcut' } as Transaction)).toBe('shortcut')
   })
 })
+
+describe('L3 · paso por el portapapeles', () => {
+  const ctx = { today: '2026-09-28', currency: 'CAD', language: 'es' as const }
+  it('solo sigue si el texto copiado tiene un importe; nunca crea nada', async () => {
+    const { clipboardEntryText } = await import('./shortcutLink')
+    expect(clipboardEntryText('Starbucks 12.50', ctx)).toBe('Starbucks 12.50')
+    expect(clipboardEntryText('  Starbucks C$12,50 \n', ctx)).toBe('Starbucks C$12,50')
+    expect(clipboardEntryText('Starbucks', ctx)).toBeNull()
+    expect(clipboardEntryText('', ctx)).toBeNull()
+    expect(clipboardEntryText('x'.repeat(5000) + ' 12', ctx)).toBeNull()
+  })
+})

@@ -39,6 +39,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { id: 'reinicio', titleKey: 'settings.toc.reset', group: 'data', icon: 'refund' },
   { id: 'formulas', titleKey: 'settings.toc.formulas', group: 'help', icon: 'info' },
   { id: 'atajos', titleKey: 'settings.shortcuts.title', group: 'help', icon: 'list' },
+  { id: 'atajos-iphone', titleKey: 'iosShortcuts.title', group: 'help', icon: 'phone' },
   { id: 'legal', titleKey: 'legal.title', group: 'help', icon: 'shield' },
   { id: 'acerca', titleKey: 'settings.toc.about', group: 'help', icon: 'info' },
   { id: 'galeria', titleKey: 'settings.toc.gallery', group: 'help', icon: 'film', href: '/galeria' },
