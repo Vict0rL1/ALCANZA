@@ -14,7 +14,8 @@ test('tras la primera visita, la app abre sin conexión y conserva los datos', {
   await expect(page.getByTestId('available')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Demo · datos ficticios')).toBeVisible()
   await page.goto('/#/ajustes/almacenamiento')
-  await expect(page.getByText('Uso sin conexión: activo', { exact: false })).toBeVisible()
+  // Si falla, el mensaje muestra el estado real («… no activo todavía …»).
+  await expect(page.getByText(/^Uso sin conexión:/)).toContainText('Uso sin conexión: activo.')
   await context.setOffline(false)
 })
 
