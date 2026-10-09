@@ -57,9 +57,13 @@ function contentSecurityPolicy(aiEndpoint?: string): Plugin {
 /** Versión de package.json (H1). */
 const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
 
-/** Hash corto del commit compilado: el de GitHub Actions o el de git local; «dev» si no hay git. */
+/**
+ * Hash corto del commit compilado: el que indica CI (`CLARA_BUILD_SHA`, el commit de la rama del PR),
+ * el de GitHub Actions o el de git local; «dev» si no hay git.
+ */
 function buildHash(): string {
-  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7)
+  const fromCi = process.env.CLARA_BUILD_SHA || process.env.GITHUB_SHA
+  if (fromCi && /^[0-9a-f]{7,40}$/.test(fromCi)) return fromCi.slice(0, 7)
   try {
     return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
   } catch {
