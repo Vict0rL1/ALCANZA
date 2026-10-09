@@ -317,6 +317,10 @@ export async function waitForFonts(page: Page) {
  * Ninguna palabra se parte a media línea: dentro del localizador, cada salto de línea
  * renderizado (medido carácter a carácter con `Range.getClientRects()`) ocurre tras un espacio,
  * un guion o un guion suave; nunca en mitad de una palabra.
+ *
+ * Además, ninguna palabra es más ancha que el espacio de su contenedor: según el navegador, una
+ * palabra que no cabe se parte (Chromium reciente) o se sale de su caja (Chromium anterior), y
+ * las dos cosas son un defecto. Medir el ancho no depende de cómo decida cortar cada versión.
  */
 export async function expectNoMidWordBreaks(locator: Locator, label?: string) {
   await waitForFonts(locator.page())
@@ -326,6 +330,20 @@ export async function expectNoMidWordBreaks(locator: Locator, label?: string) {
       if (!(el instanceof HTMLElement) || el.getClientRects().length === 0) continue
       // Texto solo para lectores de pantalla (1 px de ancho) se parte en cada letra a propósito.
       if (el.getBoundingClientRect().width < 12) continue
+      const parent = el.parentElement
+      if (parent) {
+        const cs = getComputedStyle(parent)
+        const room = parent.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        for (const word of (el.textContent ?? '').split(/[\s\u00ad]+/).filter(Boolean)) {
+          const probe = document.createElement('span')
+          probe.textContent = word
+          probe.style.whiteSpace = 'nowrap'
+          el.appendChild(probe)
+          const width = probe.getBoundingClientRect().width
+          probe.remove()
+          if (width > room + 0.5) out.push(`«${word}» no cabe (${Math.round(width)} px en ${Math.round(room)} px)`)
+        }
+      }
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
       let node: Node | null
       while ((node = walker.nextNode())) {

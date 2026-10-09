@@ -4011,23 +4011,22 @@ button.cat-chip:hover {
   gap: var(--sp-8);
 }
 
-/* Fichas de categoría de la configuración inicial: 3 columnas desde ≈ 408 px, 2 por debajo;
-   cada ficha es una columna (icono arriba, nombre debajo) con un ancho mínimo que permite
-   escribir los nombres de las cuatro lenguas sin partir palabras. */
+/* Fichas de categoría de la configuración inicial: cada ficha es una columna (icono arriba,
+   nombre debajo). Las columnas salen del ancho real del contenedor: cada ficha mide al menos lo
+   que ocupa la palabra más larga de las cuatro lenguas («Supermercado», «Transportation»: 93 px a
+   13 px) más su relleno, así ninguna se parte ni se sale de la ficha. En un celular quedan 2;
+   en escritorio, 4. En rem para que crezca con el texto ampliado. */
 .cat-tiles {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(6.75rem, 1fr));
   gap: var(--sp-8);
 }
 
-/* G3: tres columnas desde 360 px (etiquetas de dos líneas, sin partir palabras). */
-@media (min-width: 360px) {
-  .cat-tiles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 399px) {
+  .cat-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  }
+
   .cat-option {
     padding: 10px 4px 8px;
   }

@@ -116,7 +116,7 @@ export const fr: Record<keyof typeof es, string> = {
   'category.salary': 'Salaire',
   'category.freelance': 'Travail indépendant',
   'category.scholarship': 'Bourse ou aide aux études',
-  'category.government': 'Prestation gouvernementale',
+  'category.government': 'Aides publiques',
   'category.gift_income': 'Cadeau reçu',
   'category.other_income': 'Autres revenus',
 
