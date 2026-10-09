@@ -32,7 +32,7 @@ test('agregar, buscar, editar y eliminar con deshacer', { tag: '@smoke' }, async
   await go(page, '/movimientos')
   await page.getByRole('searchbox', { name: 'Buscar' }).fill('café de prueba')
   await page.getByRole('link', { name: /Café de prueba/ }).click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
   await expect(page.locator('.summary-line')).toContainText(`${before} movimientos`)
   await page.getByRole('button', { name: 'Deshacer' }).click()

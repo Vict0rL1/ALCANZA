@@ -207,7 +207,7 @@ test('búsqueda global: acentos, categorías traducidas, papelera opcional y tec
   await box.fill('supermercado')
   const summary = await page.getByTestId('search-summary').textContent()
   await page.getByRole('link', { name: /Supermercado/ }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await go(page, '/buscar?q=supermercado')
   await expect(page.getByTestId('search-summary')).not.toHaveText(summary!)
   await page.getByLabel('Incluir la papelera').check()

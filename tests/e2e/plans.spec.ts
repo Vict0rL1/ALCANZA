@@ -49,7 +49,7 @@ test('planes: crear un límite, verlo superado en Inicio, pendientes y detalle; 
   await expect(page.getByText('Quedan $12.95').first()).toBeVisible()
   await page.getByRole('button', { name: 'Pausar' }).click()
   await expect(page.getByText('En pausa').first()).toBeVisible()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click()
   await expect(page.getByText('Plan eliminado')).toBeVisible()
   await page.getByRole('button', { name: 'Deshacer' }).click()

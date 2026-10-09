@@ -13,7 +13,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
   await startDemo(page)
   const before = await movementCount(page)
   await openCoffee(page)
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
   expect(await movementCount(page)).toBe(before - 1)
   // Ya no cuenta en el saldo: el disponible sube 4.25.
@@ -36,7 +36,7 @@ test('papelera: eliminar, sigue ahí tras recargar, restaurar y eliminar definit
 
   // Eliminar definitivamente pide confirmación explícita.
   await openCoffee(page)
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await go(page, '/movimientos/papelera')
   await page.getByRole('button', { name: /^Eliminar definitivamente/ }).click()
   const dialog = page.getByRole('dialog', { name: '¿Eliminar definitivamente este movimiento?' })
@@ -60,7 +60,7 @@ test('papelera: «Deshacer» restaura; una transferencia vuelve completa a ambas
 
   await go(page, '/movimientos')
   await page.locator('a.item', { hasText: 'Cuenta de cheques → Ahorros' }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(await available(page)).toHaveText('$136.78')
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await expect(page.getByText('Movimiento restaurado.')).toBeVisible()
@@ -112,7 +112,7 @@ test('papelera: reimportar un CSV no restaura en silencio lo que está en la pap
   await expect(page.getByText('2 movimientos importados')).toBeVisible()
 
   await page.locator('a.item', { hasText: 'Librería' }).first().click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
 
   await load()

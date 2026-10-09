@@ -129,7 +129,7 @@ test('prueba manual: configuraci√≥n, Inicio, registro, historial, planes, estad√
   await expect(page.locator('.tx-group .item--link')).toHaveCount(1)
   await search.fill('almuerzo')
   await page.getByRole('link', { name: /Almuerzo/ }).click()
-  await page.getByRole('button', { name: 'Eliminar' }).click()
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click()
   await expect(page.getByText('Movimiento enviado a la papelera')).toBeVisible()
   await page.getByRole('button', { name: 'Deshacer' }).click()
   await nav(page, 'Inicio').click()
