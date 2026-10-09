@@ -1684,8 +1684,8 @@ fieldset.bill-row {
   flex: none;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--ink-2);
@@ -3614,6 +3614,21 @@ progress {
   color: var(--cat-color, var(--accent));
 }
 
+/* Muestra de color sin icono (títulos de grupo): no es un icono de categoría (E1). */
+.cat-swatch {
+  flex: none;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cat-color, var(--accent));
+}
+
+.cat-swatch--lg {
+  width: 20px;
+  height: 20px;
+}
+
 .cat-dot--emerald { --cat-color: var(--cat-emerald); }
 .cat-dot--green { --cat-color: var(--cat-green); }
 .cat-dot--lime { --cat-color: var(--cat-lime); }
@@ -4414,7 +4429,7 @@ li.is-selected > .item--select {
 .donut__row {
   width: 100%;
   display: grid;
-  grid-template-columns: 14px 1fr auto auto;
+  grid-template-columns: 32px 1fr auto auto;
   grid-template-areas: 'dot name amount pct' 'dot bar bar bar';
   gap: 2px 8px;
   align-items: center;
@@ -4437,9 +4452,6 @@ li.is-selected > .item--select {
 }
 .donut__row .cat-dot {
   grid-area: dot;
-  width: 12px;
-  height: 12px;
-  padding: 0;
 }
 .donut__name {
   grid-area: name;
@@ -5006,7 +5018,6 @@ html.is-discreet .item:focus-within .item__title {
 .picker__group-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
 }
 
 .picker__option:focus-visible {

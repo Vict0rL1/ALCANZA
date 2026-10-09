@@ -1,5 +1,6 @@
 /** Ajustes › Etiquetas (§7.7): lista con color y usos, crear/editar, borrar con deshacer. */
 import { useState } from 'react'
+import { CategoryIcon } from '../../components/CategoryIcon'
 import { newId } from '../../../domain/ids'
 import { deleteTag, restoreTag, saveTag, tagUsage } from '../../../domain/tagOps'
 import type { CategoryColor, Tag } from '../../../domain/types'
@@ -44,9 +45,7 @@ export function TagsSection() {
             const usage = tagUsage(data, tag.id)
             return (
               <li key={tag.id} className="item">
-                <span className={`cat-dot cat-dot--${tag.color}`} aria-hidden="true">
-                  <Icon name="tag" size={16} />
-                </span>
+                <CategoryIcon icon="tag" color={tag.color} />
                 <span className="item__main">
                   <a className="item__title" href={href(withQuery('/movimientos', { etiqueta: tag.id }))}>
                     {tag.name}

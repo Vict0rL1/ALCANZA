@@ -9,6 +9,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { Icon, type IconName } from './Icon'
+import { CategoryIcon } from './CategoryIcon'
 import { haptic } from '../haptics'
 import type { CategoryColor } from '../../domain/types'
 
@@ -241,9 +242,7 @@ export function TimePickerRow({ label, value, onChange, hint, disabled }: { labe
 export function CategoryChip({ label, icon, color, selected, onClick, count }: { label: string; icon: IconName | string; color: CategoryColor; selected?: boolean; onClick?: () => void; count?: number }) {
   const inner = (
     <>
-      <span className={`cat-dot cat-dot--${color}`} aria-hidden="true">
-        <Icon name={icon} size={16} />
-      </span>
+      <CategoryIcon icon={icon} color={color} />
       <span className="cat-chip__label">{label}</span>
       {count !== undefined && <span className="cat-chip__count">{count}</span>}
       {selected && <Icon name="check" size={14} className="cat-chip__check" />}
@@ -262,11 +261,7 @@ export function CategoryChip({ label, icon, color, selected, onClick, count }: {
 export function ListRow({ icon, color, title, subtitle, value, valueTone, href, onClick, badge, chevron }: { icon?: IconName | string; color?: CategoryColor; title: ReactNode; subtitle?: ReactNode; value?: ReactNode; valueTone?: 'income' | 'expense' | 'neutral'; href?: string; onClick?: () => void; badge?: ReactNode; chevron?: boolean }) {
   const body = (
     <>
-      {icon && (
-        <span className={`cat-dot${color ? ` cat-dot--${color}` : ''}`} aria-hidden="true">
-          <Icon name={icon} size={18} />
-        </span>
-      )}
+      {icon && <CategoryIcon icon={icon} color={color} />}
       <span className="list-row__main">
         <span className="list-row__title">{title}</span>
         {subtitle && <span className="list-row__subtitle">{subtitle}</span>}

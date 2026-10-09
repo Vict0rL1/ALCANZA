@@ -3,6 +3,8 @@ import { addDays, addMonthsClamped, endOfMonth, startOfMonth, weekday } from '..
 import { closeOccurrence, deleteTransaction, revertTransaction, setOccurrenceSkipped } from '../../domain/operations'
 import { useRestoreFromTrash } from '../useDeleteTransaction'
 import { nextPendingOccurrence } from '../../domain/repeat'
+import { categoryVisual, categoryVisuals } from '../../domain/categories'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { planItems, type PlanItem } from '../../domain/planItems'
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
@@ -31,6 +33,7 @@ export function Calendar() {
 
   const monthEnd = endOfMonth(month)
   const monthItems = useMemo(() => planItems(data, { today, from: month, to: monthEnd }), [data, today, month, monthEnd])
+  const visuals = useMemo(() => categoryVisuals(data), [data])
   const overdueAll = useMemo(
     () => planItems(data, { today, from: today, to: today, includeOverdueBefore: true }).filter((i) => i.state === 'overdue' && i.date < month),
     [data, today, month],
@@ -277,9 +280,7 @@ export function Calendar() {
               return (
                 <li key={s.id}>
                   <a className="item item--link" href={href(`/plan/programado/editar/${s.id}`)}>
-                    <span className={`item__icon item__icon--${s.kind}`}>
-                      <Icon name={s.kind === 'income' ? 'arrowDown' : 'arrowUp'} size={18} />
-                    </span>
+                    <CategoryIcon icon={categoryVisual(visuals, s.categoryId).icon} color={categoryVisual(visuals, s.categoryId).color} />
                     <span className="item__main">
                       <span className="item__title">{s.name}</span>
                       <span className="item__meta">

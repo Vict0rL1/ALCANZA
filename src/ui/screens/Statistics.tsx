@@ -4,7 +4,7 @@
  * futuro a 90 días. Solo muestra lo que calcula `domain/statistics.ts`.
  */
 import { useMemo, useState } from 'react'
-import { resolveCategories } from '../../domain/categories'
+import { categoryVisual, categoryVisuals } from '../../domain/categories'
 import { addDays } from '../../domain/dates'
 import { categoryBreakdown, cumulativeTrend, dailyAverage, futureBalance, periodSeries, periodStats, shiftRange, statsRange, STATS_PERIOD_TYPES, topMerchants, type Delta, type SeriesPoint, type StatsPeriodType } from '../../domain/statistics'
 import type { CategoryColor } from '../../domain/types'
@@ -59,8 +59,9 @@ export function Statistics({ route }: { route: Route }) {
   const top = useMemo(() => topMerchants(data, range, 5), [data, range])
   const avg = useMemo(() => dailyAverage(data, range, today), [data, range, today])
   const future = useMemo(() => futureBalance(data, today), [data, today])
-  const colors = useMemo(() => new Map(resolveCategories(data).map((c) => [c.id, c.color])), [data])
-  const color = (id: string): CategoryColor => colors.get(id) ?? 'blue'
+  const visuals = useMemo(() => categoryVisuals(data), [data])
+  const color = (id: string): CategoryColor => categoryVisual(visuals, id).color
+  const icon = (id: string): string => categoryVisual(visuals, id).icon
   const label = (p: SeriesPoint) => (p.range.period ? periodLabel(t, fmt, p.range.period) : t('home.period.range', { from: fmt.date(p.range.start, { compact: true }), to: fmt.date(p.range.end, { compact: true }) }))
   const title = label({ range, incomeMinor: 0, expensesMinor: 0 })
   // Eje de las barras: etiqueta corta («sep», «T3», «2026», «28 sep»); la completa va en el tooltip y la tabla.
@@ -142,7 +143,7 @@ export function Statistics({ route }: { route: Route }) {
             {breakdown.categories.length === 0 ? (
               <p className="note">{t('stats.noExpenses')}</p>
             ) : (
-              <CategoryDonut categories={breakdown.categories} total={breakdown.total} fmt={fmt} label={(id) => categoryLabel(t, id)} color={color} onSelect={(id) => navigate(withQuery('/movimientos', { categoria: id, desde: range.start, hasta: range.end }))} />
+              <CategoryDonut categories={breakdown.categories} total={breakdown.total} fmt={fmt} label={(id) => categoryLabel(t, id)} color={color} icon={icon} onSelect={(id) => navigate(withQuery('/movimientos', { categoria: id, desde: range.start, hasta: range.end }))} />
             )}
           </Card>
 

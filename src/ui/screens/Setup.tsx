@@ -24,6 +24,7 @@ import { Alert, CalcRow, Card } from '../components/common'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { createFormatter } from '../format'
 import { frequencyLabel, issueMessage } from '../labels'
 import { parseMoney } from '../../domain/money'
@@ -285,9 +286,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
                           return (
                             <label key={id} className="cat-option">
                               <input type="checkbox" className="cat-option__input" checked={checked} onChange={(e) => setCategoryIds((list) => (e.target.checked ? [...list, id] : list.filter((x) => x !== id)))} />
-                              <span className={`cat-dot cat-dot--lg cat-dot--${meta.color}`} aria-hidden="true">
-                                <Icon name={meta.icon} size={20} />
-                              </span>
+                              <CategoryIcon icon={meta.icon} color={meta.color} size="lg" />
                               <span className="cat-option__label">{categoryLabel(t, id)}</span>
                               <span className="cat-option__check" aria-hidden="true">
                                 <Icon name="check" size={14} />
@@ -299,9 +298,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
                           .filter((o) => o.kind === k)
                           .map((o) => (
                             <span key={o.id} className="cat-option cat-option--own">
-                              <span className="cat-dot cat-dot--lg" aria-hidden="true">
-                                <Icon name="tag" size={20} />
-                              </span>
+                              <CategoryIcon icon="tag" size="lg" />
                               <span className="cat-option__label">{o.name}</span>
                               <button type="button" className="btn btn--ghost btn--icon cat-option__remove" onClick={() => setOwnCategories((list) => list.filter((x) => x.id !== o.id))} aria-label={t('setup.categories.ownRemove', { name: o.name })}>
                                 <Icon name="x" size={16} />

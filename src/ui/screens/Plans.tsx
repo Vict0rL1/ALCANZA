@@ -3,6 +3,7 @@
  * La pantalla solo muestra y llama a `domain/plans.ts`; nunca calcula dinero.
  */
 import { useMemo, useState } from 'react'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { resolveCategories } from '../../domain/categories'
 import { goalPlan, goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
@@ -128,9 +129,7 @@ export function Plans({ route }: { route: Route }) {
               <li key={plan.id}>
                 <a className="plan-card card" href={href(`/plan/planes/${plan.id}`)} data-testid={`plan-${plan.id}`}>
                   <div className="plan-card__head">
-                    <span className={`cat-dot cat-dot--${first?.color ?? 'blue'}`} aria-hidden="true">
-                      <Icon name={plan.categoryIds.length === 1 && first ? first.icon : 'wallet'} size={18} />
-                    </span>
+                    <CategoryIcon icon={plan.categoryIds.length === 1 && first ? first.icon : 'wallet'} color={first?.color ?? 'blue'} />
                     <span className="plan-card__title">
                       <strong>{title}</strong>
                       <span className="item__meta">
@@ -156,9 +155,7 @@ export function Plans({ route }: { route: Route }) {
       <BottomSheet open={sheet} onClose={() => setSheet(false)} title={t('plans.create.title')}>
         <div className="stack-sm" data-testid="plan-create-sheet">
           <a className="list-row list-row--link" href={href('/plan/planes/nuevo')} onClick={() => setSheet(false)}>
-            <span className="list-row__icon cat-dot cat-dot--amber" aria-hidden="true">
-              <Icon name="wallet" size={18} />
-            </span>
+            <CategoryIcon icon="wallet" color="amber" className="list-row__icon" />
             <span className="list-row__main">
               <span className="list-row__title">{t('plans.create.limit')}</span>
               <span className="list-row__subtitle">{t('plans.create.limitText')}</span>
@@ -166,9 +163,7 @@ export function Plans({ route }: { route: Route }) {
             <Icon name="chevronRight" size={18} />
           </a>
           <a className="list-row list-row--link" href={href('/plan/metas/nueva?returnTo=/plan/planes')} onClick={() => setSheet(false)}>
-            <span className="list-row__icon cat-dot cat-dot--emerald" aria-hidden="true">
-              <Icon name="target" size={18} />
-            </span>
+            <CategoryIcon icon="target" color="emerald" className="list-row__icon" />
             <span className="list-row__main">
               <span className="list-row__title">{t('plans.create.goal')}</span>
               <span className="list-row__subtitle">{t('plans.create.goalText')}</span>
@@ -193,9 +188,7 @@ function GoalCard({ goal }: { goal: Goal }) {
   return (
     <a className="plan-card card" href={href(`/plan/metas/editar/${goal.id}?returnTo=/plan/planes`)} data-testid={`goal-card-${goal.id}`}>
       <div className="plan-card__head">
-        <span className={`cat-dot cat-dot--${goal.color ?? 'emerald'}`} aria-hidden="true">
-          <Icon name={goal.icon ?? 'target'} size={18} />
-        </span>
+        <CategoryIcon icon={goal.icon ?? 'target'} color={goal.color ?? 'emerald'} />
         <span className="plan-card__title">
           <strong>{goal.name}</strong>
           <span className="item__meta">

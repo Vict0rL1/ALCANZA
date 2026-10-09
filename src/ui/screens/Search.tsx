@@ -115,7 +115,7 @@ export function Search({ route }: { route: Route }) {
               <li key={`${e.kind}-${e.id}`}>
                 <a className="item item--link" href={href(target(e, back))}>
                   <span className="item__icon">
-                    <Icon name={ICON[e.kind]} size={18} />
+                    <Icon name={ICON[e.kind]} size={16} />
                   </span>
                   <span className="item__main">
                     <span className="item__title">{e.title || t(`search.group.${e.kind}` as MessageKey)}</span>

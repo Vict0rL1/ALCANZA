@@ -4,6 +4,7 @@
  * Cada uno tiene texto accesible y una tabla alternativa; en modo privado no se dibujan.
  */
 import { useId, useState, type ReactNode } from 'react'
+import { CategoryIcon } from './CategoryIcon'
 import type { CategoryShare, FutureBalance, SeriesPoint, TrendPoint } from '../../domain/statistics'
 import { idealAt, type GoalTrajectory } from '../../domain/goalChart'
 import { daysBetween } from '../../domain/dates'
@@ -38,7 +39,7 @@ function TableToggle({ children }: { children: ReactNode }) {
 /* Donut por categoría                                                 */
 /* ------------------------------------------------------------------ */
 
-export function CategoryDonut({ categories, total, fmt, label, color, onSelect }: { categories: CategoryShare[]; total: number; fmt: Formatter; label: (id: string) => string; color: (id: string) => CategoryColor; onSelect?: (id: string) => void }) {
+export function CategoryDonut({ categories, total, fmt, label, color, icon, onSelect }: { icon?: (id: string) => string; categories: CategoryShare[]; total: number; fmt: Formatter; label: (id: string) => string; color: (id: string) => CategoryColor; onSelect?: (id: string) => void }) {
   const { t } = useT()
   if (fmt.privacy) return <HiddenChart />
   const R = 42
@@ -68,7 +69,7 @@ export function CategoryDonut({ categories, total, fmt, label, color, onSelect }
         {categories.map((c) => (
           <li key={c.categoryId}>
             <button type="button" className="donut__row" onClick={() => onSelect?.(c.categoryId)}>
-              <span className={`cat-dot cat-dot--${color(c.categoryId)}`} aria-hidden="true" />
+              <CategoryIcon icon={icon ? icon(c.categoryId) : 'tag'} color={color(c.categoryId)} />
               <span className="donut__name">{label(c.categoryId)}</span>
               <span className="donut__amount">{fmt.money(c.netMinor)}</span>
               <span className="donut__pct">{c.percent} %</span>

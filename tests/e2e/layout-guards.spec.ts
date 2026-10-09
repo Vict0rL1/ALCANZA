@@ -143,3 +143,53 @@ test.describe('C3 · Ajustes: índice corto y subpantallas acotadas', () => {
     })
   }
 })
+
+/** E1: un solo estilo de categoría (círculo con tinte e icono) en fichas, selector, filas, Ajustes y leyendas. */
+async function expectOneCategoryStyle(page: Page, scope = 'main') {
+  const dots = page.locator(`${scope} .cat-dot`)
+  const n = await dots.count()
+  expect(n, 'hay al menos un icono de categoría').toBeGreaterThan(0)
+  const bad = await dots.evaluateAll((els) =>
+    els
+      .map((el) => {
+        const r = el.getBoundingClientRect()
+        const lg = el.classList.contains('cat-dot--lg')
+        const svg = el.querySelector('svg')
+        const expected = lg ? 40 : 32
+        const icon = lg ? 20 : 16
+        const w = Math.round(r.width)
+        const h = Math.round(r.height)
+        const s = svg ? Math.round(svg.getBoundingClientRect().width) : 0
+        return w === expected && h === expected && s === icon ? null : `${el.className}: ${w}×${h}, icono ${s}`
+      })
+      .filter(Boolean),
+  )
+  expect(bad, 'todos los iconos de categoría miden lo mismo').toEqual([])
+}
+
+test.describe('E1 · un solo estilo de categoría en toda la app', () => {
+  test('filas de Movimientos, Ajustes › Categorías, leyenda de Estadísticas y selector', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    // Cada fila con categoría muestra su icono con el tinte de la categoría (no solo el tipo de movimiento).
+    await expect(page.locator('.item', { hasText: 'Supermercado' }).first().locator('.cat-dot')).toHaveCount(1)
+    await expectOneCategoryStyle(page)
+    await go(page, '/ajustes/categorias')
+    await expectOneCategoryStyle(page)
+    await go(page, '/estadisticas')
+    await expect(page.getByTestId('stats-tiles')).toBeVisible()
+    await expect(page.locator('.donut__row .cat-dot svg').first()).toBeVisible()
+    await expectOneCategoryStyle(page)
+    await go(page, '/movimientos/nuevo')
+    await page.getByLabel('Categoría', { exact: true }).click()
+    await expect(page.getByTestId('category-picker')).toBeVisible()
+    await expectOneCategoryStyle(page, '[data-testid="category-picker"]')
+  })
+
+  test('fichas de la configuración inicial: el mismo círculo, en grande', async ({ page }) => {
+    await openApp(page)
+    await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
+    await expect(page.getByRole('heading', { name: 'Tus categorías' })).toBeVisible()
+    await expectOneCategoryStyle(page)
+  })
+})

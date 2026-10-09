@@ -14,6 +14,7 @@ import { useRun } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { normalizeText } from '../../domain/rules'
 import { CategoryChip, PrimaryButton, SearchBar, SecondaryButton, TextButton, Toggle } from '../components/base'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
 import { ConfirmDialog, Dialog } from '../components/Dialog'
 import { SelectField, Segmented, TextField } from '../components/fields'
@@ -70,9 +71,7 @@ export function Categories() {
 
   const row = (c: Category) => (
     <li key={c.id} className="list-row" data-testid={`category-${c.id}`}>
-      <span className={`cat-dot cat-dot--${c.color}`} aria-hidden="true">
-        <Icon name={c.icon} size={18} />
-      </span>
+      <CategoryIcon icon={c.icon} color={c.color} />
       <span className="list-row__main">
         <span className="list-row__title">{label(c)}</span>
         <span className="item__badges">
@@ -131,7 +130,7 @@ export function Categories() {
         {byGroup.map(({ group, items }) => (
           <section key={group.id} className="cat-group" aria-label={groupName(t, group)}>
             <p className="cat-group__title">
-              <span className={`cat-dot cat-dot--${group.color}`} aria-hidden="true" style={{ width: 20, height: 20 }} />
+              <span className={`cat-swatch cat-swatch--lg cat-dot--${group.color}`} aria-hidden="true" />
               {groupName(t, group)} · {tn('categories.groupCount', items.length)}
             </p>
             <ul className="plain-list">{items.map(row)}</ul>
@@ -151,9 +150,7 @@ export function Categories() {
             const system = (SYSTEM_GROUP_IDS as readonly string[]).includes(g.id)
             return (
               <li key={g.id} className="list-row">
-                <span className={`cat-dot cat-dot--${g.color}`} aria-hidden="true">
-                  <Icon name="folder" size={18} />
-                </span>
+                <CategoryIcon icon="folder" color={g.color} />
                 <span className="list-row__main">
                   <span className="list-row__title">{groupName(t, g)}</span>
                   <span className="list-row__subtitle">{tn('categories.groupCount', members.length)}</span>

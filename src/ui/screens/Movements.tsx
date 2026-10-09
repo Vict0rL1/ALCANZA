@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { txAppliesToAccount } from '../../domain/balances'
 import { sumMinor } from '../../domain/money'
 import { txCategoryIds } from '../../domain/splits'
@@ -19,6 +19,8 @@ import { useData } from '../../state/store'
 import { Badge, EmptyState, PageHeader } from '../components/common'
 import { MoneyField, TextField } from '../components/fields'
 import { CategoryPicker } from '../components/CategoryPicker'
+import { CategoryIcon } from '../components/CategoryIcon'
+import { categoryVisual, categoryVisuals, type CategoryVisual } from '../../domain/categories'
 import { Icon, type IconName } from '../components/Icon'
 import { MonthSummary } from '../components/MonthSummary'
 import { useFormat } from '../format'
@@ -229,9 +231,7 @@ export function Movements({ route }: { route?: Route }) {
           <ListRow icon="upload" title={t('movements.import')} href={href('/movimientos/importar')} chevron />
           {data.transactions.length > 0 && (
             <button type="button" className="list-row list-row--link" onClick={() => { setMoreOpen(false); exportCsv() }} disabled={filtered.length === 0} title={t('movements.exportCsvHint', { count: filtered.length })}>
-              <span className="cat-dot" aria-hidden="true">
-                <Icon name="download" size={18} />
-              </span>
+              <CategoryIcon icon="download" />
               <span className="list-row__main">
                 <span className="list-row__title">{t('movements.exportCsv')}</span>
                 <span className="list-row__subtitle">{t('movements.exportCsvHint', { count: filtered.length })}</span>
@@ -448,6 +448,9 @@ export function Movements({ route }: { route?: Route }) {
 
 function TxList({ txs, today, groupByDate, selecting, selected, onToggle }: { txs: Transaction[]; today: string; groupByDate?: boolean; selecting?: boolean; selected?: Set<string>; onToggle?: (id: string) => void }) {
   const fmt = useFormat()
+  const data = useData()
+  // E1: el icono y el tinte de cada categoría; el mismo objeto por id para que la fila memorizada no se repinte.
+  const visuals = useMemo(() => categoryVisuals(data), [data])
   const groups: { date: string; items: Transaction[] }[] = []
   for (const tx of txs) {
     const last = groups[groups.length - 1]
@@ -462,7 +465,7 @@ function TxList({ txs, today, groupByDate, selecting, selected, onToggle }: { tx
           {groupByDate && <h3 className="tx-group__date">{fmt.date(g.date, { weekday: true, compact: true, today })}</h3>}
           <ul className="item-list">
             {g.items.map((tx) => (
-              <TxRow key={tx.id} tx={tx} today={today} showDate={!groupByDate} selecting={!!selecting} isSelected={selected?.has(tx.id) ?? false} onToggle={onToggle} />
+              <TxRow key={tx.id} tx={tx} today={today} showDate={!groupByDate} selecting={!!selecting} isSelected={selected?.has(tx.id) ?? false} onToggle={onToggle} visual={tx.kind === 'transfer' || tx.kind === 'adjustment' ? undefined : categoryVisual(visuals, tx.categoryId)} />
             ))}
           </ul>
         </div>
@@ -479,6 +482,7 @@ const TxRow = memo(function TxRow({
   selecting,
   isSelected,
   onToggle,
+  visual,
 }: {
   tx: Transaction
   today: string
@@ -486,6 +490,8 @@ const TxRow = memo(function TxRow({
   selecting: boolean
   isSelected: boolean
   onToggle?: (id: string) => void
+  /** Icono y color de la categoría (E1); sin él, el icono del tipo (transferencias, ajustes). */
+  visual?: CategoryVisual
 }) {
   const { t, tn } = useT()
   const fmt = useFormat()
@@ -502,9 +508,13 @@ const TxRow = memo(function TxRow({
   const title = transactionTitle(tx, data.accounts, t)
   const row = (
       <a className="item item--link" href={href(`/movimientos/editar/${tx.id}`)}>
-        <span className={`item__icon item__icon--${tx.kind}`}>
-          <Icon name={KIND_ICON[tx.kind]} size={18} />
-        </span>
+        {visual ? (
+          <CategoryIcon icon={visual.icon} color={visual.color} />
+        ) : (
+          <span className={`item__icon item__icon--${tx.kind}`}>
+            <Icon name={KIND_ICON[tx.kind]} size={16} />
+          </span>
+        )}
         <span className="item__main">
           <span className="item__title">{transactionTitle(tx, data.accounts, t)}</span>
           <span className="item__meta">

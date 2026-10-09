@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { accountBalance } from '../../domain/balances'
 import { detectTimeZone, todayInTimeZone } from '../../domain/dates'
 import { newId } from '../../domain/ids'
@@ -276,9 +277,7 @@ export function Settings({ route }: { route: Route }) {
           <PageHeader title={t('settings.title')} />
           {/* Cuenta y Pro: filas compactas en lo alto (C3); el detalle vive en /cuenta y /pro. */}
           <a className="list-row list-row--link account-row" href={href('/cuenta')} data-testid="account-link">
-            <span className="cat-dot" aria-hidden="true">
-              <Icon name="user" size={18} />
-            </span>
+            <CategoryIcon icon="user" />
             <span className="list-row__main">
               <span className="list-row__title">{data.profile.isGuest ? t('account.guestTitle') : (data.profile.displayName ?? data.profile.email ?? t('account.title'))}</span>
               <span className="list-row__subtitle">{t('account.open')}</span>
@@ -287,9 +286,7 @@ export function Settings({ route }: { route: Route }) {
           </a>
           {!proActive && (
             <a className="list-row list-row--link pro-row" href={href('/pro')} data-testid="pro-link">
-              <span className="cat-dot" aria-hidden="true">
-                <Icon name="sparkles" size={18} />
-              </span>
+              <CategoryIcon icon="sparkles" />
               <span className="list-row__main">
                 <span className="list-row__title">{t('pro.discover')}</span>
                 <span className="list-row__subtitle" data-testid="ai-usage">{t('pro.aiUsagePct', { pct: aiPct })}</span>

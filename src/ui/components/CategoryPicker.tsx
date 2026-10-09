@@ -5,6 +5,7 @@
  * elige, Esc cierra. Sustituye a los <select> de categoría; en modo `multiple` marca varias.
  */
 import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { CategoryIcon } from './CategoryIcon'
 import { categoriesForKind, resolveCategories, resolveGroups, SYSTEM_GROUP_IDS } from '../../domain/categories'
 import { saveCategoryV2 } from '../../domain/categoryOps'
 import { recentCategories } from '../../domain/quickEntry'
@@ -124,9 +125,7 @@ export function CategoryPicker(props: CategoryPickerProps) {
 
   const option = (c: Category) => (
     <button key={c.id} type="button" className={`cat-chip picker__option${selected.has(c.id) ? ' is-selected' : ''}`} aria-pressed={selected.has(c.id)} onClick={() => pick(c.id)} data-option={c.id} role="option" aria-selected={selected.has(c.id)}>
-      <span className={`cat-dot cat-dot--${c.color}`} aria-hidden="true">
-        <Icon name={c.icon} size={16} />
-      </span>
+      <CategoryIcon icon={c.icon} color={c.color} />
       <span className="cat-chip__label">{name(c)}</span>
       {selected.has(c.id) && <Icon name="check" size={14} className="cat-chip__check" />}
     </button>
@@ -143,9 +142,7 @@ export function CategoryPicker(props: CategoryPickerProps) {
         {({ inputId, describedBy, invalid }) => (
           <button type="button" id={inputId} className="input picker-field" aria-describedby={describedBy} aria-invalid={invalid || undefined} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} data-testid={testId} data-value={currentValue}>
             {current && (
-              <span className={`cat-dot cat-dot--${current.color}`} aria-hidden="true">
-                <Icon name={current.icon} size={16} />
-              </span>
+              <CategoryIcon icon={current.icon} color={current.color} />
             )}
             <span className="picker-field__text">{summary}</span>
             <Icon name="down" size={16} className="picker-field__chevron" />
@@ -181,7 +178,7 @@ export function CategoryPicker(props: CategoryPickerProps) {
             {grouped.map(({ g, items }) => (
               <section key={g.id} className="picker__group" aria-label={groupName(t, g)}>
                 <h3 className="picker__group-title">
-                  <span className={`cat-dot cat-dot--${g.color} picker__group-dot`} aria-hidden="true" />
+                  <span className={`cat-swatch cat-dot--${g.color} picker__group-dot`} aria-hidden="true" />
                   {groupName(t, g)}
                 </h3>
                 <div className="chip-wrap" role="listbox" aria-label={groupName(t, g)} aria-multiselectable={props.multiple || undefined}>

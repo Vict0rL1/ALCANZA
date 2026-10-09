@@ -164,6 +164,18 @@ export function resolveCategories(data: Pick<AppData, 'categories' | 'categoryPr
 }
 
 /** Grupos del sistema + personalizados, ordenados. */
+/** Icono y color de cada categoría visible (incluidas las archivadas); ids desconocidos → etiqueta. */
+export interface CategoryVisual {
+  icon: string
+  color: CategoryColor
+}
+export function categoryVisuals(data: Pick<AppData, 'categories' | 'categoryPrefs'>): Map<string, CategoryVisual> {
+  return new Map(resolveCategories(data).map((c) => [c.id, { icon: c.icon, color: c.color }]))
+}
+export function categoryVisual(map: Map<string, CategoryVisual>, id: string | undefined): CategoryVisual {
+  return (id && map.get(id)) || { icon: 'tag', color: id ? colorForId(id) : 'blue' }
+}
+
 export function resolveGroups(data: Pick<AppData, 'categoryGroups'>): CategoryGroup[] {
   return [...SYSTEM_GROUPS, ...(data.categoryGroups ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
 }
