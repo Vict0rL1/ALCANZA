@@ -285,4 +285,38 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await go(page, '/plan/calendario')
   await expect(page.getByRole('link', { name: /Gimnasio/ }).first()).toBeVisible()
   await expect(page.getByText(/próximo: 28 oct/)).toBeVisible()
+
+  // K7. Cambiar la categoría en lote con «Deshacer».
+  await nav(page, 'Movimientos').click()
+  const gym = page.locator('.item', { hasText: 'Gimnasio' }).first()
+  const before = (await gym.locator('.item__meta').textContent()) ?? ''
+  await page.getByRole('button', { name: 'Seleccionar' }).click()
+  await page.getByRole('checkbox', { name: /Seleccionar «Gimnasio»/ }).check()
+  await page.getByTestId('bulk-category').click()
+  await pickCategory(page, page.getByTestId('bulk-category-field'), 'Salud')
+  await page.getByTestId('bulk-category-confirm').click()
+  await expect(page.getByText('1 movimiento con nueva categoría')).toBeVisible()
+  await expect(page.locator('.item', { hasText: 'Gimnasio' }).first().locator('.item__meta')).toContainText('Salud')
+  await page.getByRole('button', { name: 'Deshacer' }).click()
+  await expect(page.getByText('Cambios deshechos')).toBeVisible()
+  await expect(page.locator('.item', { hasText: 'Gimnasio' }).first().locator('.item__meta')).toHaveText(before)
+
+  // K8. Una frase + «¿Por qué?»; listas vacías con el estado común.
+  await go(page, '/plan/metas')
+  const why = page.locator('.alert .why').first()
+  await expect(why.locator('.why__short')).toHaveText('Apartar no mueve dinero: solo lo marca como no disponible.')
+  await why.locator('summary').click()
+  await expect(why.getByText(/solo marca una parte de tu saldo/)).toBeVisible()
+  await expect(page.locator('.empty', { hasText: 'Sin gastos planificados' })).toBeVisible()
+
+  // K9. Deslizar la hoja hacia abajo la cierra y devuelve el foco a «Filtros».
+  await go(page, '/movimientos')
+  await page.getByTestId('open-filters').click()
+  const grip = page.locator('dialog[open] .sheet__grip')
+  const box = (await grip.boundingBox())!
+  for (const [type, dy] of [['pointerdown', 0], ['pointermove', 160], ['pointerup', 160]] as const) {
+    await grip.dispatchEvent(type, { pointerType: 'touch', clientX: box.x + 10, clientY: box.y + dy, pointerId: 3, bubbles: true })
+  }
+  await expect(page.getByTestId('filters-sheet')).toBeHidden()
+  await expect(page.getByTestId('open-filters')).toBeFocused()
 })

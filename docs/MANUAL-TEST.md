@@ -145,6 +145,15 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
 - [ ] **K6.** Still in the form: Importe **10**, Nota **Gimnasio**, switch **Repetir** on, Frecuencia
   **Cada mes**, tap **Guardar** → «Movimiento guardado y programado creado». Home: **$349.50**
   (359.50 − 10, not − 20). **Plan › Calendario** lists **Gimnasio** with «próximo: 28 oct».
+- [ ] **K7.** **Movimientos** → **Seleccionar** → tick **Gimnasio** → **Cambiar categoría** → pick
+  **Salud** → **Cambiar categoría** → «1 movimiento con nueva categoría» and the row says **Salud**.
+  Tap **Deshacer** → «Cambios deshechos» and the row shows its previous category again.
+- [ ] **K8.** **Plan › Metas** → under «Los apartados son virtuales» there is **one sentence** and
+  **¿Por qué?**; tapping it shows the full explanation. Lists with nothing in them (for example
+  **Gastos planificados**) show an icon, a one-line title and one line of text.
+- [ ] **K9.** **Movimientos** → **Filtros** → drag the sheet down by its handle → it closes and the
+  focus is back on **Filtros**. With «Reduce motion» on in the phone settings, sheets and messages
+  appear without sliding.
 
 ---
 
