@@ -2846,4 +2846,5 @@ export const es = {
   'projection.shortfallShort': 'El más bajo: {amount} el {date}.',
   'shell.newerDownload': 'Descargar una copia de estos datos',
   'shell.newerHint': 'Si acabas de usar Clara en otro dispositivo o pestaña, ábrela ahí y vuelve aquí más tarde.',
+  'settings.backup.shared': 'Copia enviada con «Compartir». Comprueba que quedó guardada (por ejemplo, en Archivos o iCloud Drive).',
 } as const

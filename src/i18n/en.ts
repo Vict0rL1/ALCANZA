@@ -2847,4 +2847,5 @@ export const en: Record<keyof typeof es, string> = {
   'projection.shortfallShort': 'Lowest: {amount} on {date}.',
   'shell.newerDownload': 'Download a copy of this data',
   'shell.newerHint': 'If you just used Clara on another device or tab, open it there and come back here later.',
+  'settings.backup.shared': 'Backup sent with Share. Check that it was saved (for example, in Files or iCloud Drive).',
 }

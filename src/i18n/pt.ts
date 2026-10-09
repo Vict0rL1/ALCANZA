@@ -2845,4 +2845,5 @@ export const pt: Record<keyof typeof es, string> = {
   'projection.shortfallShort': 'O mais baixo: {amount} em {date}.',
   'shell.newerDownload': 'Baixar uma cópia destes dados',
   'shell.newerHint': 'Se você acabou de usar a Clara em outro dispositivo ou aba, abra-a lá e volte aqui mais tarde.',
+  'settings.backup.shared': 'Cópia enviada com Compartilhar. Confira se ficou salva (por exemplo, em Arquivos ou no iCloud Drive).',
 }

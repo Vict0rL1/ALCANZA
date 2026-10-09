@@ -4,6 +4,7 @@ import { useT } from '../i18n'
 import { useRun } from '../state/hooks'
 import { getStore } from '../state/store'
 import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '../storage/backup'
+import { deliverFile } from './backupDelivery'
 import { useToast } from './components/toastContext'
 import { useFormat } from './format'
 
@@ -25,8 +26,10 @@ export function downloadText(filename: string, text: string, type = 'application
 }
 
 /**
- * Exporta y SOLO si la descarga se pudo solicitar registra la exportación.
- * El navegador no confirma que el archivo se guardó: el texto lo dice así.
+ * Exporta y SOLO si el archivo se entregó registra la exportación: con la hoja de compartir del
+ * sistema cuando el navegador puede compartir archivos (iPhone: «Guardar en Archivos»), si no con
+ * la descarga de siempre (K1). Cerrar la hoja sin elegir destino no es exportar ni es un error.
+ * El navegador no confirma dónde quedó el archivo: el texto lo dice así.
  */
 export function useExportBackup() {
   const { t } = useT()
@@ -35,13 +38,27 @@ export function useExportBackup() {
   return async () => {
     const data = getStore().data
     if (!data) return false
-    const result = performExport(data, new Date(), APP_VERSION, downloadText)
-    if (!result.ok) {
+    let file: { filename: string; text: string } | null = null
+    const result = performExport(data, new Date(), APP_VERSION, (filename, text) => {
+      file = { filename, text }
+    })
+    if (!result.ok || !file) {
       toast({ message: t('backup.exportFailed'), tone: 'critical' })
       return false
     }
+    const { filename, text } = file as { filename: string; text: string }
+    let delivery: Awaited<ReturnType<typeof deliverFile>>
+    try {
+      delivery = await deliverFile(filename, text, { nav: typeof navigator === 'undefined' ? undefined : navigator, download: downloadText })
+    } catch {
+      // La descarga no se pudo pedir (p. ej. el navegador la bloquea): no se registra nada.
+      toast({ message: t('backup.exportFailed'), tone: 'critical' })
+      return false
+    }
+    if (delivery === 'cancelled') return false
     const { saved } = await run((d) => recordExport(d, result.exportedAt))
-    toast({ message: saved ? t('settings.backup.exported') : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
+    const done = delivery === 'shared' ? t('settings.backup.shared') : t('settings.backup.exported')
+    toast({ message: saved ? done : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
     return saved
   }
 }
