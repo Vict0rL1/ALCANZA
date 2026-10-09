@@ -47,3 +47,12 @@ describe('exportación CSV: categorías, planes, separador por locale y varias s
     expect(all.split('\r\n').filter((l) => l === 'Planes')).toHaveLength(1)
   })
 })
+
+describe('L1 · origen en el CSV', () => {
+  it('con `source`, una columna final con el origen (p. ej. «Atajo»)', () => {
+    const csv = transactionsToCsv([{ ...tx(), source: 'shortcut' } as ReturnType<typeof tx>], { ...labels, headers: [...labels.headers, 'Origen'], source: (t) => (t.source === 'shortcut' ? 'Atajo' : 'Manual') })
+    const [head, row] = csv.replace('\uFEFF', '').split('\r\n')
+    expect(head!.split(',').at(-1)).toBe('Origen')
+    expect(row!.split(',').at(-1)).toBe('Atajo')
+  })
+})

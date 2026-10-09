@@ -29,6 +29,7 @@ describe('I3 · pruebas rápidas (@smoke)', () => {
         'backup.spec.ts › exportar, rechazar copias inválidas sin tocar datos e importar una válida',
         'offline.spec.ts › tras la primera visita, la app abre sin conexión y conserva los datos',
         'data-safety.spec.ts › H4 · datos de una versión más nueva (esquema 11): se explican, sin «Empezar de nuevo», y ningún botón los toca',
+        'shortcut-link.spec.ts › atajo de iPhone: rellena importe, comercio y categoría, avisa y solo guarda al pulsar Guardar',
       ].sort(),
     )
   })

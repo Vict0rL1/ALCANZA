@@ -5,7 +5,8 @@ import { tx } from '../test/fixtures'
 describe('filtros de movimientos (D4)', () => {
   it('origen: manual por defecto; importado, programado, favorito y asistente por sus marcas', () => {
     expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01' }))).toBe('manual')
-    expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01', source: 'shortcut' }))).toBe('manual')
+    // L1: lo que llega desde un atajo de iPhone tiene su propio origen («Atajo»).
+    expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01', source: 'shortcut' }))).toBe('shortcut')
     expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01', importRef: 'x' }))).toBe('import')
     expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01', scheduleId: 's', occurrenceDate: '2026-09-01' }))).toBe('scheduled')
     expect(sourceGroupOf(tx({ amountMinor: 100, date: '2026-09-01', favoriteId: 'f' }))).toBe('common')

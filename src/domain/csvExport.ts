@@ -12,6 +12,8 @@ export interface CsvLabels {
   status: (tx: Transaction) => string
   category: (tx: Transaction) => string
   account: (id: string | undefined) => string
+  /** Origen del registro (manual, asistente, atajo…): columna final si se indica. */
+  source?: (tx: Transaction) => string
   /** Separador de columnas: «;» cuando el locale usa coma decimal (Excel lo espera así), «,» si no. */
   separator?: ',' | ';'
 }
@@ -53,6 +55,7 @@ export function transactionsToCsv(txs: readonly Transaction[], labels: CsvLabels
     tx.note ?? '',
     tx.merchant ?? '',
     tx.id,
+    ...(labels.source ? [labels.source(tx)] : []),
   ])
   return `${BOM}${table(labels.headers, rows, sep)}\r\n`
 }

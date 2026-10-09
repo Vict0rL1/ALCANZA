@@ -5,7 +5,7 @@ import { txCategoryIds } from '../../domain/splits'
 import { transactionsToCsv } from '../../domain/csvExport'
 import { restoreFromTrashMany, trashTransactions } from '../../domain/operations'
 import { recategorizeTransactions, setCategoriesEach, setTagsEach, tagTransactions } from '../../domain/bulk'
-import { matchesTxFilter, SOURCE_GROUPS, type SourceGroup } from '../../domain/txFilters'
+import { matchesTxFilter, SOURCE_GROUPS, sourceGroupOf, type SourceGroup } from '../../domain/txFilters'
 import { useRun } from '../../state/hooks'
 import { downloadText } from '../backupActions'
 import { useDeleteTransaction } from '../useDeleteTransaction'
@@ -121,11 +121,12 @@ export function Movements({ route }: { route?: Route }) {
 
   const exportCsv = () => {
     const csv = transactionsToCsv([...planned, ...realized], {
-      headers: (['date', 'kind', 'status', 'amount', 'currency', 'category', 'account', 'toAccount', 'note', 'merchant', 'id'] as const).map((k) => t(`csv.${k}` as MessageKey)),
+      headers: (['date', 'kind', 'status', 'amount', 'currency', 'category', 'account', 'toAccount', 'note', 'merchant', 'id', 'source'] as const).map((k) => t(`csv.${k}` as MessageKey)),
       kind: (tx) => t(`txKind.${tx.kind}` as MessageKey),
       status: (tx) => t(tx.status === 'planned' ? 'status.planned' : 'status.realized'),
       category: (tx) => (tx.kind === 'transfer' || tx.kind === 'adjustment' ? '' : txCategoryIds(tx).map((c) => categoryLabel(t, c)).join(' | ')),
       account: (id) => (id ? accountName(data.accounts, id, t) : ''),
+      source: (tx) => t(`source.${sourceGroupOf(tx)}` as MessageKey),
     })
     downloadText(`clara-movimientos-${today}.csv`, csv, 'text/csv;charset=utf-8')
   }

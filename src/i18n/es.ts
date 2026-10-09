@@ -2881,4 +2881,10 @@ export const es = {
   'welcome.restore.previewText': 'Copia del {date} · movimientos: {movements} · cuentas: {accounts}. Nada se guarda hasta que pulses «Restaurar».',
   'welcome.restore.demo': 'Es una copia de los datos de demostración.',
   'welcome.restore.confirm': 'Restaurar',
+  'source.shortcut': 'Atajo',
+  'csv.source': 'Origen',
+  'movementForm.fromShortcut': 'Llegó desde un atajo · revisa y guarda',
+  'movementForm.shortcutAmountUnreadable': 'No se entendió el importe del atajo',
+  'movementForm.shortcutForeignCurrency': 'El atajo envió el importe en {code}; este presupuesto usa {currency}. Revísalo antes de guardar.',
+  'movementForm.merchantCategoryHint': 'Categoría sugerida por el comercio «{merchant}». Puedes cambiarla.',
 } as const

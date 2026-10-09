@@ -2882,4 +2882,10 @@ export const en: Record<keyof typeof es, string> = {
   'welcome.restore.previewText': 'Backup from {date} · transactions: {movements} · accounts: {accounts}. Nothing is saved until you tap «Restore».',
   'welcome.restore.demo': 'This is a backup of the demo data.',
   'welcome.restore.confirm': 'Restore',
+  'source.shortcut': 'Shortcut',
+  'csv.source': 'Source',
+  'movementForm.fromShortcut': 'Came from a shortcut · review and save',
+  'movementForm.shortcutAmountUnreadable': 'The shortcut’s amount could not be read',
+  'movementForm.shortcutForeignCurrency': 'The shortcut sent the amount in {code}; this budget uses {currency}. Check it before saving.',
+  'movementForm.merchantCategoryHint': 'Category suggested by the merchant «{merchant}». You can change it.',
 }

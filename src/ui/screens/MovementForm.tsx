@@ -17,6 +17,7 @@ import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBu
 import { inferRefundSplit, refundableByCategory, suggestSplitFromHistory } from '../../domain/splits'
 import { openItemsUntil } from '../../domain/planItems'
 import { matchCategoryRule } from '../../domain/rules'
+import { readMovementLink, suggestCategoryForMerchant } from '../../domain/shortcutLink'
 import { lastUsedAccount, recentCategories } from '../../domain/quickEntry'
 import { resolveSplitTemplate } from '../../domain/templates'
 import { clearDraft, readDraft, writeDraft } from '../../storage/drafts'
@@ -157,7 +158,14 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   // La cuenta propuesta cambia con el tipo hasta que la persona elige una.
   const [accountTouched, setAccountTouched] = useState(() => !!existing || !!duplicateOf || !!prefill || !!q.get('account'))
   const initialKind = ((existing?.kind as FormKind | undefined) ?? queryKind) as FormKind
-  const prefillAmount = q.get('amount')
+  // L1: enlace externo (Atajos de iPhone): `importe` en unidades mayores, `comercio`, `source=shortcut`.
+  const [link] = useState(() => (existing ? null : readMovementLink(q, data.settings)))
+  // El comercio del enlace sugiere la categoría (regla > aprendizaje > diccionario) si no viene una.
+  const [merchantSuggestion] = useState(() =>
+    link?.merchant && !q.get('category') && !prefill && !duplicateOf && (initialKind === 'expense' || initialKind === 'income')
+      ? suggestCategoryForMerchant(link.merchant, initialKind, data)
+      : undefined,
+  )
   const [id, setId] = useState(() => existing?.id ?? newId())
   const [kind, setKind] = useState<FormKind>(initialKind)
   const [status, setStatus] = useState<TxStatus>(existing?.status ?? (q.get('status') === 'planned' ? 'planned' : 'realized'))
@@ -173,17 +181,17 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
     if (existing) return fmt.moneyInput(existing.amountMinor)
     if (duplicateOf) return fmt.moneyInput(duplicateOf.amountMinor)
     if (prefill?.amountMinor !== undefined) return fmt.moneyInput(prefill.amountMinor)
-    return prefillAmount && /^\d+$/.test(prefillAmount) ? fmt.moneyInput(Number(prefillAmount)) : ''
+    return link?.amountMinor !== undefined ? fmt.moneyInput(link.amountMinor) : ''
   })
   const [date, setDate] = useState(existing?.date ?? (q.get('date') && isValidLocalDate(q.get('date')) ? q.get('date')! : today))
   const [accountId, setAccountId] = useState(existing?.accountId ?? duplicateOf?.accountId ?? (prefill ? (prefill.accountId ?? '') : (q.get('account') ?? defaultAccount.id)))
   const [toAccountId, setToAccountId] = useState(existing?.toAccountId ?? duplicateOf?.toAccountId ?? data.accounts.find((a) => a.id !== accountId)?.id ?? '')
   const [categoryId, setCategoryId] = useState(
-    existing?.categoryId ?? duplicateOf?.categoryId ?? (prefill ? (prefill.categoryId ?? '') : (q.get('category') ?? (initialKind === 'income' ? 'salary' : 'other_expense'))),
+    existing?.categoryId ?? duplicateOf?.categoryId ?? (prefill ? (prefill.categoryId ?? '') : (q.get('category') ?? merchantSuggestion ?? (initialKind === 'income' ? 'salary' : 'other_expense'))),
   )
   const [refundOfId, setRefundOfId] = useState(existing?.refundOfId ?? '')
   const [note, setNote] = useState(existing?.note ?? duplicateOf?.note ?? prefill?.note ?? q.get('note') ?? '')
-  const [merchant, setMerchant] = useState(existing?.merchant ?? duplicateOf?.merchant ?? '')
+  const [merchant, setMerchant] = useState(existing?.merchant ?? duplicateOf?.merchant ?? link?.merchant ?? '')
   const [keepReceipt, setKeepReceipt] = useState(true)
   const [tagIds, setTagIds] = useState<string[]>(() => existing?.tagIds ?? duplicateOf?.tagIds ?? favorite?.tagIds ?? [])
   const [alreadyInBalance, setAlreadyInBalance] = useState(() => {
@@ -220,11 +228,11 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   })
   const [templateNote, setTemplateNote] = useState<{ tone: 'info' | 'warning' | 'critical'; title: string; lines: string[] } | null>(null)
   // Detalles (fecha, estado, nota…) plegados en el registro rápido; abiertos al editar.
-  const [detailsOpen, setDetailsOpen] = useState(() => !!existing || !!duplicateOf?.note || !!prefill?.note || !!q.get('note') || (!!q.get('date') && q.get('date') !== today) || q.get('status') === 'planned')
+  const [detailsOpen, setDetailsOpen] = useState(() => !!existing || !!link?.merchant || !!duplicateOf?.note || !!prefill?.note || !!q.get('note') || (!!q.get('date') && q.get('date') !== today) || q.get('status') === 'planned')
   const [splitError, setSplitError] = useState<string | null>(null)
 
   // Borrador persistente (solo movimientos nuevos sin datos de partida).
-  const plainNew = !existing && !favorite && !duplicateOf && !['kind', 'amount', 'category', 'note', 'date', 'account', 'otro', 'status'].some((k) => q.get(k))
+  const plainNew = !existing && !favorite && !duplicateOf && !['kind', 'amount', 'importe', 'comercio', 'source', 'category', 'note', 'date', 'account', 'otro', 'status'].some((k) => q.get(k) !== null)
   const [pendingDraft, setPendingDraft] = useState(() => (plainNew ? readDraft<MovementDraft>(DRAFT_NAME, data.budgetId) : null))
   // Abierto con datos de partida (favorito, duplicar, acceso rápido…) y con un borrador anterior
   // sin recuperar: no se pisa; seguirá ofreciéndose la próxima vez.
@@ -446,7 +454,7 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
       merchant: merchant.trim() || undefined,
       ...(existing?.receiptUri && !keepReceipt ? { receiptUri: null } : {}),
       tagIds: tagIds.filter((id) => d.tags.some((tg) => tg.id === id)),
-      ...(existing ? {} : favorite ? { favoriteId: favorite.id, source: 'common' as const } : { source: 'manual' as const }),
+      ...(existing ? {} : favorite ? { favoriteId: favorite.id, source: 'common' as const } : { source: link?.fromShortcut ? ('shortcut' as const) : ('manual' as const) }),
       ...(existing?.scheduleId ? { scheduleId: existing.scheduleId, occurrenceDate: existing.occurrenceDate, partialSettlement: existing.partialSettlement } : {}),
       alreadyInBalance,
     }
@@ -490,6 +498,12 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
   return (
     <div className="stack">
       <PageHeader title={existing ? t('movementForm.editTitle') : t('movementForm.newTitle')} back={{ href: href(returnTo), label: t('common.back') }} />
+
+      {link?.fromShortcut && (
+        <div data-testid="shortcut-banner">
+          <Alert tone="info" icon="sparkles" title={t('movementForm.fromShortcut')} />
+        </div>
+      )}
 
       {pendingDraft && (
         <Alert
@@ -572,6 +586,13 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
         <MoneyField
           label={t('fields.amount')}
           value={amountText}
+          hint={
+            link?.amountUnreadable
+              ? t('movementForm.shortcutAmountUnreadable')
+              : link?.foreignCurrency
+                ? t('movementForm.shortcutForeignCurrency', { code: link.foreignCurrency, currency: data.settings.currency })
+                : undefined
+          }
           onChange={setAmountText}
           error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')}
           fmt={fmt}
@@ -724,7 +745,15 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
             allowNew
             testId="category-field"
             error={fieldError(t, fmt, issues, 'categoryId')}
-            hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
+            hint={
+              ruleApplied
+                ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern })
+                : merchantSuggestion && categoryId === merchantSuggestion && link?.merchant
+                  ? t('movementForm.merchantCategoryHint', { merchant: link.merchant })
+                  : kind === 'refund'
+                    ? t('movementForm.refundCategoryHint')
+                    : undefined
+            }
           />
         )}
         {canRepeat && (

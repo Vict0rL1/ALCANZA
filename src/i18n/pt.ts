@@ -2880,4 +2880,10 @@ export const pt: Record<keyof typeof es, string> = {
   'welcome.restore.previewText': 'Cópia de {date} · movimentos: {movements} · contas: {accounts}. Nada é salvo até você tocar em «Restaurar».',
   'welcome.restore.demo': 'É uma cópia dos dados de demonstração.',
   'welcome.restore.confirm': 'Restaurar',
+  'source.shortcut': 'Atalho',
+  'csv.source': 'Origem',
+  'movementForm.fromShortcut': 'Veio de um atalho · revise e salve',
+  'movementForm.shortcutAmountUnreadable': 'Não foi possível entender o valor do atalho',
+  'movementForm.shortcutForeignCurrency': 'O atalho enviou o valor em {code}; este orçamento usa {currency}. Confira antes de salvar.',
+  'movementForm.merchantCategoryHint': 'Categoria sugerida pelo comércio «{merchant}». Você pode trocá-la.',
 }

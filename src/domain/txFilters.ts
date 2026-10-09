@@ -5,8 +5,8 @@
 import { txCategoryIds } from './splits'
 import type { Transaction, TxKind, TxStatus } from './types'
 
-export type SourceGroup = 'manual' | 'assistant' | 'import' | 'scheduled' | 'common'
-export const SOURCE_GROUPS: readonly SourceGroup[] = ['manual', 'assistant', 'import', 'scheduled', 'common']
+export type SourceGroup = 'manual' | 'assistant' | 'import' | 'scheduled' | 'common' | 'shortcut'
+export const SOURCE_GROUPS: readonly SourceGroup[] = ['manual', 'assistant', 'import', 'scheduled', 'common', 'shortcut']
 
 export interface TxFilter {
   kind?: 'all' | TxKind
@@ -27,6 +27,7 @@ export function sourceGroupOf(tx: Transaction): SourceGroup {
   if (tx.scheduleId || tx.source === 'scheduled') return 'scheduled'
   if (tx.favoriteId || tx.source === 'common') return 'common'
   if (tx.source === 'ai_text' || tx.source === 'voice' || tx.source === 'photo') return 'assistant'
+  if (tx.source === 'shortcut') return 'shortcut'
   return 'manual'
 }
 

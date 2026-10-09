@@ -290,7 +290,7 @@ function findDate(norm: string, today: LocalDate, language: Language = 'es'): { 
 
 /* ---------- Categoría ---------- */
 
-function dictionaryCategory(norm: string, kind: 'expense' | 'income', allowed: Set<string>): string | undefined {
+export function dictionaryCategory(norm: string, kind: 'expense' | 'income', allowed: Set<string>): string | undefined {
   let best: { id: string; len: number } | undefined
   for (const [id, words] of Object.entries(CATEGORY_WORDS)) {
     if (!allowed.has(id)) continue
@@ -337,7 +337,7 @@ export function learnCategories(data: Pick<AppData, 'transactions'>): Record<str
 
 const STOP = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'en', 'con', 'por', 'para', 'un', 'una', 'y', 'the', 'a', 'an', 'at', 'in', 'on', 'for', 'and', 'of', 'to', 'do', 'da', 'no', 'na', 'com', 'le', 'les', 'au', 'aux', 'et', 'pour', 'chez', 'hoy', 'ayer', 'today', 'yesterday'])
 
-function significantWords(norm: string): string[] {
+export function significantWords(norm: string): string[] {
   return norm.split(/[^a-z0-9&]+/).filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w))
 }
 

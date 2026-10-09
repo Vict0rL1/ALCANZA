@@ -2880,4 +2880,10 @@ export const fr: Record<keyof typeof es, string> = {
   'welcome.restore.previewText': 'Copie du {date} · opérations : {movements} · comptes : {accounts}. Rien n’est enregistré tant que vous n’appuyez pas sur « Restaurer ».',
   'welcome.restore.demo': 'C’est une copie des données de démonstration.',
   'welcome.restore.confirm': 'Restaurer',
+  'source.shortcut': 'Raccourci',
+  'csv.source': 'Origine',
+  'movementForm.fromShortcut': 'Arrivé depuis un raccourci · vérifiez et enregistrez',
+  'movementForm.shortcutAmountUnreadable': 'Le montant du raccourci n’a pas été compris',
+  'movementForm.shortcutForeignCurrency': 'Le raccourci a envoyé le montant en {code} ; ce budget utilise {currency}. Vérifiez-le avant d’enregistrer.',
+  'movementForm.merchantCategoryHint': 'Catégorie suggérée par le commerçant « {merchant} ». Vous pouvez la changer.',
 }
