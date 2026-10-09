@@ -39,6 +39,7 @@ import { NotificationsSection } from './NotificationsSection'
 import { RulesSection } from './RulesSection'
 import { PersonalizeSection } from './PersonalizeSection'
 import { InstallSection } from './settings/InstallSection'
+import { FeedbackSection } from './settings/FeedbackSection'
 import { IosShortcutsSection } from './settings/IosShortcutsSection'
 import { usePersistStatus } from '../persist'
 import { AssistantSection } from './settings/AssistantSection'
@@ -395,7 +396,6 @@ export function Settings({ route }: { route: Route }) {
 
       {section?.id === 'instalar' && <InstallSection />}
 
-      {section?.id === 'atajos-iphone' && <IosShortcutsSection />}
 
       {section?.id === 'cuentas' && (
       <Card labelledBy="accounts-title">
@@ -677,6 +677,7 @@ export function Settings({ route }: { route: Route }) {
         <p className="note">{t('settings.shortcuts.note')}</p>
       </Card>
       )}
+      {section?.id === 'atajos' && <IosShortcutsSection />}
 
       {section?.id === 'legal' && (
       <Card labelledBy="legal-title">
@@ -706,6 +707,8 @@ export function Settings({ route }: { route: Route }) {
         )}
       </Card>
       )}
+
+      {section?.id === 'comentarios' && <FeedbackSection />}
 
       {encryptOpen && (
         <PassphraseDialog

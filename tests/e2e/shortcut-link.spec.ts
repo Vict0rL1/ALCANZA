@@ -170,12 +170,14 @@ test('sin portapapeles en el navegador no se ofrece «Pegar del atajo»', async 
   await expect(sheet.getByRole('button', { name: /Pegar del atajo/ })).toHaveCount(0)
 })
 
-test('Ajustes › Atajos de iPhone: dos plantillas con esta dirección, «Copiar» y aviso honesto de lo pendiente', async ({ page, baseURL }) => {
+test('Ajustes › Atajos › Atajos de iPhone: dos plantillas con esta dirección, «Copiar» y aviso honesto de lo pendiente', async ({ page, baseURL }) => {
   await stubClipboard(page, '')
   await startDemo(page)
   await go(page, '/ajustes')
   await page.getByLabel('Buscar en Ajustes').fill('apple pay')
-  await page.getByRole('link', { name: /Atajos de iPhone/ }).click()
+  await page.getByRole('link', { name: /^Atajos/ }).click()
+  await expect(page.getByRole('heading', { name: 'Atajos de teclado' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Atajos de iPhone' })).toBeVisible()
   const section = page.getByTestId('ios-shortcuts')
   await expect(section).toContainText('Todavía no está comprobado dónde abre iOS los enlaces')
   await expect(section).not.toContainText(/automátic/i)
@@ -186,4 +188,7 @@ test('Ajustes › Atajos de iPhone: dos plantillas con esta dirección, «Copiar
   await page.getByTestId('ios-link-pay').getByRole('button', { name: /^Copiar/ }).click()
   await expect(page.getByText('Enlace copiado')).toBeVisible()
   expect(await page.evaluate(() => (window as unknown as { __copied?: string }).__copied)).toBe(pay)
+  // El enlace anterior a la sección sigue llevando aquí.
+  await go(page, '/ajustes/atajos-iphone')
+  await expect(page.getByTestId('ios-shortcuts')).toBeVisible()
 })

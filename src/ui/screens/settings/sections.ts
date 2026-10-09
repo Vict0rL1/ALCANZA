@@ -38,10 +38,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { id: 'almacenamiento', titleKey: 'settings.storage.title', group: 'data', icon: 'coins' },
   { id: 'reinicio', titleKey: 'settings.toc.reset', group: 'data', icon: 'refund' },
   { id: 'formulas', titleKey: 'settings.toc.formulas', group: 'help', icon: 'info' },
-  { id: 'atajos', titleKey: 'settings.shortcuts.title', group: 'help', icon: 'list' },
-  { id: 'atajos-iphone', titleKey: 'iosShortcuts.title', group: 'help', icon: 'phone' },
+  // Teclado e iPhone en una sola fila: el índice cabe en 3 pantallas a 320 px (C3).
+  { id: 'atajos', titleKey: 'settings.shortcuts.indexTitle', group: 'help', icon: 'list' },
   { id: 'legal', titleKey: 'legal.title', group: 'help', icon: 'shield' },
   { id: 'acerca', titleKey: 'settings.toc.about', group: 'help', icon: 'info' },
+  { id: 'comentarios', titleKey: 'feedback.title', group: 'help', icon: 'pencil' },
   { id: 'galeria', titleKey: 'settings.toc.gallery', group: 'help', icon: 'film', href: '/galeria' },
 ]
 
@@ -53,7 +54,7 @@ export const GROUP_TITLE_KEY: Record<SettingsGroup, MessageKey> = {
 }
 
 /** Ids antiguos que siguen en enlaces guardados o marcadores. */
-const LEGACY_IDS: Record<string, string> = { 'reset-title': 'reinicio', 'format-title': 'formato', 'storage-title': 'almacenamiento', 'shortcuts-title': 'atajos', 'about-title': 'acerca', 'notifications-title': 'notificaciones' }
+const LEGACY_IDS: Record<string, string> = { 'reset-title': 'reinicio', 'format-title': 'formato', 'storage-title': 'almacenamiento', 'shortcuts-title': 'atajos', 'atajos-iphone': 'atajos', 'about-title': 'acerca', 'notifications-title': 'notificaciones' }
 
 export function settingsSection(id: string | null | undefined): SettingsSection | undefined {
   if (!id) return undefined

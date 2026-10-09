@@ -81,7 +81,21 @@ Clara se publica en Cloudflare Pages desde GitHub Actions: GitHub compila, prueb
 Hasta que existan los dos secretos, el trabajo `deploy-preview` de cada PR falla con el mensaje
 «Faltan los secretos de Cloudflare»: no se despliega nada y no se finge que se desplegó.
 
-### C. Prueba de Atajos en tu iPhone (unos 10 minutos, cuando haya dirección pública)
+### C. Dirección para «Enviar comentarios» (opcional, 1 minuto)
+
+Ajustes › **Enviar comentarios** abre la app de correo con un texto técnico ya escrito. Para que el
+destinatario venga relleno:
+
+1. GitHub › el repositorio › **Settings** › **Secrets and variables** › **Actions** › pestaña
+   **Variables** › **New repository variable**.
+2. Name `CLARA_FEEDBACK_EMAIL` · Value: la dirección donde quieres recibir los comentarios.
+3. **Add variable**. Se usa desde la siguiente compilación.
+
+Es una **variable**, no un secreto: la dirección queda escrita en la app publicada y cualquiera que la
+abra puede verla. Usa una dirección que no te importe publicar (por ejemplo, un alias para la beta).
+Sin ella, el correo se abre sin destinatario y Clara lo dice.
+
+### D. Prueba de Atajos en tu iPhone (unos 10 minutos, cuando haya dirección pública)
 
 1. Sigue `docs/IOS-SHORTCUTS.md` para crear el atajo A (Apple Pay) y el B (Tocar atrás).
 2. Haz las cuatro pruebas de la tabla (Clara instalada y en una pestaña de Safari) y rellénala.

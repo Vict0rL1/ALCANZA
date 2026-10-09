@@ -16,6 +16,8 @@ jobs:
     env:
       # «Compilación» en Ajustes › Acerca de: el commit de la rama, no el de fusión del PR.
       CLARA_BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      # «Enviar comentarios» (M2): dirección opcional; es una variable (no un secreto) porque queda en la app publicada.
+      VITE_FEEDBACK_EMAIL: ${{ vars.CLARA_FEEDBACK_EMAIL }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

@@ -63,7 +63,7 @@ Anota también la versión de iOS (Ajustes › General › Información).
 ## Qué se decide con el resultado (L3)
 
 - **Si el enlace llega a tus datos** en la forma en que usas Clara: se queda el enlace y Ajustes ›
-  «Atajos de iPhone» ofrece las dos plantillas con un botón «Copiar».
+  «Atajos» › «Atajos de iPhone» ofrece las dos plantillas con un botón «Copiar».
 - **Si no llega** (lo esperado con la app instalada: iOS abre los enlaces en Safari, que tiene otros
   datos): se usa el **paso por el portapapeles**:
   1. El atajo hace **Copiar al portapapeles** con un texto como `Starbucks 12.50` y luego abre Clara.
@@ -81,7 +81,7 @@ El resultado y la decisión se anotan en `docs/DECISIONS.md`.
 Hasta que la prueba diga qué camino sirve, Clara ofrece **los dos** y lo dice tal cual
 (`docs/DECISIONS.md`, línea 125):
 
-- **Ajustes › Atajos de iPhone**: los pasos del portapapeles y las dos plantillas de enlace (Apple Pay
+- **Ajustes › Atajos** (tarjeta «Atajos de iPhone», debajo de la de teclado): los pasos del portapapeles y las dos plantillas de enlace (Apple Pay
   y «Tocar atrás») con la dirección de **esta** Clara y un botón **Copiar**. Avisa de que todavía no está
   comprobado dónde abre iOS los enlaces.
 - **Hoja «+» › Pegar del atajo** (solo si el navegador permite leer el portapapeles).
