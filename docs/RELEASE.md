@@ -47,8 +47,11 @@ Clara se publica en Cloudflare Pages desde GitHub Actions: GitHub compila, prueb
 
 1. **Cuenta y proyecto.**
    1. Crea una cuenta gratuita en <https://dash.cloudflare.com/sign-up> y confirma el correo.
-   2. En el panel: **Workers & Pages** › **Create** › pestaña **Pages** › **Use direct upload**
-      («Subir recursos», **no** «Connect to Git»).
+   2. En el panel: **Workers & Pages** › **Create**. En la pantalla «Make something new», **no** elijas
+      «Upload your static files» (crea un *Worker*, no un proyecto de Pages): pulsa el enlace de abajo
+      **Continue to Pages** (en «Need to use the legacy Pages workflow?») › **Use direct upload**
+      («Subir recursos», **no** «Connect to Git»). En paneles más antiguos: pestaña **Pages** ›
+      **Use direct upload**.
    3. **Project name**: `clara`. Pulsa **Create project**. Si después te pide subir archivos, sube la
       carpeta `dist/` de una compilación local (`npm run build`) o cierra esa pantalla: el primer
       despliegue real lo hará GitHub.
