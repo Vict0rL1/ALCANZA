@@ -1,9 +1,10 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { go, startDemo } from './helpers'
 
 /**
- * Ronda 4 · preparación de la beta: versión visible (H1) y manifiesto instalable con sus iconos
- * precacheados (H2).
+ * Ronda 4 · preparación de la beta: versión visible (H1), manifiesto instalable con sus iconos
+ * precacheados (H2) y cabeceras de Cloudflare Pages generadas al compilar (J2).
  */
 
 const pngSize = (buf: Buffer) => ({ width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) })
@@ -43,4 +44,13 @@ test('H2 · manifiesto «Clara» con id, categoría, atajos e iconos; icono de A
   const sw = await (await request.get('/sw.js')).text()
   for (const f of [appleHref, ...manifest.shortcuts.map((s) => s.icons[0]!.src)]) expect(sw).toContain(`"${f}"`)
   expect(sw).not.toContain('_headers')
+})
+
+test('J2 · dist/_headers lleva la misma CSP que la etiqueta <meta> servida, más frame-ancestors', async ({ page }) => {
+  await page.goto('/')
+  const meta = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
+  expect(meta).toContain("default-src 'self'")
+  const headers = readFileSync(new URL('../../dist/_headers', import.meta.url), 'utf8')
+  expect(headers.match(/^ {2}Content-Security-Policy: (.+)$/m)?.[1]).toBe(`${meta}; frame-ancestors 'none'`)
+  expect(headers).toContain('  X-Robots-Tag: noindex')
 })

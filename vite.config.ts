@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -43,6 +44,17 @@ export function buildCsp(aiEndpoint?: string): string {
   ].join('; ')
 }
 
+/**
+ * `dist/_headers` (Cloudflare Pages) a partir de la plantilla `public/_headers` (J2): la cabecera CSP es
+ * la misma de la etiqueta <meta> más `frame-ancestors 'none'`, que una <meta> ignora. Así no pueden
+ * divergir. Sin la marca `__CSP__` lanza un error: nunca se publica sin CSP.
+ */
+export function renderHeaders(template: string, aiEndpoint?: string): string {
+  const marks = template.split('__CSP__').length - 1
+  if (marks !== 1) throw new Error(`public/_headers debe contener exactamente una marca __CSP__ (tiene ${marks}).`)
+  return template.replace('__CSP__', `${buildCsp(aiEndpoint)}; frame-ancestors 'none'`)
+}
+
 function contentSecurityPolicy(aiEndpoint?: string): Plugin {
   const csp = buildCsp(aiEndpoint)
   return {
@@ -50,6 +62,12 @@ function contentSecurityPolicy(aiEndpoint?: string): Plugin {
     apply: 'build',
     transformIndexHtml(html) {
       return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`)
+    },
+    // Vite ya copió public/ en dist/ cuando se escribe el paquete.
+    writeBundle(options) {
+      const file = join(options.dir ?? 'dist', '_headers')
+      if (!existsSync(file)) this.error('Falta dist/_headers: public/_headers es la plantilla de las cabeceras.')
+      writeFileSync(file, renderHeaders(readFileSync(file, 'utf8'), aiEndpoint))
     },
   }
 }
