@@ -137,8 +137,16 @@ test('C2 · Movimientos: título, búsqueda y al menos 3 filas en la primera pan
   await waitForFonts(page)
   const limit = page.viewportSize()!.height - (await tabBarHeight(page))
   const rows = await page.locator('.tx-group .item').evaluateAll((els, max) => els.filter((el) => el.getBoundingClientRect().bottom <= max).length, limit)
+  // Si falla, el mensaje dice qué ocupa la primera pantalla (bloques de <main> con su alto).
+  const layout = await page.evaluate(() =>
+    [...(document.querySelector('main')?.querySelectorAll(':scope > *, :scope > * > *') ?? [])]
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ r }) => r.height > 0 && r.top < window.innerHeight)
+      .map(({ el, r }) => `${el.className || el.tagName}@${Math.round(r.top)}+${Math.round(r.height)}`)
+      .join(' · '),
+  )
   // A 320 × 640 caben el título, la búsqueda, el resumen del mes y la primera fila (DECISIONS).
-  expect(rows, 'filas de movimientos visibles sin desplazarse').toBeGreaterThanOrEqual(info.project.name === 'celular-pequeno' ? 1 : 3)
+  expect(rows, `filas de movimientos visibles sin desplazarse (límite ${limit} px): ${layout}`).toBeGreaterThanOrEqual(info.project.name === 'celular-pequeno' ? 1 : 3)
 })
 
 test.describe('C3 · Ajustes: índice corto y subpantallas acotadas', () => {

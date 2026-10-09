@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForPrecache, waitForServiceWorkerControl } from './helpers'
+import { go, waitForPrecache, waitForServiceWorkerControl } from './helpers'
 
 test('tras la primera visita, la app abre sin conexión y conserva los datos', { tag: '@smoke' }, async ({ page, context }) => {
   await page.goto('/')
@@ -13,9 +13,11 @@ test('tras la primera visita, la app abre sin conexión y conserva los datos', {
   await page.reload()
   await expect(page.getByTestId('available')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Demo · datos ficticios')).toBeVisible()
-  await page.goto('/#/ajustes/almacenamiento')
-  // Si falla, el mensaje muestra el estado real («… no activo todavía …»).
-  await expect(page.getByText(/^Uso sin conexión:/)).toContainText('Uso sin conexión: activo.')
+  // Como una persona: tocar Ajustes dentro de la app (cambia el hash, no carga otra página).
+  await go(page, '/ajustes/almacenamiento')
+  // Si falla, el mensaje muestra lo que hay en pantalla (p. ej. «… no activo todavía …»).
+  const shown = (await page.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 400)
+  await expect(page.getByText(/^Uso sin conexión:/), shown).toContainText('Uso sin conexión: activo.')
   await context.setOffline(false)
 })
 
