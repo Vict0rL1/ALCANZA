@@ -7,6 +7,7 @@ import { sumMinor } from '../../domain/money'
 import { computeBudget } from '../../domain/budget'
 import { implausibilityRatio, isImplausibleAmount } from '../../domain/plausibility'
 import { ConfirmDialog } from '../components/Dialog'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { markOccurrence, saveTransaction, type OpContext } from '../../domain/operations'
 import { periodsProposedFor, setTransactionPeriods } from '../../domain/periodBudgets'
 import { inferRefundSplit, refundableByCategory, suggestSplitFromHistory } from '../../domain/splits'
@@ -697,18 +698,19 @@ function MovementEditor({ route, existing, returnTo }: { route: Route; existing:
           </div>
         )}
         {kind !== 'transfer' && !(kind === 'expense' && splitDrafts) && (
-          <SelectField
+          <CategoryPicker
             label={t('fields.category')}
+            kind={kind === 'income' ? 'income' : 'expense'}
+            data={data}
             value={categoryId}
-            onChange={(e) => {
-              setCategoryId(e.target.value)
+            onChange={(id) => {
+              setCategoryId(id)
               setCategoryTouched(true)
               setRuleApplied(undefined)
             }}
-            options={[
-              ...(categoryId ? [] : [choose]),
-              ...withCurrent(categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) })),
-            ]}
+            keep={existing?.categoryId}
+            allowNew
+            testId="category-field"
             error={fieldError(t, fmt, issues, 'categoryId')}
             hint={ruleApplied ? t('movementForm.ruleHint', { pattern: ruleApplied.pattern }) : kind === 'refund' ? t('movementForm.refundCategoryHint') : undefined}
           />

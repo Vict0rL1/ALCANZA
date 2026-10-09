@@ -19,7 +19,7 @@ test('asistente: texto → vista previa editable → registro todo o nada; nada 
   // Primera línea: gasto, 45, restaurantes, hoy. Tercera: ingreso.
   const first = preview.locator('.assistant__line').nth(0)
   await expect(first.getByLabel('Importe')).toHaveValue('45.00')
-  await expect(first.getByLabel('Categoría')).toHaveValue('dining')
+  await expect(first.getByLabel('Categoría')).toHaveAttribute('data-value', 'dining')
   await expect(first.getByRole('radio', { name: 'Gasto' })).toBeChecked()
   const second = preview.locator('.assistant__line').nth(1)
   await expect(second.getByLabel('Fecha')).toHaveValue('2026-09-27')

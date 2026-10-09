@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { applyFilters, openFilters, available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 async function newExpense(page: Page, amount: string, note: string) {
   await go(page, '/movimientos/nuevo')
@@ -37,7 +37,7 @@ test('compra dividida: líneas exactas, resto explícito, saldo una vez, filtros
   await expect(await available(page)).toHaveText('$16.78')
   await go(page, '/movimientos')
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toContainText('Dividida en 3 categorías')
-  await (await openFilters(page)).getByLabel('Categoría', { exact: true }).selectOption({ label: 'Vivienda y alquiler' })
+  await pickCategory(page, (await openFilters(page)).getByLabel('Categoría', { exact: true }), 'Vivienda y alquiler')
   await applyFilters(page)
   await expect(page.locator('a.item', { hasText: 'Walmart' })).toBeVisible()
 
@@ -178,7 +178,9 @@ test('bandeja: un plan superado lleva a su detalle, sin cambiar cifras', async (
   await startDemo(page)
   await go(page, '/plan/planes/nuevo')
   await page.getByLabel('Límite máximo').fill('30')
-  await page.getByTestId('plan-categories').getByRole('button', { name: 'Restaurantes y café' }).click()
+  await page.getByTestId('plan-categories').click()
+  await page.getByTestId('category-picker').getByRole('option', { name: 'Restaurantes y café' }).first().click()
+  await page.getByRole('button', { name: 'Listo' }).click()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Plan guardado')).toBeVisible()
 

@@ -26,8 +26,10 @@ test('categorías v2: crear con icono y color, renombrar una de Clara, archivar 
   await edit.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByTestId('category-dining')).toContainText('Comer fuera')
   await go(page, '/movimientos/nuevo')
-  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Comer fuera' })).toHaveCount(1)
-  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Restaurantes y café' })).toHaveCount(0)
+  await page.getByLabel('Categoría', { exact: true }).click()
+  await expect(page.getByTestId('category-picker').getByRole('option', { name: 'Comer fuera' }).first()).toBeVisible() // en su grupo y en «Recientes»
+  await expect(page.getByTestId('category-picker').getByRole('option', { name: 'Restaurantes y café' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
 
   // Archivar una de Clara con reasignación: sus registros pasan a otra categoría; nada se borra.
   await go(page, '/movimientos')
@@ -48,7 +50,9 @@ test('categorías v2: crear con icono y color, renombrar una de Clara, archivar 
   await expect(page.getByTestId('category-groceries')).toContainText('0 usos')
   await go(page, '/movimientos')
   expect(await page.locator('.item').count()).toBe(before)
-  await expect((await openFilters(page)).getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Supermercado' })).toHaveCount(1) // el filtro incluye archivadas
+  await (await openFilters(page)).getByLabel('Categoría', { exact: true }).click()
+  await expect(page.getByTestId('category-picker').getByRole('option', { name: 'Supermercado' }).first()).toBeVisible() // el filtro incluye archivadas
+  await page.keyboard.press('Escape')
   await applyFilters(page)
 
   // Restaurar y reordenar.
@@ -105,8 +109,10 @@ test('onboarding: elegir categorías y periodo; las no marcadas no aparecen en e
   await safe.getByRole('radio', { name: 'Semana' }).check()
   await expect(safe.locator('.stat__value')).toHaveText('$500.00')
   await go(page, '/movimientos/nuevo')
-  const select = page.getByLabel('Categoría', { exact: true })
-  await expect(select.locator('option', { hasText: 'Mascotas' })).toHaveCount(0)
-  await expect(select.locator('option', { hasText: 'Bicicleta' })).toHaveCount(1)
-  await expect(select.locator('option', { hasText: 'Teléfono e internet' })).toHaveCount(0)
+  await page.getByLabel('Categoría', { exact: true }).click()
+  const picker = page.getByTestId('category-picker')
+  await expect(picker.getByRole('option', { name: 'Mascotas' })).toHaveCount(0)
+  await expect(picker.getByRole('option', { name: 'Bicicleta' }).first()).toBeVisible()
+  await expect(picker.getByRole('option', { name: 'Teléfono e internet' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
 })

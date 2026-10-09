@@ -17,7 +17,7 @@ test('estadísticas: periodo, tres cifras, donut con enlace al historial, barras
   // Los filtros llegan como fichas activas y, dentro de la hoja «Filtros», con sus valores (C2).
   await expect(page.getByTestId('active-filters')).toContainText('Restaurantes y café')
   const sheet = await openFilters(page)
-  await expect(sheet.getByLabel('Categoría', { exact: true })).toHaveValue('dining')
+  await expect(sheet.getByLabel('Categoría', { exact: true })).toHaveAttribute('data-value', 'dining')
   await expect(sheet.getByLabel('Desde')).toHaveValue('2026-09-01')
   await expect(sheet.getByLabel('Hasta')).toHaveValue('2026-09-30')
   await applyFilters(page)

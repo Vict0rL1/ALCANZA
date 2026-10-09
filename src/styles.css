@@ -4913,3 +4913,50 @@ html.is-discreet .item:focus-within .item__title {
 .month-summary > .month-nav {
   margin-top: var(--space-3);
 }
+
+/* Selector de categoría (D5): campo que abre una hoja con búsqueda, recientes y grupos. */
+.picker-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.picker-field__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-field__chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+.picker__group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-overline, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.picker__group-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.picker__option:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+

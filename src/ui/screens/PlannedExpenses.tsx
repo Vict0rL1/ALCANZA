@@ -3,7 +3,6 @@
  * Son metas `kind: 'expense'`; los cálculos viven en `domain/plannedExpenses.ts`.
  */
 import { useMemo, useState } from 'react'
-import { categoriesForKind } from '../../domain/categories'
 import { addDays } from '../../domain/dates'
 import { goalProgress } from '../../domain/goals'
 import { newId } from '../../domain/ids'
@@ -18,11 +17,12 @@ import { useData } from '../../state/store'
 import { Alert, Badge, Card, Meter, PageHeader, type Tone } from '../components/common'
 import { Dialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { Icon, type IconName } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { BalanceInclusionControl } from '../dialogs'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, issueMessage, otherIssues, planItemName } from '../labels'
+import { fieldError, issueMessage, otherIssues, planItemName } from '../labels'
 import { moneyErrorMessage, parseMoneyText } from '../moneyText'
 import { href, useNavigateIfStillHere } from '../router'
 
@@ -396,12 +396,7 @@ export function PlannedExpenseForm({ existing }: { existing: Goal | undefined })
           options={REPEAT_OPTIONS.map((m) => ({ value: String(m), label: m === 0 ? t('planned.once') : tn('planned.repeatBadge', m) }))}
           hint={t('planned.repeatHint')}
         />
-        <SelectField
-          label={t('fields.category')}
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          options={categoriesForKind('expense', data.categories, { prefs: data.categoryPrefs }).map((c) => ({ value: c, label: categoryLabel(t, c) }))}
-        />
+        <CategoryPicker label={t('fields.category')} kind="expense" data={data} value={categoryId} onChange={setCategoryId} allowNew />
         <Segmented
           legend={t('goalForm.funding')}
           name="pfunding"

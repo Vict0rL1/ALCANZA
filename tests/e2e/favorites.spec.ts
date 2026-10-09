@@ -11,7 +11,7 @@ test('favoritos: desde Inicio abren el formulario con hoy, no registran nada sol
   await expect(page.getByLabel('Importe')).toHaveValue('4.25')
   await openDetails(page)
   await expect(page.getByLabel('Fecha')).toHaveValue('2026-09-28')
-  await expect(page.getByLabel('Categoría')).toHaveValue('dining')
+  await expect(page.getByLabel('Categoría', { exact: true })).toHaveAttribute('data-value', 'dining')
 
   // Abrir un favorito no registra nada.
   await page.getByRole('link', { name: 'Cancelar' }).click()

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { applyFilters, openFilters, go, startDemo } from './helpers'
+import { pickCategory, applyFilters, openFilters, go, startDemo } from './helpers'
 
 test('tarjeta con límite, tasa y fechas: resumen y recordatorio de pago', async ({ page }) => {
   await startDemo(page)
@@ -51,10 +51,10 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
 
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('25')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Acuario' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Acuario')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Movimiento guardado').first()).toBeVisible()
-  await (await openFilters(page)).getByLabel('Categoría', { exact: true }).selectOption({ label: 'Acuario' })
+  await pickCategory(page, (await openFilters(page)).getByLabel('Categoría', { exact: true }), 'Acuario')
   await applyFilters(page)
   await expect(page.locator('.summary-line')).toContainText('1 movimiento')
 
@@ -65,7 +65,9 @@ test('categorías personalizadas: crear, usar, filtrar y archivar', async ({ pag
   await page.getByRole('dialog', { name: '¿Archivar «Acuario»?' }).getByRole('button', { name: 'Archivar', exact: true }).click()
   await expect(page.getByText('Categoría archivada')).toBeVisible()
   await go(page, '/movimientos/nuevo')
-  await expect(page.getByLabel('Categoría', { exact: true }).locator('option', { hasText: 'Acuario' })).toHaveCount(0)
+  await page.getByLabel('Categoría', { exact: true }).click()
+  await expect(page.getByTestId('category-picker').getByRole('option', { name: 'Acuario' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await go(page, '/movimientos')
   await expect(page.locator('.item__meta', { hasText: 'Acuario' }).first()).toBeVisible()
 })

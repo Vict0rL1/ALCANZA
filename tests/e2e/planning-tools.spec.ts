@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails } from './helpers'
+import { pickCategory, applyFilters, openFilters, showFullHome, available, go, movementCount, startDemo, openDetails } from './helpers'
 
 test('gasto planificado: vinculado al calendario, aporte confirmado y pago distinto de lo apartado', async ({ page }) => {
   await startDemo(page)
@@ -336,7 +336,7 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   await openDetails(page)
   const period = page.getByRole('checkbox', { name: /Semana de exámenes/ })
   await expect(period).not.toBeChecked() // categoría por defecto: Otros gastos
-  await page.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Restaurantes y café')
   await expect(period).toBeChecked()
   await expect(page.getByText('Propuesto por la regla del periodo')).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -347,7 +347,7 @@ test('regla del periodo propone el gasto (se puede desmarcar) e ingreso hipotét
   // Desmarcar la propuesta: no se asocia.
   await go(page, '/movimientos/nuevo')
   await page.getByLabel('Importe').fill('3')
-  await page.getByLabel('Categoría').selectOption({ label: 'Restaurantes y café' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Restaurantes y café')
   await openDetails(page)
   await page.getByRole('checkbox', { name: /Semana de exámenes/ }).uncheck()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()

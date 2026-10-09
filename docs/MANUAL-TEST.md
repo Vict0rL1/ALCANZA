@@ -135,6 +135,9 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
   without registering.
 - [ ] **K3.** **Ajustes** → **Formato** → **Français** → the toast reads **«Réglage enregistré»** (in
   French, not Spanish). Choose **Español** again → «Ajuste guardado».
+- [ ] **K5.** **+** → **Gasto** → tap **Categoría** → a sheet with a search box, **Recientes** and the
+  groups. Type `salu` → only **Salud**; press **Esc** → the sheet closes and the focus is
+  back on the field.
 ---
 
 ## I. Things this test found

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, openExplain, nav, openAddSheet, openApp } from './helpers'
+import { go, pickCategory, openExplain, nav, openAddSheet, openApp } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -88,7 +88,7 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   for (const option of ['Gasto', 'Ingreso', 'Transferencia', 'Escribir o dictar']) await expect(sheet.getByRole('link', { name: new RegExp(`^${option}`) })).toBeVisible()
   await sheet.getByRole('link', { name: /^Gasto/ }).click()
   await page.getByLabel('Importe', { exact: true }).fill('25')
-  await page.getByLabel('Categoría', { exact: true }).selectOption({ label: 'Restaurantes y café' })
+  await pickCategory(page, page.getByLabel('Categoría', { exact: true }), 'Restaurantes y café')
   await page.getByText('Más detalles').click()
   await page.getByLabel('Nota (opcional)').fill('Almuerzo')
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
@@ -105,9 +105,9 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   const lines = page.getByTestId('assistant-preview').locator('.assistant__line')
   await expect(lines).toHaveCount(2)
   await expect(lines.nth(0).getByLabel('Importe')).toHaveValue('12.00')
-  await expect(lines.nth(0).getByLabel('Categoría')).toHaveValue('transport')
+  await expect(lines.nth(0).getByLabel('Categoría')).toHaveAttribute('data-value', 'transport')
   await expect(lines.nth(1).getByLabel('Importe')).toHaveValue('3.50')
-  await expect(lines.nth(1).getByLabel('Categoría')).toHaveValue('dining')
+  await expect(lines.nth(1).getByLabel('Categoría')).toHaveAttribute('data-value', 'dining')
   await nav(page, 'Inicio').click()
   await expect(page.getByTestId('available')).toHaveText('$375.00')
   await openAddSheet(page)
@@ -162,8 +162,10 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await page.getByRole('button', { name: 'Nuevo plan' }).click()
   await page.getByTestId('plan-create-sheet').getByRole('link', { name: /Controlar un gasto/ }).click()
   await page.getByLabel('Límite máximo').fill('100')
-  await page.getByTestId('plan-categories').getByRole('button', { name: 'Restaurantes y café' }).click()
-  await page.getByTestId('plan-categories').getByRole('button', { name: 'Transporte' }).click()
+  await page.getByTestId('plan-categories').click()
+  await page.getByTestId('category-picker').getByRole('option', { name: 'Restaurantes y café' }).first().click()
+  await page.getByTestId('category-picker').getByRole('option', { name: 'Transporte' }).first().click()
+  await page.getByRole('button', { name: 'Listo' }).click()
   await expect(page.getByText('Periodo en curso: 1 sep – 30 sep')).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Plan guardado')).toBeVisible()
@@ -245,5 +247,18 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await expect(page.getByText('Réglage enregistré')).toBeVisible()
   await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
   await expect(page.getByText('Ajuste guardado')).toBeVisible()
+
+  // K5. Selector de categoría: búsqueda y Esc devuelve el foco.
+  await go(page, '/movimientos/nuevo')
+  const categoryField = page.getByLabel('Categoría', { exact: true })
+  await categoryField.click()
+  const picker = page.getByTestId('category-picker')
+  await expect(picker.getByRole('heading', { name: 'Recientes' })).toBeVisible()
+  await picker.getByRole('searchbox').fill('salu')
+  await expect(picker.getByRole('option')).toHaveCount(1)
+  await expect(picker.getByRole('option', { name: 'Salud' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(picker).toBeHidden()
+  await expect(categoryField).toBeFocused()
 
 })

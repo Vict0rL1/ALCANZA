@@ -24,10 +24,11 @@ import { useData } from '../../state/store'
 import { PrimaryButton, SecondaryButton, TextButton } from '../components/base'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
 import { MoneyField, Segmented, SelectField, TextAreaField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
-import { categoryLabel, issueMessage } from '../labels'
+import { issueMessage } from '../labels'
 import { moneyErrorMessage } from '../moneyText'
 import { href, useNavigateIfStillHere, withQuery, type Route } from '../router'
 
@@ -306,7 +307,7 @@ export function Assistant({ route }: { route: Route }) {
                 </div>
                 <Segmented legend={t('fields.kind')} name={`kind-${l.id}`} value={l.kind} onChange={(k) => update(l.id, { kind: k, review: undefined, categoryId: k === 'income' ? 'salary' : 'other_expense' })} options={[{ value: 'expense', label: t('txKind.expense') }, { value: 'income', label: t('txKind.income') }]} />
                 <MoneyField label={t('fields.amount')} value={l.amountText} onChange={(v) => update(l.id, { amountText: v })} fmt={fmt} error={lineError(i, 'amountMinor') ? (moneyErrorMessage(t, parseMoney(l.amountText, data.settings.currency, data.settings.numberLocale)) ?? t('issue.invalidAmount')) : null} />
-                <SelectField label={t('fields.category')} value={l.categoryId} onChange={(e) => update(l.id, { categoryId: e.target.value })} options={categories.filter((c) => c.kind === l.kind).map((c) => ({ value: c.id, label: c.name ?? categoryLabel(t, c.id) }))} />
+                <CategoryPicker label={t('fields.category')} kind={l.kind} data={data} value={l.categoryId} onChange={(id) => update(l.id, { categoryId: id })} keep={l.categoryId} allowNew />
                 <TextField label={t('fields.date')} type="date" value={l.date} max={today} onChange={(e) => update(l.id, { date: e.target.value })} error={lineError(i, 'date') ? issueMessage(t, fmt, lineError(i, 'date')!) : undefined} />
                 <TextField label={t('fields.noteOptional')} value={l.note} maxLength={120} onChange={(e) => update(l.id, { note: e.target.value })} />
                 {implausibleTimes(l) !== false && (

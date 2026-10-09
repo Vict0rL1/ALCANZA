@@ -10,11 +10,12 @@ import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
 import { Alert, EmptyState, PageHeader } from '../components/common'
 import { CheckboxField, MoneyField, Segmented, SelectField, TextField } from '../components/fields'
+import { CategoryPicker } from '../components/CategoryPicker'
 import { parseMoneyText, moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
-import { categoryLabel, fieldError, frequencyLabel, issueMessage, otherIssues, withCurrent } from '../labels'
+import { fieldError, frequencyLabel, issueMessage, otherIssues } from '../labels'
 import { href, type Route, useNavigateIfStillHere } from '../router'
 
 const REMINDER_OPTIONS = [0, 1, 2, 3, 7, 14]
@@ -188,7 +189,7 @@ export function ScheduleForm({ route }: { route: Route }) {
           <TextField label={t('scheduleForm.endDate')} type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} hint={t('scheduleForm.endDateHint')} error={fieldError(t, fmt, issues, 'endDate')} />
         )}
         <SelectField label={t('fields.account')} value={accountId} onChange={(e) => setAccountId(e.target.value)} options={data.accounts.map((a) => ({ value: a.id, label: a.name }))} error={fieldError(t, fmt, issues, 'accountId')} />
-        <SelectField label={t('fields.category')} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={withCurrent(categoriesForKind(kind, data.categories, { prefs: data.categoryPrefs }), existing?.categoryId).map((c) => ({ value: c, label: categoryLabel(t, c) }))} />
+        <CategoryPicker label={t('fields.category')} kind={kind === 'income' ? 'income' : 'expense'} data={data} value={categoryId} onChange={setCategoryId} keep={existing?.categoryId} allowNew />
         <SelectField
           label={t('scheduleForm.reminder')}
           value={String(reminder)}

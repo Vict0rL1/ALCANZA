@@ -13,7 +13,8 @@ import { BUDGET_PERIOD_TYPES, LIMITS, type Issue } from '../../domain/validation
 import { useT, type MessageKey } from '../../i18n'
 import { useRun, useToday } from '../../state/hooks'
 import { useData } from '../../state/store'
-import { BottomSheet, CategoryChip, ListRow, PrimaryButton, ProgressBar, SecondaryButton, TextButton, Toggle, type ProgressState } from '../components/base'
+import { CategoryPicker } from '../components/CategoryPicker'
+import { BottomSheet, ListRow, PrimaryButton, ProgressBar, SecondaryButton, TextButton, Toggle, type ProgressState } from '../components/base'
 import { Alert, Badge, Card, EmptyState, PageHeader } from '../components/common'
 import { ConfirmDialog } from '../components/Dialog'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
@@ -282,10 +283,8 @@ export function PlanForm({ route }: { route: Route }) {
   const [issues, setIssues] = useState<Issue[]>([])
   const [amountError, setAmountError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const categories = useMemo(() => {
-    const all = new Map(resolveCategories(data).map((c) => [c.id, c]))
-    return planCategoryOptions(data, existing?.categoryIds ?? []).map((cid) => all.get(cid)).filter((c) => c !== undefined)
-  }, [data, existing])
+  // Categorías libres para este límite (las de otros límites activos no se ofrecen).
+  const allowedCategories = useMemo(() => planCategoryOptions(data, existing?.categoryIds ?? []), [data, existing])
   const preview = periodType === 'custom' ? (startDate && endDate && endDate >= startDate ? { start: startDate, end: endDate } : null) : cycleFor(periodType, data.settings, today)
 
   if (editId && !existing) {
@@ -295,8 +294,6 @@ export function PlanForm({ route }: { route: Route }) {
       </div>
     )
   }
-
-  const toggle = (cid: string) => setCategoryIds((ids) => (ids.includes(cid) ? ids.filter((x) => x !== cid) : [...ids, cid]))
 
   const submit = async () => {
     const parsed = parseMoneyText(amountText, fmt)
@@ -329,22 +326,19 @@ export function PlanForm({ route }: { route: Route }) {
       >
         <MoneyField label={t('plans.form.amount')} hint={t('plans.form.amountHint')} value={amountText} onChange={setAmountText} error={amountError ?? fieldError(t, fmt, issues, 'amountMinor')} fmt={fmt} />
         <TextField label={t('plans.form.name')} hint={t('plans.form.nameHint')} value={name} maxLength={LIMITS.nameMax} onChange={(e) => setName(e.target.value)} error={fieldError(t, fmt, issues, 'name')} />
-        <fieldset className="field" aria-describedby="plan-cats-hint">
-          <legend className="field__label">{t('plans.form.categories')}</legend>
-          <p className="field__hint" id="plan-cats-hint">
-            {categoryIds.length === 0 ? t('plans.form.categoriesAll') : t('plans.form.categoriesHint', { count: categoryIds.length })}
-          </p>
-          <div className="chip-wrap" data-testid="plan-categories">
-            {categories.map((c) => (
-              <CategoryChip key={c.id} label={categoryLabel(t, c.id)} icon={c.icon} color={c.color} selected={categoryIds.includes(c.id)} onClick={() => toggle(c.id)} />
-            ))}
-          </div>
-          {fieldError(t, fmt, issues, 'categoryIds') && (
-            <p className="field__error" role="alert">
-              {fieldError(t, fmt, issues, 'categoryIds')}
-            </p>
-          )}
-        </fieldset>
+        <CategoryPicker
+          multiple
+          label={t('plans.form.categories')}
+          kind="expense"
+          data={data}
+          value={categoryIds}
+          onChange={setCategoryIds}
+          only={allowedCategories}
+          placeholder={t('plans.form.categoriesAll')}
+          hint={categoryIds.length === 0 ? t('plans.form.categoriesAll') : t('plans.form.categoriesHint', { count: categoryIds.length })}
+          error={fieldError(t, fmt, issues, 'categoryIds')}
+          testId="plan-categories"
+        />
         <SelectField
           label={t('plans.form.period')}
           value={periodType}
