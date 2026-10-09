@@ -1,0 +1,118 @@
+name: Deploy
+# Publica en Cloudflare Pages la carpeta dist/ que compiló y probó CI, y luego ejecuta las pruebas
+# rápidas contra la dirección publicada. Lo llama ci.yml cuando `check` y los tres `e2e` están en
+# verde: `deploy-preview` en cada PR y `deploy-production` en cada push a main. Así el resultado
+# aparece como comprobación del mismo commit y nada se publica sin pruebas en verde.
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: 'preview (PR) o production (main)'
+        type: string
+        required: true
+      branch:
+        description: 'Rama de Cloudflare Pages: la del PR o main'
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  pages:
+    name: Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    env: { CI: 'true' }
+    steps:
+      - name: Comprobar los secretos de Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error title=Faltan los secretos de Cloudflare::No se publicó nada. Añade CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID (docs/RELEASE.md › B)."
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with: { name: dist, path: dist }
+      - name: Preparar el despliegue
+        id: meta
+        env:
+          BRANCH: ${{ inputs.branch }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Solo caracteres seguros en el nombre de rama que recibe wrangler.
+          echo "branch=$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._/-' '-')" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          test -f dist/index.html && test -f dist/_headers
+      - name: Publicar en Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: >-
+            pages deploy dist --project-name=clara --branch=${{ steps.meta.outputs.branch }}
+            --commit-hash=${{ steps.meta.outputs.sha }}
+      - name: Dirección publicada
+        id: url
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+        run: |
+          case "$DEPLOYMENT_URL" in https://*) ;; *) echo "::error::wrangler no devolvió una dirección https ($DEPLOYMENT_URL)"; exit 1 ;; esac
+          echo "deployment=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+          echo "alias=$ALIAS_URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Clara publicada (${{ inputs.target }})"
+            echo "- Este despliegue: $DEPLOYMENT_URL"
+            if [ -n "$ALIAS_URL" ]; then echo "- Dirección de la rama: $ALIAS_URL"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: npx playwright install --with-deps chromium
+      - name: Pruebas rápidas contra lo publicado
+        env:
+          BASE_URL: ${{ steps.url.outputs.deployment }}
+        run: npm run test:smoke -- --project=celular
+      - name: Comentar la dirección en el PR
+        if: ${{ always() && inputs.target == 'preview' && github.event_name == 'pull_request' && steps.url.outputs.deployment != '' }}
+        uses: actions/github-script@v9
+        env:
+          DEPLOYMENT_URL: ${{ steps.url.outputs.deployment }}
+          ALIAS_URL: ${{ steps.url.outputs.alias }}
+          SMOKE: ${{ job.status == 'success' && 'pasaron' || 'fallaron (mira el registro del trabajo)' }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        with:
+          script: |
+            const marker = '<!-- clara-preview -->'
+            const { DEPLOYMENT_URL, ALIAS_URL, SMOKE, SHA } = process.env
+            const body = [
+              marker,
+              '### Vista previa de Clara',
+              '',
+              `- Este commit (\`${SHA.slice(0, 7)}\`): ${DEPLOYMENT_URL}`,
+              ...(ALIAS_URL ? [`- Última versión de la rama: ${ALIAS_URL}`] : []),
+              `- Pruebas rápidas (@smoke, celular) contra esa dirección: ${SMOKE}.`,
+              '',
+              'Es un prototipo local: los datos que escribas ahí se quedan en tu navegador, separados de la versión publicada.',
+            ].join('\n')
+            const { owner, repo } = context.repo
+            const issue_number = context.payload.pull_request.number
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 })
+            const previous = comments.find((c) => c.user?.type === 'Bot' && c.body?.startsWith(marker))
+            if (previous) await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body })
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body })
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'smoke-${{ inputs.target }}'
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

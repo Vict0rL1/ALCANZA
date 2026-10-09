@@ -5,7 +5,8 @@ on:
     branches: [main]
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # En un PR, un push nuevo cancela la ejecución anterior; en main nunca se corta un despliegue.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -50,3 +51,26 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
+  # Publicar solo cuando todo lo anterior está en verde (J3). La lógica vive en deploy.yml.
+  deploy-preview:
+    if: github.event_name == 'pull_request'
+    needs: [check, e2e]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: preview
+      branch: ${{ github.head_ref }}
+    secrets: inherit
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, e2e]
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: production
+      branch: main
+    secrets: inherit

@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Vict0rL1/CLARA/actions/workflows/ci.yml)
 
+**Dirección pública (beta):** _pendiente del primer despliegue — será `https://clara.pages.dev` o la que
+muestre Cloudflare (ver [Cómo publicar](#cómo-publicar))._
+
 > **Nombre:** la app se llamaba «Margen». El nombre visible ahora es **Clara** (igual en
 > español e inglés). Los identificadores internos conservan el nombre anterior
 > (`margen.data.v1` en el navegador, formato de copia `margen-backup`, cachés `margen-…`) para
@@ -334,6 +337,15 @@ monedas, notificaciones del teléfono, IA. Ver `docs/ROADMAP.md`.
 
 **Rendimiento:** medido con 1.000, 10.000 y 50.000 movimientos sintéticos en la versión
 compilada; cifras, cuellos de botella corregidos y límites en `docs/PERFORMANCE.md`.
+
+## Cómo publicar
+
+Clara se publica en Cloudflare Pages desde GitHub Actions; no hay que compilar ni subir nada a mano:
+
+1. Una sola vez, Victor sigue [`docs/RELEASE.md`](docs/RELEASE.md) › «Lo que tienes que hacer tú»
+   (proteger `main`, cuenta y proyecto de Cloudflare, token y secretos).
+2. Cada PR recibe una vista previa con su dirección en un comentario, tras pasar todas las pruebas.
+3. Al fusionar en `main`, CI publica en producción y comprueba lo publicado con las pruebas rápidas.
 
 ## 9. Solución de problemas
 

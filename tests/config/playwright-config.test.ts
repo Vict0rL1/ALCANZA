@@ -30,3 +30,17 @@ describe('I2 · playwright.config en CI y en local', () => {
     expect((config.projects ?? []).map((p) => p.name)).toEqual(['celular', 'celular-pequeno', 'escritorio'])
   })
 })
+
+describe('J3 · pruebas contra lo publicado (BASE_URL)', () => {
+  it('con BASE_URL prueba esa dirección y no arranca el servidor local', async () => {
+    const config = await loadConfig({ CI: 'true', BASE_URL: 'https://abc123.clara.pages.dev' })
+    expect(config.use?.baseURL).toBe('https://abc123.clara.pages.dev')
+    expect(config.webServer).toBeUndefined()
+  })
+
+  it('sin BASE_URL compila y sirve la versión local', async () => {
+    const config = await loadConfig({ CI: '', BASE_URL: '' })
+    expect(config.use?.baseURL).toBe('http://localhost:4173')
+    expect(config.webServer).toMatchObject({ url: 'http://localhost:4173' })
+  })
+})

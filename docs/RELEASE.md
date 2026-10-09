@@ -18,6 +18,10 @@ Este documento tiene dos partes:
 Hazlo después de que el PR de la beta tenga CI en verde al menos una vez: GitHub solo te deja elegir
 comprobaciones que ya se ejecutaron alguna vez.
 
+0. **Rama por defecto = `main`.** Hoy la rama por defecto del repositorio es
+   `claude/margen-personal-finance-app-cdvrt3` (de una fase anterior). En GitHub › **Settings** ›
+   **General** › **Default branch** › botón ⇄ › elige `main` › **Update** › confirma. Así los PR nuevos
+   apuntan a `main` y la insignia y las reglas hablan de la misma rama. No borra ninguna rama.
 1. Abre el repositorio en GitHub › **Settings** › **Rules** › **Rulesets** › **New ruleset** ›
    **New branch ruleset** (en la versión antigua: **Settings** › **Branches** › **Add branch protection rule**).
    - Nombre: `main protegida`. **Enforcement status**: `Active`.
@@ -28,7 +32,8 @@ comprobaciones que ya se ejecutaron alguna vez.
    - `e2e (celular)`
    - `e2e (celular-pequeno)`
    - `e2e (escritorio)`
-   - `deploy-preview` (aparece cuando el despliegue de prueba del bloque J se haya ejecutado una vez)
+   - `deploy-preview / Cloudflare Pages` (el despliegue de prueba; aparece cuando se haya ejecutado
+     una vez, es decir, después de los pasos de B)
 4. Marca **Block force pushes** (en la versión antigua: deja **Allow force pushes** sin marcar).
 5. Pulsa **Create** (o **Save changes**).
 
@@ -98,6 +103,22 @@ anterior se cancela.
   `npx playwright show-report playwright-report` o `npx playwright show-trace <archivo>.zip`.
 - Si algún trabajo de navegador tarda más de 15 minutos en GitHub, se divide en dos mitades
   (`--shard=1/2` y `--shard=2/2`) en lugar de subir el límite.
+
+### Despliegues (`.github/workflows/deploy.yml`)
+
+`ci.yml` llama a `deploy.yml` solo cuando `check` y los tres `e2e` están en verde, así que nada sin
+pruebas llega a Cloudflare y el resultado aparece como una comprobación más del mismo commit:
+
+| Cuándo | Trabajo | Qué hace |
+|---|---|---|
+| Cada PR | `deploy-preview / Cloudflare Pages` | Sube el `dist/` ya probado como vista previa de la rama (`wrangler pages deploy dist --project-name=clara --branch=<rama>`), ejecuta `npm run test:smoke -- --project=celular` contra esa dirección y deja la dirección en un comentario del PR (uno solo, que se actualiza). |
+| Cada push a `main` | `deploy-production / Cloudflare Pages` | Lo mismo como despliegue de producción y prueba rápida contra él. |
+
+- Las pruebas rápidas se ejecutan contra la dirección única de ese despliegue
+  (`https://<id>.clara.pages.dev`): es exactamente lo que se acaba de subir.
+- Sin los secretos de Cloudflare el trabajo falla con «Faltan los secretos de Cloudflare» y no sube nada.
+- Para probar a mano cualquier dirección: `BASE_URL=https://… npm run test:smoke -- --project=celular`
+  (con `BASE_URL` no se compila ni se sirve nada en local).
 
 ### Pruebas rápidas (`npm run test:smoke`)
 
