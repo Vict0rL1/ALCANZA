@@ -3059,6 +3059,11 @@ fieldset.bill-row {
   .btn:active:not(:disabled) {
     transform: none;
   }
+  /* E4: las hojas y los avisos aparecen sin animación. */
+  .sheet__panel,
+  .toast {
+    animation: none !important;
+  }
 }
 
 /* Pantallas muy estrechas (≤ 359 px): cinco secciones y la barra superior caben sin cortarse. */
@@ -3371,6 +3376,16 @@ progress {
     transform: none;
     opacity: 1;
   }
+}
+
+/* Asa y cabecera: zona para deslizar hacia abajo y cerrar (E4). */
+.sheet__drag {
+  touch-action: none;
+}
+
+.sheet__panel.is-dragging {
+  animation: none;
+  transition: none;
 }
 
 .sheet__grip {

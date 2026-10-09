@@ -480,3 +480,64 @@ test.describe('E2 · importe: miles mientras se escribe, cursor estable y cifra 
     expect(parseFloat(await limit.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(40)
   })
 })
+
+test.describe('E4 · movimiento: hojas, avisos y cifra respetan «reducir movimiento»', () => {
+  test('sin preferencia la hoja se anima; con «reducir movimiento» hojas, avisos y la cifra aparecen sin animación', async ({ page, isMobile }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    await page.getByTestId('open-filters').click()
+    const panel = page.locator('dialog[open] .sheet__panel')
+    // En celular la hoja sube animada; en escritorio es un diálogo centrado sin animación (siempre).
+    expect(await panel.evaluate((el) => getComputedStyle(el).animationName)).toBe(isMobile ? 'sheet-up' : 'none')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('filters-sheet')).toBeHidden()
+
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.getByTestId('open-filters').click()
+    expect(await panel.evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('open-filters')).toBeFocused()
+
+    await go(page, '/movimientos/nuevo')
+    await page.getByLabel('Importe', { exact: true }).fill('3')
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+    const toast = page.locator('.toast').first()
+    await expect(toast).toBeVisible()
+    expect(await toast.evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+
+    // La cifra principal salta al valor final sin contar (CountUp).
+    await go(page, '/')
+    const before = await page.getByTestId('available').textContent()
+    await page.getByTestId('period-prev').click()
+    await page.getByTestId('period-next').click()
+    expect(await page.getByTestId('available').textContent()).toBe(before)
+  })
+
+  test('deslizar la hoja hacia abajo la cierra y el foco vuelve al botón que la abrió', async ({ page }) => {
+    await startDemo(page)
+    await go(page, '/movimientos')
+    const opener = page.getByTestId('open-filters')
+    await opener.click()
+    await expect(page.getByTestId('filters-sheet')).toBeVisible()
+    const grip = page.locator('dialog[open] .sheet__grip')
+    const box = (await grip.boundingBox())!
+    const x = box.x + box.width / 2
+    await grip.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: x, clientY: box.y, pointerId: 7, bubbles: true })
+    await grip.dispatchEvent('pointermove', { pointerType: 'touch', clientX: x, clientY: box.y + 40, pointerId: 7, bubbles: true })
+    // A medio gesto la hoja sigue abierta y se desplaza con el dedo.
+    await expect(page.getByTestId('filters-sheet')).toBeVisible()
+    await grip.dispatchEvent('pointermove', { pointerType: 'touch', clientX: x, clientY: box.y + 160, pointerId: 7, bubbles: true })
+    await grip.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x, clientY: box.y + 160, pointerId: 7, bubbles: true })
+    await expect(page.getByTestId('filters-sheet')).toBeHidden()
+    await expect(opener).toBeFocused()
+
+    // Un gesto corto (< 80 px) no la cierra.
+    await opener.click()
+    const grip2 = page.locator('dialog[open] .sheet__grip')
+    const b2 = (await grip2.boundingBox())!
+    await grip2.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: x, clientY: b2.y, pointerId: 8, bubbles: true })
+    await grip2.dispatchEvent('pointermove', { pointerType: 'touch', clientX: x, clientY: b2.y + 30, pointerId: 8, bubbles: true })
+    await grip2.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x, clientY: b2.y + 30, pointerId: 8, bubbles: true })
+    await expect(page.getByTestId('filters-sheet')).toBeVisible()
+  })
+})

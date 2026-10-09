@@ -64,12 +64,25 @@ export function BottomSheet({ open, onClose, title, children, footer }: { open: 
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const { t } = useT()
+  // E4: quien abrió la hoja recupera el foco al cerrarla (Esc, ✕, fondo o deslizar hacia abajo).
+  const opener = useRef<HTMLElement | null>(null)
+  // E4: deslizar hacia abajo desde el asa o la cabecera cierra la hoja (más de 80 px).
+  const drag = useRef<number | null>(null)
+  const [dragY, setDragY] = useState(0)
 
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
+    if (open && !dialog.open) {
+      opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
+      dialog.showModal()
+    }
+    if (!open && dialog.open) {
+      dialog.close()
+      const el = opener.current
+      opener.current = null
+      if (el && el.isConnected && !dialog.contains(el)) el.focus()
+    }
   }, [open])
 
   useEffect(() => {
@@ -93,15 +106,38 @@ export function BottomSheet({ open, onClose, title, children, footer }: { open: 
       }}
     >
       {open && (
-        <div className="sheet__panel">
-          <div className="sheet__grip" aria-hidden="true" />
-          <div className="sheet__header">
-            <h2 id={titleId} className="sheet__title">
-              {title}
-            </h2>
-            <button type="button" className="btn btn--ghost btn--icon" onClick={onClose} aria-label={t('common.close')}>
-              <Icon name="x" />
-            </button>
+        <div className={`sheet__panel${dragY > 0 ? ' is-dragging' : ''}`} style={dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}>
+          <div
+            className="sheet__drag"
+            onPointerDown={(e) => {
+              if (e.pointerType === 'mouse' || (e.target as HTMLElement).closest('button')) return
+              drag.current = e.clientY
+            }}
+            onPointerMove={(e) => {
+              if (drag.current === null) return
+              setDragY(Math.max(0, e.clientY - drag.current))
+            }}
+            onPointerUp={() => {
+              if (drag.current === null) return
+              drag.current = null
+              const shouldClose = dragY > 80
+              setDragY(0)
+              if (shouldClose) onClose()
+            }}
+            onPointerCancel={() => {
+              drag.current = null
+              setDragY(0)
+            }}
+          >
+            <div className="sheet__grip" aria-hidden="true" />
+            <div className="sheet__header">
+              <h2 id={titleId} className="sheet__title">
+                {title}
+              </h2>
+              <button type="button" className="btn btn--ghost btn--icon" onClick={onClose} aria-label={t('common.close')}>
+                <Icon name="x" />
+              </button>
+            </div>
           </div>
           <div className="sheet__body">{children}</div>
           {footer && <div className="sheet__footer">{footer}</div>}
