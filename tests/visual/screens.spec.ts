@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { go, openAddSheet, openApp, setupFirstUse, startDemo } from '../e2e/helpers'
+import { go, openAddSheet, openApp, setLanguage, setupFirstUse, startDemo } from '../e2e/helpers'
 
 /**
  * Captura cada pantalla principal en los tres tamaños y los dos temas, con la demo y con el
@@ -85,6 +85,41 @@ for (const theme of THEMES) {
       await shot(page, p, theme, 'cuenta')
       await go(page, '/pro')
       await shot(page, p, theme, 'pro')
+    })
+
+    // Ronda 3: estados nuevos que docs/VISUAL-QA.md compara con las capturas de la ronda 2.
+    test('ronda 3: asistente con varias líneas, periodo anterior, selector, filtros y Plan en francés', async ({ page }, info) => {
+      const p = info.project.name
+      test.setTimeout(180_000)
+      await startDemo(page)
+      await page.getByTestId('period-prev').click()
+      await expect(page.getByTestId('period-banner')).toBeVisible()
+      await shot(page, p, theme, 'inicio-periodo-anterior')
+
+      await go(page, '/asistente')
+      await page.getByLabel('Texto').fill('café 4.50\nuber 12\nsupermercado 45.20')
+      await page.getByRole('button', { name: 'Analizar' }).click()
+      await expect(page.getByTestId('assistant-preview')).toBeVisible()
+      await shot(page, p, theme, 'asistente-tres-lineas')
+
+      await go(page, '/movimientos/nuevo')
+      await page.getByLabel('Categoría', { exact: true }).click()
+      await expect(page.getByTestId('category-picker')).toBeVisible()
+      await shot(page, p, theme, 'selector-categoria')
+      await page.keyboard.press('Escape')
+
+      await go(page, '/movimientos')
+      await page.getByTestId('open-filters').click()
+      await expect(page.getByTestId('filters-sheet')).toBeVisible()
+      await shot(page, p, theme, 'filtros-hoja')
+      await page.keyboard.press('Escape')
+
+      await go(page, '/plan/metas')
+      await shot(page, p, theme, 'plan-metas-grafico')
+
+      await setLanguage(page, 'Français')
+      await go(page, '/plan/planes')
+      await shot(page, p, theme, 'plan-planes-fr')
     })
   })
 }

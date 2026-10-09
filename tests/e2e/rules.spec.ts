@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { go, startDemo, openDetails } from './helpers'
+import { go, startDemo, openDetails, pickCategory } from './helpers'
 
 test('reglas de categoría en Ajustes: crear, evitar duplicados, eliminar y deshacer', async ({ page }) => {
   await startDemo(page)
@@ -31,19 +31,19 @@ test('reglas de categoría en Ajustes: crear, evitar duplicados, eliminar y desh
 test('nuevo movimiento: la nota propone la categoría hasta que la eliges a mano', async ({ page }) => {
   await startDemo(page)
   await go(page, '/movimientos/nuevo')
-  const category = page.getByLabel('Categoría')
+  const category = page.getByLabel('Categoría', { exact: true })
   await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Café con Ana')
-  await expect(category).toHaveValue('dining')
+  await expect(category).toHaveAttribute('data-value', 'dining')
   await expect(page.getByText('Propuesta por la regla «café». Puedes cambiarla.')).toBeVisible()
   await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Libros')
-  await expect(category).toHaveValue('other_expense')
+  await expect(category).toHaveAttribute('data-value', 'other_expense')
 
-  await category.selectOption({ label: 'Regalos' })
+  await pickCategory(page, category, 'Regalos')
   await openDetails(page)
   await page.getByLabel('Nota (opcional)').fill('Farmacia')
-  await expect(category).toHaveValue('gifts')
+  await expect(category).toHaveAttribute('data-value', 'gifts')
 })
 
 test('importar CSV: las reglas proponen la categoría y se puede crear una regla desde una fila', async ({ page }) => {

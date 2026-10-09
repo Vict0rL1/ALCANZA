@@ -66,3 +66,18 @@ primera pantalla = 764 px por encima de la barra inferior):
 - **Categorías**: los nombres ya no se parten (los botones de cada fila bajan a una segunda línea).
 
 Lo que la guarda no exige a 320 × 640 queda anotado en DECISIONS 83 (primer aviso, ≥ 1 fila, ≤ 3 pantallas).
+
+## Ronda 3 (antes / después)
+
+Las capturas «después» de esta ronda salen de la prueba «ronda 3» de `tests/visual/screens.spec.ts`
+(`npm run shots -- --label=after`). El «antes» es la captura de la ronda 2 de la misma pantalla cuando
+existe; los estados nuevos (hoja abierta, periodo anterior) no tenían captura previa.
+
+| Pantalla / estado | Antes (Pixel 7, oscuro) | Después | Qué cambió |
+|---|---|---|---|
+| Asistente con tres líneas pegadas (F1) | `before/celular-dark-asistente-vista-previa.png` | `after/celular-dark-asistente-tres-lineas.png` | El campo es un `<textarea>` de 4–10 filas; tres líneas dan tres filas en la vista previa; Ctrl/Cmd+Enter analiza. |
+| Plan › Planes a 320 px en francés (F3) | `before/celular-pequeno-dark-plan-planes.png` (español) | `after/celular-pequeno-dark-plan-planes-fr.png` | Las tarjetas no fijan ancho mínimo: el valor de la barra se parte en dos líneas y no hay desplazamiento horizontal en ningún idioma (guarda en cuatro idiomas). |
+| Inicio › periodo anterior (D1) | `before/celular-dark-inicio-demo.png` | `after/celular-dark-inicio-periodo-anterior.png` | ‹ › en la cabecera del héroe; aviso ámbar «Estás viendo otro periodo» con «Volver al periodo actual»; el resto de Inicio se oculta. |
+| Selector de categoría (D5) | `before/celular-dark-formulario-movimiento.png` (`<select>`) | `after/celular-dark-selector-categoria.png` | Hoja con búsqueda, «Recientes», grupos con color e iconos y «+ Nueva categoría». |
+| Hoja de filtros (D4) | `before/celular-dark-movimientos.png` | `after/celular-dark-filtros-hoja.png` | Varias categorías y etiquetas, importe mínimo/máximo y origen del registro; las fichas activas resumen el filtro. |
+| Plan › Metas con gráfico (D7) | `before/celular-dark-plan-metas.png` | `after/celular-dark-plan-metas-grafico-full.jpg` | Curva de lo apartado frente a la recta ideal, marca de «hoy» y fecha estimada bajo la meta. |
