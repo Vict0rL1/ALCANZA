@@ -2875,4 +2875,10 @@ export const es = {
   'safety.reminder': 'Clara te seguirá recordando hacer una copia nueva (cada cuánto: Ajustes › Copias de seguridad).',
   'safety.done': 'Listo',
   'safety.later': 'Ahora no',
+  'welcome.restore.button': 'Restaurar una copia',
+  'welcome.restore.hint': '¿Ya usabas Clara en otro navegador, en Safari o en otro teléfono? Importa aquí la copia que exportaste.',
+  'welcome.restore.previewTitle': 'Copia lista para restaurar',
+  'welcome.restore.previewText': 'Copia del {date} · movimientos: {movements} · cuentas: {accounts}. Nada se guarda hasta que pulses «Restaurar».',
+  'welcome.restore.demo': 'Es una copia de los datos de demostración.',
+  'welcome.restore.confirm': 'Restaurar',
 } as const

@@ -2874,4 +2874,10 @@ export const fr: Record<keyof typeof es, string> = {
   'safety.reminder': 'Clara continuera à vous rappeler de faire une nouvelle copie (fréquence : Réglages › Sauvegardes).',
   'safety.done': 'Terminé',
   'safety.later': 'Pas maintenant',
+  'welcome.restore.button': 'Restaurer une copie',
+  'welcome.restore.hint': 'Vous utilisiez déjà Clara dans un autre navigateur, dans Safari ou sur un autre téléphone ? Importez ici la copie que vous avez exportée.',
+  'welcome.restore.previewTitle': 'Copie prête à être restaurée',
+  'welcome.restore.previewText': 'Copie du {date} · opérations : {movements} · comptes : {accounts}. Rien n’est enregistré tant que vous n’appuyez pas sur « Restaurer ».',
+  'welcome.restore.demo': 'C’est une copie des données de démonstration.',
+  'welcome.restore.confirm': 'Restaurer',
 }

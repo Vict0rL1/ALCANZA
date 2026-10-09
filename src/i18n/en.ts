@@ -2876,4 +2876,10 @@ export const en: Record<keyof typeof es, string> = {
   'safety.reminder': 'Clara will keep reminding you to make a new backup (how often: Settings › Backups).',
   'safety.done': 'Done',
   'safety.later': 'Not now',
+  'welcome.restore.button': 'Restore a backup',
+  'welcome.restore.hint': 'Already used Clara in another browser, in Safari or on another phone? Import the backup you exported here.',
+  'welcome.restore.previewTitle': 'Backup ready to restore',
+  'welcome.restore.previewText': 'Backup from {date} · transactions: {movements} · accounts: {accounts}. Nothing is saved until you tap «Restore».',
+  'welcome.restore.demo': 'This is a backup of the demo data.',
+  'welcome.restore.confirm': 'Restore',
 }

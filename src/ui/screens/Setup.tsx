@@ -24,6 +24,7 @@ import { Alert, CalcRow, Card } from '../components/common'
 import { MoneyField, Segmented, SelectField, TextField } from '../components/fields'
 import { moneyErrorMessage } from '../moneyText'
 import { Icon } from '../components/Icon'
+import { WelcomeRestore } from './setup/WelcomeRestore'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { createFormatter } from '../format'
 import { frequencyLabel, issueMessage } from '../labels'
@@ -253,6 +254,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
           </div>
           <p className="note">{t('setup.welcome.demoNote')}</p>
           <p className="note">{t('setup.welcome.guestNote')}</p>
+          <WelcomeRestore fmt={fmt} timeZone={timeZone} />
         </Card>
       )}
 
