@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openExplain, nav, openAddSheet, openApp } from './helpers'
+import { go, openExplain, nav, openAddSheet, openApp } from './helpers'
 
 /**
  * La prueba manual de `docs/MANUAL-TEST.md`, paso a paso y con las mismas cifras, para que el
@@ -226,4 +226,24 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   await page.getByRole('link', { name: 'Descubrir Pro' }).click()
   await expect(page.locator('#page-title')).toBeVisible()
   await expect(page.getByRole('button', { name: /Suscrib|Comprar|Restaurar compras/ })).toHaveCount(0)
+
+  // K1–K2. Asistente: tres líneas pegadas son tres filas; «rent 1,450» es un solo importe.
+  await go(page, '/asistente')
+  await page.getByLabel('Texto').fill('café 4.50\nuber 12\nsupermercado 45.20')
+  await page.getByRole('button', { name: 'Analizar' }).click()
+  const rows = page.getByTestId('assistant-preview').locator('.assistant__line')
+  await expect(rows).toHaveCount(3)
+  await expect(rows.nth(2).getByLabel('Importe')).toHaveValue('45.20')
+  await page.getByLabel('Texto').fill('rent 1,450')
+  await page.getByRole('button', { name: 'Analizar' }).click()
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first().getByLabel('Importe')).toHaveValue('1450.00')
+
+  // K3. El aviso de Ajustes llega en el idioma nuevo.
+  await go(page, '/ajustes/formato')
+  await page.getByTestId('language-chips').getByRole('button', { name: /Français/ }).click()
+  await expect(page.getByText('Réglage enregistré')).toBeVisible()
+  await page.getByTestId('language-chips').getByRole('button', { name: /Español/ }).click()
+  await expect(page.getByText('Ajuste guardado')).toBeVisible()
+
 })

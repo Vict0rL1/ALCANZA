@@ -126,6 +126,15 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
   service yet.
 - [ ] **H2.** In Ajustes, tap the row **Descubrir Pro** → no price and no «Suscribirse» or «Comprar» button.
 
+## K. Round 3 checks
+
+- [ ] **K1.** **+** → **Escribir o dictar**. Paste three lines (`café 4.50` ⏎ `uber 12` ⏎
+  `supermercado 45.20`) and tap **Analizar** → **three rows** with 4.50, 12.00 and 45.20. The box
+  grows with the text; **Ctrl+Enter** also analyzes.
+- [ ] **K2.** Replace the text with `rent 1,450` → **one row of 1,450.00** (not 1 + 450). Go back
+  without registering.
+- [ ] **K3.** **Ajustes** → **Formato** → **Français** → the toast reads **«Réglage enregistré»** (in
+  French, not Spanish). Choose **Español** again → «Ajuste guardado».
 ---
 
 ## I. Things this test found

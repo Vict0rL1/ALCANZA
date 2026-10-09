@@ -188,6 +188,21 @@ export async function setupFirstUse(page: Page) {
   if ((await skip.count()) > 0) await skip.click()
 }
 
+/**
+ * D5: elige una categoría en el selector (campo → hoja → opción). `field` es el botón del campo
+ * (p. ej. `page.getByLabel('Categoría', { exact: true })`).
+ */
+export async function pickCategory(page: Page, field: Locator, option: string | RegExp) {
+  await field.click()
+  const picker = page.getByTestId('category-picker')
+  await picker.waitFor()
+  await picker.getByRole('option', { name: option }).first().click()
+  // En modo múltiple (filtros, límites) la hoja sigue abierta hasta «Listo».
+  const done = page.getByRole('dialog').filter({ has: picker }).getByRole('button', { name: 'Listo' })
+  if ((await done.count()) > 0) await done.click()
+  await picker.waitFor({ state: 'hidden' })
+}
+
 /** Abre o cierra «¿Cómo se calculó?» del héroe (en pantallas estrechas el texto visible es «¿Cómo?», G2). */
 export async function openExplain(page: Page) {
   await page.locator('.hero .explain > summary').first().click()
