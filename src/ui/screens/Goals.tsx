@@ -21,7 +21,7 @@ import { useFormat } from '../format'
 import { fieldError, issueMessage, otherIssues } from '../labels'
 import { href, type Route, useNavigateIfStillHere } from '../router'
 import { PlannedExpenseCard, PlannedExpenseForm } from './PlannedExpenses'
-import { ColorPicker, IconPicker } from './Categories'
+import { ColorPicker, IconPicker } from '../components/categoryPickers'
 
 export function Goals() {
   const { t, tn } = useT()

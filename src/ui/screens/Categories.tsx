@@ -4,7 +4,7 @@
  * Las categorías de Clara se editan mediante preferencias; nada se borra.
  */
 import { useMemo, useState } from 'react'
-import { CATEGORY_COLOR_LIST, resolveCategories, resolveGroups, SYSTEM_GROUP_IDS } from '../../domain/categories'
+import { resolveCategories, resolveGroups, SYSTEM_GROUP_IDS } from '../../domain/categories'
 import { categoryUsage, deleteCategoryGroup, moveCategory, saveCategoryGroup, saveCategoryV2, setCategoryArchivedV2 } from '../../domain/categoryOps'
 import { newId } from '../../domain/ids'
 import type { Category, CategoryColor, CategoryGroup } from '../../domain/types'
@@ -15,11 +15,11 @@ import { useData } from '../../state/store'
 import { normalizeText } from '../../domain/rules'
 import { CategoryChip, PrimaryButton, SearchBar, SecondaryButton, TextButton, Toggle } from '../components/base'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { ColorPicker, IconPicker } from '../components/categoryPickers'
 import { Alert, Badge, Card, PageHeader } from '../components/common'
 import { ConfirmDialog, Dialog } from '../components/Dialog'
 import { SelectField, Segmented, TextField } from '../components/fields'
 import { Icon } from '../components/Icon'
-import { CATEGORY_ICON_NAMES } from '../components/iconPaths'
 import { useToast } from '../components/toastContext'
 import { useFormat } from '../format'
 import { href } from '../router'
@@ -193,37 +193,6 @@ export function Categories() {
           <p>{t('categories.deleteGroupText')}</p>
         </ConfirmDialog>
       )}
-    </div>
-  )
-}
-
-export function IconPicker({ value, onChange, label }: { value: string; onChange: (icon: string) => void; label: string }) {
-  return (
-    <div className="field">
-      <p className="field__label">{label}</p>
-      <div className="icon-picker" role="group" aria-label={label}>
-        {CATEGORY_ICON_NAMES.map((name) => (
-          <button key={name} type="button" className="icon-picker__item" aria-pressed={value === name} aria-label={name} title={name} onClick={() => onChange(name)}>
-            <Icon name={name} size={20} />
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export function ColorPicker({ value, onChange, label }: { value: CategoryColor; onChange: (c: CategoryColor) => void; label: string }) {
-  const { t } = useT()
-  return (
-    <div className="field">
-      <p className="field__label">{label}</p>
-      <div className="color-picker" role="group" aria-label={label}>
-        {CATEGORY_COLOR_LIST.map((c) => (
-          <button key={c} type="button" className={`color-picker__item cat-dot--${c}`} aria-pressed={value === c} aria-label={t(`categories.colorName.${c}` as MessageKey)} title={t(`categories.colorName.${c}` as MessageKey)} onClick={() => onChange(c)}>
-            <span className="color-picker__dot" aria-hidden="true" />
-          </button>
-        ))}
-      </div>
     </div>
   )
 }

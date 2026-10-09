@@ -16,7 +16,7 @@ import { useToast } from '../../components/toastContext'
 import { useFormat } from '../../format'
 import { fieldError } from '../../labels'
 import { href, withQuery } from '../../router'
-import { ColorPicker } from '../Categories'
+import { ColorPicker } from '../../components/categoryPickers'
 
 export function TagsSection() {
   const { t, tn } = useT()

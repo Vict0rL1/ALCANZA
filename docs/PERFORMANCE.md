@@ -27,6 +27,13 @@ Resultados en bruto:
 - `docs/perf/results-intermedio.json`: IndexedDB y funciones nuevas, antes de optimizar.
 - `docs/perf/results-despues.json`: versión final.
 
+## Prueba e2e con 10 000 movimientos (E5)
+
+`tests/e2e/performance-10k.spec.ts` siembra 10 000 movimientos sintéticos en IndexedDB, recarga y
+mide cuándo aparece la cifra principal: 310 ms (Pixel 7), 275 ms (320 px) y 301 ms (escritorio) en
+esta máquina; el límite de la prueba es 500 ms. Movimientos muestra una página (≤ 80 filas en el DOM),
+que crece solo con «Ver más» (decisión 65), nunca al desplazarse.
+
 ## Resultados (ms, mediana)
 
 | Operación | 1k antes | 1k después | 10k antes | 10k después | 50k antes | 50k intermedio | 50k después |
