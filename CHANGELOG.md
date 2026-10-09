@@ -6,6 +6,39 @@ Todos los cambios importantes de Clara se anotan aquí. El formato sigue
 
 ## [Sin publicar]
 
+### Novedades
+
+- **Copia de seguridad por la hoja Compartir**: en el iPhone (y donde el navegador lo permita),
+  «Exportar copia» abre Compartir para **Guardar en Archivos**; cancelar no es un error.
+- **Ajustes › Instalar Clara**: explica solo lo que ese navegador permite (botón de instalar, los pasos
+  de Safari o «ya está instalada») y avisa de que la app instalada del iPhone empieza vacía.
+- **«Protege tus datos»** en Inicio: pide al navegador que no borre los datos y propone la primera
+  copia.
+- **Restaurar una copia desde la bienvenida**, también cifrada: para estrenar otro dispositivo o la
+  app instalada sin inventar una configuración.
+- **Enlaces de Atajos de iPhone**: `#/movimientos/nuevo?importe=12,50&comercio=Starbucks&source=shortcut`
+  rellena el formulario y sugiere la categoría; nunca guarda solo. Origen «Atajo» en los filtros.
+- **«Pegar del atajo»** en la hoja «+»: lee lo que copió un atajo (tras un toque) y abre la vista
+  previa del asistente. Ajustes › **Atajos** explica los dos caminos (portapapeles y enlace) y copia las plantillas.
+- **Ajustes › Enviar comentarios**: un correo con datos técnicos (versión, navegador, pantalla) que
+  ves entero antes de enviarlo.
+- **Ajustes › Acerca de › Informe de errores**: los últimos 20 fallos en este dispositivo, sin
+  importes, notas, comercios ni nombres, con «Copiar informe» y «Borrar informe».
+
+### Cambios
+
+- El CSV del historial tiene una columna final **«Origen»** (Manual, Asistente, Importado, Programado, Favorito o Atajo).
+- La versión se publica en Cloudflare Pages desde GitHub Actions: cada PR pasa comprobaciones,
+  pruebas en tres tamaños y un presupuesto de tamaño, y obtiene un despliegue de prueba con pruebas
+  rápidas (`docs/RELEASE.md`). Volver atrás solo si el esquema de datos es el mismo (`docs/ROLLBACK.md`).
+
+### Correcciones
+
+- Sin conexión: la app abre aunque el servidor añada `Vary: Origin` a sus archivos.
+- Fichas de categoría de la configuración repartidas según el ancho real: ninguna palabra se parte ni se
+  sale; sin guiones automáticos en las pestañas. En francés, «Aides publiques».
+- Contraste suficiente en el botón secundario de la guía al pasar el puntero.
+
 ## [1.0.0-beta.1] — primera beta pública
 
 Clara es un prototipo local de finanzas personales: tus datos viven solo en este navegador, sin

@@ -86,6 +86,27 @@ Hecho:
 
 ---
 
+## Fuera del alcance de la beta pública (1.0.0-beta)
+
+La beta es la app local tal cual: los datos solo en el dispositivo de cada persona. Lo siguiente **no
+existe en la beta y no se simula** (ningún botón, texto ni pantalla lo finge):
+
+| Fuera del alcance | Qué hay en su lugar |
+|---|---|
+| Cuentas de usuario y sincronización | Copia de seguridad en un archivo y restaurar en otro dispositivo (`docs/RESTORE.md`). La pantalla «Cuenta» dice «Modo invitado» y no ofrece iniciar sesión. |
+| Servidor propio (backend) | Ninguno: Cloudflare Pages solo sirve los archivos de la app. |
+| IA remota | El asistente analiza el texto en el dispositivo con reglas fijas. El proveedor remoto existe en el código, pero la compilación de la beta no lo configura (`VITE_AI_ENDPOINT` vacío). |
+| Compras de Pro | La pantalla Pro explica qué incluiría; no hay botones de compra ni cobros. |
+| Notificaciones push | Avisos locales que Clara calcula mientras está abierta (Ajustes › Notificaciones), recordatorios en Inicio y la Bandeja de pendientes. Nada llega con la app cerrada. |
+| Widgets | — |
+| App nativa (envoltorio para App Store / Google Play) | La PWA instalada desde el navegador (Ajustes › Instalar Clara). |
+| Conexión con bancos | Importación CSV que valida todo el archivo y no sale del dispositivo. |
+
+Cada una requiere decidir proveedor, costos, privacidad y cumplimiento legal (ver D y las fases
+siguientes) y consultarlo antes de contratar nada.
+
+---
+
 ## Trabajo pendiente ordenado
 
 ### A. Errores que bloquean una prueba controlada
@@ -103,7 +124,7 @@ flujo bloqueado, pasa a esta sección.
 | Revisión con lector de pantalla real (VoiceOver, TalkBack, NVDA) | axe solo detecta parte de los problemas. |
 | Resultados de la prueba con usuarios corregidos | En especial cualquier mala interpretación de «Puedes gastar» (gravedad 4). |
 | Copias de seguridad automáticas fuera del navegador | Hoy dependen de que la persona exporte. Requiere decidir un destino (archivo local programado, nube) → ver D. |
-| Publicar en https con un dominio propio | Necesario para usar sin conexión e instalar en el teléfono fuera de la red local. Requiere decidir alojamiento (ver D). |
+| Publicar en https | Preparado en Cloudflare Pages (plan gratuito, `docs/RELEASE.md` › B); falta que Victor cree el proyecto y los dos secretos. Un dominio propio sigue sin decidir. |
 | Política de privacidad y términos | Aunque los datos no salgan del dispositivo, hay que explicarlo por escrito. |
 | Medir en teléfonos reales con 10k–50k movimientos | `docs/PERFORMANCE.md` solo mide Chromium de escritorio; no se extrapola. |
 
@@ -121,7 +142,7 @@ flujo bloqueado, pasa a esta sección.
 
 | Integración | Qué hay que decidir |
 |---|---|
-| Alojamiento https | Proveedor, dominio y costo. |
+| Alojamiento https | Decidido para la beta: Cloudflare Pages, plan gratuito (DECISIONS 112–116). Queda decidir un dominio propio y su costo. |
 | Cuentas de usuario y sincronización (Fase 2) | Proveedor de autenticación, base de datos, costos, privacidad y cumplimiento legal. Requiere *tombstones* (los eliminados definitivamente también se registran). |
 | Tasas de cambio automáticas | Proveedor de tasas con histórico (puede tener costo o límites). |
 | Conexión bancaria, OCR, voz, notificaciones push | Ver Fases 3–5. Ninguna está implementada ni simulada. |

@@ -102,6 +102,39 @@ Sin ella, el correo se abre sin destinatario y Clara lo dice.
 3. Pega la tabla en el PR o en un issue: con eso se decide si queda el enlace o el paso por el
    portapapeles (L3).
 
+### E. Prueba en tus dispositivos (unos 20 minutos, con la dirección pública)
+
+Sigue `docs/DEVICE-TEST.md` en el iPhone (pestaña de Safari y app instalada), en un Android con la app
+instalada y en la computadora. Pega la tabla en el primer aviso semanal (F).
+
+### F. Semanas 1–3: usar Clara de verdad
+
+La beta sirve si Clara se usa con dinero real todos los días. Durante tres semanas:
+
+1. **Cada día: registra todos tus gastos reales en Clara** (la app instalada en tu teléfono), el mismo
+   día. Si un gasto se te pasó, regístralo igualmente con su fecha. Haz una copia (Ajustes › Copias de
+   seguridad › Exportar copia › Guardar en Archivos) al menos una vez por semana.
+2. **Cada semana** (por ejemplo, el domingo): GitHub › **Issues** › **New issue** › **Beta: comentario
+   semanal**. Rellena dispositivo, modo, qué hiciste, qué esperabas, qué pasó y pega el informe de
+   errores (Ajustes › Acerca de › Informe de errores › **Copiar informe**). Después pulsa **Borrar
+   informe** para que la semana siguiente empiece vacía. Aunque todo haya ido bien, abre el aviso.
+3. **Cada fallo concreto**, en cuanto lo veas: **New issue** › **Error** (pasos, qué esperabas, qué
+   pasó, el informe de errores). Si el fallo cambió o perdió datos, dilo arriba del todo.
+4. **Cada despliegue a producción** lleva su etiqueta `v1.0.0-beta.N` (N = 2, 3, …):
+   1. En el PR que se va a fusionar en `main`: sube la versión con
+      `npm version 1.0.0-beta.N --no-git-tag-version` (cambia `package.json` y `package-lock.json`) y en
+      `CHANGELOG.md` convierte «[Sin publicar]» en «[1.0.0-beta.N] — AAAA-MM-DD» con un «[Sin publicar]»
+      vacío encima. Fusiona.
+   2. Espera a que `deploy-production` termine en verde (GitHub › **Actions**).
+   3. GitHub › **Releases** › **Draft a new release** › **Choose a tag** › escribe `v1.0.0-beta.N` ›
+      **Create new tag on publish** · **Target**: `main` · título `Clara 1.0.0-beta.N` · pega la sección
+      del CHANGELOG · marca **Set as a pre-release** › **Publish release**.
+      (En la terminal: `git tag v1.0.0-beta.N <commit de main> && git push origin v1.0.0-beta.N`.)
+   4. Comprueba que Ajustes › Acerca de en la dirección pública muestra `1.0.0-beta.N` y la compilación
+      de ese commit. La etiqueta es la que usa `docs/ROLLBACK.md` para saber a qué volver.
+5. **Al final de la semana 3**: repasa los avisos, decide qué se arregla antes de invitar a nadie más y
+   anótalo en `docs/ROADMAP.md`.
+
 ---
 
 ## Cómo funciona

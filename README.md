@@ -22,8 +22,9 @@ variables, pero útil para cualquiera.
 
 > **Estado: prototipo local.** Funciona solo en tu navegador. No hay cuentas de usuario,
 > ni servidor, ni conexión con bancos, ni IA. Los datos se guardan en este navegador
-> (`localStorage`): **si borras los datos del navegador se pierden** y **todavía no se
-> sincronizan entre dispositivos**. Usa *Ajustes → Copia de seguridad* para exportarlos.
+> (IndexedDB; `localStorage` si no hay): **si borras los datos del navegador se pierden** y
+> **no se sincronizan entre dispositivos**. Usa *Ajustes → Copias de seguridad* para exportarlos
+> y [`docs/RESTORE.md`](docs/RESTORE.md) para llevarlos a otro dispositivo.
 
 ---
 
@@ -346,6 +347,9 @@ Clara se publica en Cloudflare Pages desde GitHub Actions; no hay que compilar n
    (proteger `main`, cuenta y proyecto de Cloudflare, token y secretos).
 2. Cada PR recibe una vista previa con su dirección en un comentario, tras pasar todas las pruebas.
 3. Al fusionar en `main`, CI publica en producción y comprueba lo publicado con las pruebas rápidas.
+4. Durante la beta: la prueba en dispositivos reales ([`docs/DEVICE-TEST.md`](docs/DEVICE-TEST.md)),
+   un aviso semanal con la plantilla «Beta: comentario semanal», un aviso «Error» por cada fallo y una
+   etiqueta `v1.0.0-beta.N` por cada despliegue a producción (`docs/RELEASE.md` › F).
 
 Volver a una versión anterior tiene una regla: solo con el mismo `SCHEMA_VERSION` (los datos del
 navegador pueden haber cambiado de formato). Ver [`docs/ROLLBACK.md`](docs/ROLLBACK.md).

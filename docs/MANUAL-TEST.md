@@ -155,6 +155,32 @@ To test on your phone, see «Probarla en tu celular» in `README.md`.
   focus is back on **Filtros**. With «Reduce motion» on in the phone settings, sheets and messages
   appear without sliding.
 
+## L. Round 4 checks (beta)
+
+The phone-only parts (Share sheet, installing, the iPhone «Pegar» bubble) are in
+`docs/DEVICE-TEST.md`; here you check what a computer shows.
+
+- [ ] **L1.** **Ajustes** → **Instalar Clara** → the card explains only what this browser can do: on
+  Chrome or Edge an **Instalar Clara** button (or «menú ⋮ › Instalar Clara»), on an iPhone the
+  **Agregar a inicio** steps with a warning that the installed app starts empty, and «ya está
+  instalada» inside the installed app. No button that does nothing.
+- [ ] **L2.** **Ajustes** → **Copias de seguridad** → **Exportar copia** → on a computer the file
+  downloads as `clara-copia-AAAA-MM-DD-HH-MM.json` (date and time of the copy, in UTC). On a phone the
+  **Share** sheet opens instead (pick **Guardar en Archivos**); cancelling it saves nothing and shows no
+  error.
+- [ ] **L3.** Paste this address in the bar (change the port if yours differs):
+  `http://localhost:4173/#/movimientos/nuevo?importe=12,50&comercio=Starbucks` → the expense form
+  opens with **Importe 12.50**, and under **Más detalles** **Comercio: Starbucks** and **Categoría:
+  Restaurantes y café** («Categoría sugerida por el comercio «Starbucks»»). Nothing is saved: go back
+  with **‹** and **Inicio** still shows **$349.50**.
+- [ ] **L4.** **Ajustes** → **Acerca de** → **Informe de errores** says «Ningún error registrado en este
+  dispositivo.» (if it lists something, tap **Copiar informe** and paste it in your notes: there are no
+  amounts or names in it).
+- [ ] **L5.** *(last: it locks this window's data)* Newer-data screen. In this **private window**, open
+  the developer tools › **Console**, paste the line from `docs/DEVICE-TEST.md` §12 and press Enter, then
+  reload → «Estos datos son de una versión más nueva de Clara», only **Recargar la app** and
+  **Descargar una copia de estos datos**, and no «Empezar de nuevo». Close the private window to finish.
+
 ---
 
 ## I. Things this test found

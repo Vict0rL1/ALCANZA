@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { openDetails, go, pickCategory, openExplain, nav, openAddSheet, openApp, storedData } from './helpers'
 
@@ -323,4 +324,39 @@ test('prueba manual: configuración, Inicio, registro, historial, planes, estad�
   }
   await expect(page.getByTestId('filters-sheet')).toBeHidden()
   await expect(page.getByTestId('open-filters')).toBeFocused()
+
+  // L1. Instalar Clara: solo lo que este navegador permite (aquí, Chromium sin aviso de instalación).
+  await go(page, '/ajustes/instalar')
+  await expect(page.getByTestId('install-guide')).toBeVisible()
+  await expect(page.getByTestId('install-guide')).toHaveAttribute('data-mode', /^(prompt|manual|ios|installed)$/)
+
+  // L2. Exportar copia: en la computadora se descarga con fecha y hora (UTC) en el nombre.
+  await go(page, '/ajustes/copia')
+  const [copy] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar copia' }).click()])
+  expect(copy.suggestedFilename()).toMatch(/^clara-copia-2026-09-28-16-\d{2}\.json$/)
+
+  // L3. Enlace con `importe` y `comercio`: rellena el formulario y no guarda nada.
+  const txBefore = (JSON.parse((await storedData(page))!) as { transactions: unknown[] }).transactions.length
+  await go(page, '/movimientos/nuevo?importe=12,50&comercio=Starbucks')
+  await expect(page.getByLabel('Importe', { exact: true })).toHaveValue('12.50')
+  await openDetails(page)
+  await expect(page.getByLabel('Comercio')).toHaveValue('Starbucks')
+  await expect(page.getByLabel('Categoría', { exact: true })).toHaveAttribute('data-value', 'dining')
+  await expect(page.getByText('Categoría sugerida por el comercio «Starbucks»')).toBeVisible()
+  await go(page, '/')
+  await expect(page.getByTestId('available')).toHaveText('$349.50')
+  expect((JSON.parse((await storedData(page))!) as { transactions: unknown[] }).transactions.length).toBe(txBefore)
+
+  // L4. Informe de errores: nada falló en todo el recorrido.
+  await go(page, '/ajustes/acerca')
+  await expect(page.getByTestId('error-report-empty')).toHaveText('Ningún error registrado en este dispositivo.')
+
+  // L5. Pantalla de datos más nuevos con la línea de docs/DEVICE-TEST.md §12 (lo último: bloquea los datos).
+  const snippet = /```js\n(.+)\n\s*```/.exec(readFileSync('docs/DEVICE-TEST.md', 'utf8'))![1]!.trim()
+  await page.evaluate(snippet)
+  await expect.poll(async () => (JSON.parse((await storedData(page))!) as { schemaVersion: number }).schemaVersion).toBe(99)
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('Estos datos son de una versión más nueva de Clara')
+  await expect(page.locator('main button')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: 'Empezar de nuevo' })).toHaveCount(0)
 })
