@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -77,8 +78,25 @@ function contentSecurityPolicy(aiEndpoint?: string): Plugin {
   }
 }
 
+/** Versión de package.json (H1). */
+const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
+
+/** Hash corto del commit compilado: el de GitHub Actions o el de git local; «dev» si no hay git. */
+function buildHash(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __BUILD_HASH__: JSON.stringify(buildHash()),
+  },
   plugins: [react(), serviceWorker(), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_ENDPOINT)],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).

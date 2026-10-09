@@ -7,7 +7,9 @@ import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '
 import { useToast } from './components/toastContext'
 import { useFormat } from './format'
 
-export const APP_VERSION = '0.1.0'
+import { APP_VERSION } from './version'
+
+export { APP_VERSION }
 
 /** Pide al navegador descargar un archivo de texto. */
 export function downloadText(filename: string, text: string, type = 'application/json') {

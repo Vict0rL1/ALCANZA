@@ -16,6 +16,7 @@ import { categoriesForKind } from '../../domain/categories'
 import { localDateInTimeZone } from '../../domain/dates'
 import { MAX_BACKUP_BYTES, parseBackup, performExport, type ImportIssue } from '../../storage/backup'
 import { APP_VERSION, downloadText, useExportBackup, useVerifyBackup } from '../backupActions'
+import { BUILD_HASH } from '../version'
 import { IndexedDbRepository } from '../../storage/indexedDbRepository'
 import { nextFrame, ReadCancelled, readFileWithProgress } from '../readFile'
 import { usePwaState } from '../../pwa/register'
@@ -59,7 +60,7 @@ import { CategoryChip } from '../components/base'
 
 /** Enlace de contacto solo si se configuró al compilar; sin dirección real no se muestra un botón que no funciona. */
 const CONTACT_URL = typeof import.meta.env.VITE_CONTACT_URL === 'string' && /^(https?:|mailto:)/.test(import.meta.env.VITE_CONTACT_URL) ? import.meta.env.VITE_CONTACT_URL : null
-const BUILD_ID = import.meta.env.MODE === 'production' ? (import.meta.env.VITE_BUILD_ID ?? 'local') : import.meta.env.MODE
+
 
 const LANGUAGE_FLAGS: Record<string, string> = { es: '🇪🇸', en: '🇬🇧', pt: '🇧🇷', fr: '🇫🇷' }
 
@@ -688,7 +689,7 @@ export function Settings({ route }: { route: Route }) {
           {t('settings.about.title')}
         </h2>
         <p>{t('settings.about.text', { version: APP_VERSION })}</p>
-        <p className="item__meta">{t('settings.about.build', { build: BUILD_ID })}</p>
+        <p className="item__meta" data-testid="about-build">{t('settings.about.build', { build: BUILD_HASH })}</p>
         {CONTACT_URL ? (
           <a className="btn btn--secondary btn--small" href={CONTACT_URL} target="_blank" rel="noreferrer">
             {t('settings.about.contact')}
