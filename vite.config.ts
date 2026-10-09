@@ -72,8 +72,14 @@ function contentSecurityPolicy(aiEndpoint?: string): Plugin {
   }
 }
 
-/** Versión de package.json (H1). */
-const APP_VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
+/**
+ * Versión de package.json (H1). `CLARA_APP_VERSION` solo la usa la prueba de actualización real (J4)
+ * para compilar «otra versión» sin tocar package.json.
+ */
+const APP_VERSION =
+  process.env.CLARA_APP_VERSION && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(process.env.CLARA_APP_VERSION)
+    ? process.env.CLARA_APP_VERSION
+    : (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 /**
  * Hash corto del commit compilado: el que indica CI (`CLARA_BUILD_SHA`, el commit de la rama del PR),
