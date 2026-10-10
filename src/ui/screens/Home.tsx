@@ -756,7 +756,20 @@ export function Home() {
                     )}
                     <CalcRow op={budget.periodBalance.carryOver ? '+' : undefined} label={t('explain.period.income')} value={fmt.money(budget.periodBalance.incomeMinor)} />
                     <CalcRow op="−" label={t('explain.period.expenses')} value={fmt.money(budget.periodBalance.expensesMinor)} />
-                    <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                    {budget.periodBalance.outsideMinor !== 0 && (
+                      <CalcRow op={budget.periodBalance.outsideMinor > 0 ? '+' : '−'} label={t('explain.period.outside')} value={fmt.money(Math.abs(budget.periodBalance.outsideMinor))} />
+                    )}
+                    {budget.periodBalance.limitedByBalance ? (
+                      <>
+                        {/* QA-03: sin arrastre, la asignación del periodo supera el saldo real → la base es el saldo. */}
+                        <CalcRow op="=" label={t('explain.period.net')} value={fmt.money(budget.periodBalance.poolNetMinor)} />
+                        <CalcRow label={t('explain.period.liquidity')} value={fmt.money(budget.periodBalance.balanceMinor)} />
+                        <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                        <p className="calc__detail" data-testid="limited-by-balance">{t('explain.period.limitedByBalance')}</p>
+                      </>
+                    ) : (
+                      <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                    )}
                   </>
                 )}
                 <CalcRow label={t('explain.balance')} value={fmt.money(budget.spendableMinor)} />

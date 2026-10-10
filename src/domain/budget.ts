@@ -68,7 +68,7 @@ export interface BudgetResult {
   period: Period | null
   /** Saldo del periodo (arrastre, ingresos y gastos del periodo); null sin periodo de calendario. */
   periodBalance: PeriodBalance | null
-  /** Base del disponible: saldo consolidado (con arrastre) o neto del periodo (sin arrastre). */
+  /** Base del disponible: saldo real (con arrastre) o el menor entre el neto del periodo y el saldo real (sin arrastre). */
   baseMinor: number
 }
 
@@ -101,7 +101,8 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   const period = periodSettings && periodSettings.type !== 'untilIncome' ? getPeriod(periodSettings, today) : null
   const horizon: Horizon | null = period ? { endDate: period.end, days: period.daysLeft, source: 'period' } : found.horizon
   const pBalance = period ? periodBalance(data, period, data.settings.carryOverBalance !== false) : null
-  const baseMinor = pBalance ? pBalance.availableMinor : spendableMinor
+  // QA-03: sin arrastre la base nunca supera el saldo real (ver `periodBalance.spendableBaseMinor`).
+  const baseMinor = pBalance ? pBalance.spendableBaseMinor : spendableMinor
 
   // Sin horizonte se reservan, como mínimo, los pagos de los próximos 30 días.
   const reserveUntil = horizon ? horizon.endDate : addDays(today, 30)

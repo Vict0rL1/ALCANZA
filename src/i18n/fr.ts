@@ -2124,7 +2124,7 @@ export const fr: Record<keyof typeof es, string> = {
   'settings.period.hint': 'Change la façon dont l’Accueil regroupe les chiffres. Vos données ne changent pas.',
   'settings.period.weekStart': 'La semaine commence le',
   'settings.period.carryOver': 'Reporter le solde d’une période à l’autre',
-  'settings.period.carryOverHint': 'Activé : ce que vous n’avez pas dépensé reste disponible. Désactivé : chaque période commence avec ses seuls revenus.',
+  'settings.period.carryOverHint': 'Activé : ce que vous n’avez pas dépensé reste disponible. Désactivé : chaque période commence avec ses seules entrées, sans jamais dépasser le solde réel de vos comptes.',
   'settings.period.customStart': 'Début de la période personnalisée',
   'settings.period.customEnd': 'Fin de la période personnalisée',
   'tour.home.1.title': 'Votre chiffre principal',
@@ -2941,4 +2941,8 @@ export const fr: Record<keyof typeof es, string> = {
   'settings.shortcuts.indexTitle': 'Raccourcis',
   'inbox.title.autoConfirmOverstated': '« {name} » a été enregistré en entier après un paiement partiel',
   'inbox.why.autoConfirmOverstated': 'Le {other}, vous avez enregistré un acompte et le {date} la confirmation automatique a ajouté le montant complet au lieu du reste : il y a {amount} en trop. Corrigez le montant du mouvement signalé (ou supprimez-le). Rien ne change tout seul.',
+  'explain.period.net': 'Net de la période sur les comptes du budget',
+  'explain.period.outside': 'Argent entré ou sorti hors des comptes du budget (épargne, comptes exclus)',
+  'explain.period.liquidity': 'Solde réel d’aujourd’hui sur les comptes du budget',
+  'explain.period.limitedByBalance': 'Sans report, la base est le plus petit entre le net de la période et le solde réel : on ne vous suggère jamais de dépenser de l’argent qui n’est pas sur vos comptes (par exemple si la période a commencé avec une dette ou un solde négatif).',
 }

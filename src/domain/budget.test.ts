@@ -398,3 +398,70 @@ describe('periodo de calendario (§6): mes con y sin arrastre', () => {
     expect(legacy.baseMinor).toBe(legacy.spendableMinor)
   })
 })
+
+describe('sin arrastre, el disponible nunca supera el saldo real (QA-03)', () => {
+  const month = (d: ReturnType<typeof baseData>, carryOverBalance: boolean) => ({ ...d, settings: { ...d.settings, budgetPeriod: { type: 'month' as const, weekStartsOn: 1 as const }, carryOverBalance } })
+  const bank = (amountMinor: number, id = 'main', includeInBudget = true) => account({ id, includeInBudget, anchor: { amountMinor, date: ctx.today, setAt: EARLIER } })
+
+  it('deuda previa −500 e ingreso 1000: saldo 500 → la base es 500, no 1000; con arrastre también 500', () => {
+    const d = baseData({ accounts: [bank(-50000)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000 })] })
+    const off = computeBudget(month(d, false), ctx.today)
+    expect(off.spendableMinor).toBe(50000)
+    expect(off.periodBalance).toMatchObject({ poolNetMinor: 100000, balanceMinor: 50000, spendableBaseMinor: 50000, limitedByBalance: true, outsideMinor: 0 })
+    expect(off.baseMinor).toBe(50000)
+    expect(off.availableMinor).toBe(50000)
+    expect(computeBudget(month(d, true), ctx.today).availableMinor).toBe(50000)
+  })
+
+  it('saldo previo positivo: sin arrastre manda la asignación del periodo (lo que entró menos lo que salió)', () => {
+    const d = baseData({ accounts: [bank(200000)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000 }), tx({ amountMinor: 20000 })] })
+    const off = computeBudget(month(d, false), ctx.today)
+    expect(off.spendableMinor).toBe(280000)
+    expect(off.periodBalance).toMatchObject({ poolNetMinor: 80000, spendableBaseMinor: 80000, limitedByBalance: false, carryOverMinor: 200000 })
+    expect(off.availableMinor).toBe(80000)
+    expect(computeBudget(month(d, true), ctx.today).availableMinor).toBe(280000)
+  })
+
+  it('un ingreso en una cuenta excluida no es dinero del presupuesto: no entra en la asignación y se explica', () => {
+    const d = baseData({ accounts: [bank(100000), bank(0, 'savings', false)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000, accountId: 'savings' })] })
+    const off = computeBudget(month(d, false), ctx.today)
+    expect(off.spendableMinor).toBe(100000)
+    expect(off.periodBalance).toMatchObject({ incomeMinor: 100000, poolNetMinor: 0, outsideMinor: -100000, spendableBaseMinor: 0 })
+    expect(off.availableMinor).toBe(0)
+  })
+
+  it('transferir al ahorro reduce la asignación del periodo y el saldo; el patrimonio no cambia', () => {
+    const d = baseData({ accounts: [bank(100000), bank(0, 'savings', false)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 50000 }), tx({ kind: 'transfer', categoryId: undefined, toAccountId: 'savings', amountMinor: 30000 })] })
+    const off = computeBudget(month(d, false), ctx.today)
+    expect(off.spendableMinor).toBe(120000)
+    expect(off.periodBalance).toMatchObject({ poolNetMinor: 20000, outsideMinor: -30000, spendableBaseMinor: 20000, carryOverMinor: 100000 })
+    expect(off.availableMinor).toBe(20000)
+  })
+
+  it('pagos pendientes y apartados se restan una sola vez de la base limitada; el déficit se ve', () => {
+    const d = baseData({
+      accounts: [bank(-50000)],
+      transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000 })],
+      schedules: [bill('2026-09-30', 20000, { id: 'b' })],
+      goals: [goal({ allocations: [{ id: 'a', amountMinor: 10000, date: ctx.today, createdAt: EARLIER }] })],
+    })
+    const off = computeBudget(month(d, false), ctx.today)
+    expect(off.baseMinor).toBe(50000)
+    expect(off.reservedTotalMinor).toBe(20000)
+    expect(off.goalsReservedMinor).toBe(10000)
+    expect(off.availableMinor).toBe(20000)
+    // Más deuda previa que ingresos: la base es negativa y no se esconde.
+    const deep = baseData({ accounts: [bank(-150000)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000 })] })
+    expect(computeBudget(month(deep, false), ctx.today)).toMatchObject({ baseMinor: -50000, availableMinor: -50000, dailyMinor: 0 })
+  })
+
+  it('cambiar el ajuste de arrastre cambia la base, nunca el saldo ni los movimientos', () => {
+    const d = baseData({ accounts: [bank(-50000)], transactions: [tx({ kind: 'income', categoryId: 'salary', amountMinor: 100000 })] })
+    const on = computeBudget(month(d, true), ctx.today)
+    const off = computeBudget(month(d, false), ctx.today)
+    expect([on.spendableMinor, off.spendableMinor]).toEqual([50000, 50000])
+    expect(on.baseMinor).toBe(50000)
+    expect(off.baseMinor).toBe(50000)
+    expect(d.transactions).toHaveLength(1)
+  })
+})

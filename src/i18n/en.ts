@@ -2126,7 +2126,7 @@ export const en: Record<keyof typeof es, string> = {
   'settings.period.hint': 'Changes how Home groups its figures. Your data doesn’t change.',
   'settings.period.weekStart': 'Week starts on',
   'settings.period.carryOver': 'Carry the balance over between periods',
-  'settings.period.carryOverHint': 'On: what you didn’t spend stays available. Off: each period starts with its income only.',
+  'settings.period.carryOverHint': 'On: what you didn’t spend stays available. Off: each period starts only with what came in during it, never above the actual balance of your accounts.',
   'settings.period.customStart': 'Custom period start',
   'settings.period.customEnd': 'Custom period end',
   'tour.home.1.title': 'Your main figure',
@@ -2943,4 +2943,8 @@ export const en: Record<keyof typeof es, string> = {
   'settings.shortcuts.indexTitle': 'Shortcuts',
   'inbox.title.autoConfirmOverstated': '"{name}" was recorded in full after a partial payment',
   'inbox.why.autoConfirmOverstated': 'On {other} you recorded a partial amount and on {date} automatic confirmation added the full amount instead of the remainder: {amount} too much. Fix the amount of the flagged movement (or delete it). Nothing changes on its own.',
+  'explain.period.net': 'Period net in your budget accounts',
+  'explain.period.outside': 'Money that came in or went out outside your budget accounts (savings, excluded accounts)',
+  'explain.period.liquidity': 'Today’s actual balance in your budget accounts',
+  'explain.period.limitedByBalance': 'Without carry-over, the base is the lower of the period net and the actual balance: you are never told to spend money that isn’t in your accounts (for example, if the period started with debt or a negative balance).',
 }

@@ -2125,7 +2125,7 @@ export const es = {
   'settings.period.hint': 'Cambia cómo se agrupan las cifras de Inicio. Tus datos no cambian.',
   'settings.period.weekStart': 'La semana empieza el',
   'settings.period.carryOver': 'Arrastrar el saldo entre periodos',
-  'settings.period.carryOverHint': 'Activado: lo que no gastaste sigue disponible. Desactivado: cada periodo empieza solo con sus ingresos.',
+  'settings.period.carryOverHint': 'Activado: lo que no gastaste sigue disponible. Desactivado: cada periodo empieza solo con lo que entró en él, sin superar nunca el saldo real de tus cuentas.',
   'settings.period.customStart': 'Inicio del periodo personalizado',
   'settings.period.customEnd': 'Fin del periodo personalizado',
   'tour.home.1.title': 'Tu cifra principal',
@@ -2942,4 +2942,8 @@ export const es = {
   'settings.shortcuts.indexTitle': 'Atajos',
   'inbox.title.autoConfirmOverstated': '«{name}» se registró completo después de un cobro parcial',
   'inbox.why.autoConfirmOverstated': 'El {other} registraste una parte a cuenta y el {date} la confirmación automática añadió el importe completo en vez del resto: hay {amount} de más. Corrige el importe del movimiento marcado (o elimínalo). Nada se cambia solo.',
+  'explain.period.net': 'Neto del periodo en las cuentas del presupuesto',
+  'explain.period.outside': 'Dinero que entró o salió fuera de las cuentas del presupuesto (ahorro, cuentas excluidas)',
+  'explain.period.liquidity': 'Saldo real de hoy en las cuentas del presupuesto',
+  'explain.period.limitedByBalance': 'Sin arrastre, la base es el menor entre el neto del periodo y el saldo real: nunca se sugiere gastar dinero que no está en tus cuentas (por ejemplo, si el periodo empezó con deuda o saldo negativo).',
 } as const

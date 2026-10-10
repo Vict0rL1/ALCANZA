@@ -2124,7 +2124,7 @@ export const pt: Record<keyof typeof es, string> = {
   'settings.period.hint': 'Muda como o Início agrupa os números. Seus dados não mudam.',
   'settings.period.weekStart': 'A semana começa na',
   'settings.period.carryOver': 'Arrastar o saldo entre períodos',
-  'settings.period.carryOverHint': 'Ativado: o que você não gastou continua disponível. Desativado: cada período começa só com suas receitas.',
+  'settings.period.carryOverHint': 'Ativado: o que você não gastou continua disponível. Desativado: cada período começa só com o que entrou nele, sem nunca ultrapassar o saldo real das suas contas.',
   'settings.period.customStart': 'Início do período personalizado',
   'settings.period.customEnd': 'Fim do período personalizado',
   'tour.home.1.title': 'Seu número principal',
@@ -2941,4 +2941,8 @@ export const pt: Record<keyof typeof es, string> = {
   'settings.shortcuts.indexTitle': 'Atalhos',
   'inbox.title.autoConfirmOverstated': '“{name}” foi registrado por inteiro depois de um recebimento parcial',
   'inbox.why.autoConfirmOverstated': 'Em {other} você registrou uma parte e em {date} a confirmação automática adicionou o valor completo em vez do restante: há {amount} a mais. Corrija o valor do movimento marcado (ou exclua-o). Nada muda sozinho.',
+  'explain.period.net': 'Líquido do período nas contas do orçamento',
+  'explain.period.outside': 'Dinheiro que entrou ou saiu fora das contas do orçamento (poupança, contas excluídas)',
+  'explain.period.liquidity': 'Saldo real de hoje nas contas do orçamento',
+  'explain.period.limitedByBalance': 'Sem arrasto, a base é o menor entre o líquido do período e o saldo real: nunca se sugere gastar dinheiro que não está nas suas contas (por exemplo, se o período começou com dívida ou saldo negativo).',
 }
