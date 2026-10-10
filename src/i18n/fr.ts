@@ -2955,5 +2955,7 @@ export const fr: Record<keyof typeof es, string> = {
   'bankImport.fileCurrencyHint': 'Ce budget utilise {currency}. Si le fichier est dans une autre devise, il n’est pas importé : Clara ne convertit jamais.',
   'bankImport.currencyNote': '{count} lignes sont dans une autre devise et ne peuvent pas être importées : ce budget utilise {currency} et Clara ne convertit pas.',
   'bankImport.balanceEffect': 'Compte « {account} » en {currency} : le solde changera de {effect} ({count} après le solde de référence ; les plus anciens restent en historique).',
+  'home.alert.incompleteTitle': 'Impossible de vérifier tous les paiements de {names}',
+  'home.alert.incompleteText': 'Ce paiement programmé a trop de dates depuis son début. La réserve peut être incomplète ; aucun montant par jour n’est donc suggéré aujourd’hui. Vérifiez le calendrier ou ajustez la date de début.',
   'home.period.snapshotNote': 'Chiffres reconstitués à partir des mouvements et réserves jusqu’à cette date. Les paiements programmés et les réglages (période, report, comptes) sont ceux d’aujourd’hui : ils n’ont pas d’historique.',
 }

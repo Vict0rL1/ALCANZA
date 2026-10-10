@@ -126,6 +126,17 @@ años no bisiestos.
 **Primera fecha:** la «próxima fecha» de un programado es la primera ocurrencia que se
 controla; las anteriores no se consideran.
 
+**Topes de recorrido (QA-06, `domain/recurrence.ts` y `domain/planItems.ts`):** una ventana
+normal (calendario, reservas hasta el próximo ingreso) se recorre con un tope de 2 000
+ocurrencias por programado (`MAX_OCCURRENCES`, ~5 años de un pago diario). Los **vencidos**
+desde el inicio del programado se recorren **aparte**, con un tope propio de 20 000
+(`OVERDUE_SCAN_LIMIT`, ~55 años de un pago diario): así un programado antiguo con miles de
+ocurrencias pagadas nunca consume el tope de la ventana actual y el pago de hoy sigue
+reservado. Si aun así se alcanza un tope, el resultado se marca **truncado**
+(`truncatedScheduleIds` en el calendario, `incompleteScheduleIds` en `computeBudget`): lo
+reservado puede estar incompleto, no se sugiere importe por día ni por semana e Inicio avisa.
+Nunca se presenta una cifra incompleta como si estuviera completa.
+
 ## 6. Disponible hasta el próximo ingreso
 
 ```
@@ -919,7 +930,7 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
 
 ## 33. Programados v2 y avisos locales
 
-- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por el importe previsto, `source: 'scheduled'`. Idempotente: una ocurrencia liquidada u omitida no se registra.
+- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por **lo que falta** de la ocurrencia (previsto − cobros parciales, el mismo `PlanItem.amountMinor` del calendario), `source: 'scheduled'`; si no falta nada, la ocurrencia se cierra sin crear movimiento (QA-02). Idempotente: una ocurrencia liquidada u omitida no se registra. Los vencidos se revisan con los topes del §5.
 - Pausa: un programado en pausa no genera ocurrencias ni reservas; al reanudar vuelven las futuras y las vencidas no omitidas.
 - Avisos: con `scheduledAlerts`, vencidos (desde las 09:00) y los que vencen hoy o mañana; `dailyReminder` a su hora solo si hoy no hay movimientos realizados; `dailySummary` a su hora con gastos − devoluciones del día. En horas de silencio (rango que puede cruzar medianoche) no se emite nada; al salir del rango se emiten los pendientes. Cada aviso tiene una clave por día para no repetirse.
 

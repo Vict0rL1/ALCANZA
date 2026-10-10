@@ -2957,5 +2957,7 @@ export const en: Record<keyof typeof es, string> = {
   'bankImport.fileCurrencyHint': 'This budget uses {currency}. If the file is in another currency it is not imported: Clara never converts.',
   'bankImport.currencyNote': '{count} rows are in another currency and cannot be imported: this budget uses {currency} and Clara does not convert.',
   'bankImport.balanceEffect': 'Account “{account}” in {currency}: the balance will change by {effect} ({count} after the reference balance; earlier ones stay as history).',
+  'home.alert.incompleteTitle': 'Could not review every payment of {names}',
+  'home.alert.incompleteText': 'That schedule has too many dates since it started. What is reserved may be incomplete, so no daily amount is suggested today. Review the calendar or adjust the schedule’s start date.',
   'home.period.snapshotNote': 'Figures rebuilt from the movements and set-asides up to that date. Scheduled items and settings (period, carry-over, accounts) are the current ones: they have no history.',
 }

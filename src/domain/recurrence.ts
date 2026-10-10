@@ -11,7 +11,20 @@
 import { addDays, addMonthsClamped, daysBetween, parseLocalDate } from './dates'
 import type { Frequency, LocalDate, Schedule } from './types'
 
-const MAX_OCCURRENCES = 2000
+/** Tope de una ventana normal (hasta ~5 años de un pago diario). */
+export const MAX_OCCURRENCES = 2000
+/**
+ * Tope del recorrido de vencidos desde el inicio de un programado (QA-06): ~55 años de un pago
+ * diario. Si se alcanza, el resultado se marca como truncado y quien calcula lo dice; nunca se
+ * presenta una cifra incompleta como si estuviera completa.
+ */
+export const OVERDUE_SCAN_LIMIT = 20_000
+
+export interface OccurrenceScan {
+  dates: LocalDate[]
+  /** Se alcanzó `limit` antes de llegar a `to`: faltan ocurrencias. */
+  truncated: boolean
+}
 
 export type RecurrenceRule = Pick<Schedule, 'frequency' | 'startDate'> & Partial<Pick<Schedule, 'endDate' | 'intervalDays'>>
 
@@ -47,12 +60,17 @@ export function nthOccurrence(schedule: RecurrenceRule, n: number): LocalDate {
  * `startDate` y `endDate`. No excluye omitidas ni pagadas: eso lo decide quien llama.
  */
 export function occurrencesBetween(schedule: RecurrenceRule, from: LocalDate, to: LocalDate): LocalDate[] {
-  if (to < from) return []
+  return scanOccurrences(schedule, from, to).dates
+}
+
+/** Como `occurrencesBetween`, pero dice si el tope `limit` cortó el recorrido. */
+export function scanOccurrences(schedule: RecurrenceRule, from: LocalDate, to: LocalDate, limit = MAX_OCCURRENCES): OccurrenceScan {
+  if (to < from) return { dates: [], truncated: false }
   const end = schedule.endDate && schedule.endDate < to ? schedule.endDate : to
-  if (end < schedule.startDate) return []
+  if (end < schedule.startDate) return { dates: [], truncated: false }
 
   if (schedule.frequency === 'once') {
-    return schedule.startDate >= from && schedule.startDate <= end ? [schedule.startDate] : []
+    return { dates: schedule.startDate >= from && schedule.startDate <= end ? [schedule.startDate] : [], truncated: false }
   }
 
   // Primera n candidata para no recorrer desde el principio en fechas lejanas.
@@ -70,13 +88,14 @@ export function occurrencesBetween(schedule: RecurrenceRule, from: LocalDate, to
     }
   }
 
-  const result: LocalDate[] = []
-  for (let i = 0; i < MAX_OCCURRENCES; i++, n++) {
+  const dates: LocalDate[] = []
+  for (let i = 0; i < limit; i++, n++) {
     const date = nthOccurrence(schedule, n)
-    if (date > end) break
-    if (date >= from) result.push(date)
+    if (date > end) return { dates, truncated: false }
+    if (date >= from) dates.push(date)
   }
-  return result
+  // Se agotó el tope sin pasar de `end`: ¿quedaba alguna más?
+  return { dates, truncated: nthOccurrence(schedule, n) <= end }
 }
 
 /** Primera ocurrencia en o después de `from`, o `null`. */

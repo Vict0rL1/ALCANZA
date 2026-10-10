@@ -261,6 +261,22 @@ export function Home() {
         </Alert>
       ),
     },
+    budget.incompleteScheduleIds.length > 0 && {
+      key: 'incomplete',
+      node: (
+        <Alert
+          tone="critical"
+          title={t('home.alert.incompleteTitle', { names: budget.incompleteScheduleIds.map((id) => `«${data.schedules.find((s) => s.id === id)?.name ?? id}»`).join(', ') })}
+          actions={
+            <a className="btn btn--small btn--secondary" href={href('/plan/calendario')}>
+              {t('home.alert.reviewCalendar')}
+            </a>
+          }
+        >
+          <span data-testid="incomplete-reserves">{t('home.alert.incompleteText')}</span>
+        </Alert>
+      ),
+    },
     (budget.goalsExceedMoney) && {
       key: 'goals',
       node: (

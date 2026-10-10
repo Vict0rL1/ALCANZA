@@ -2956,5 +2956,7 @@ export const es = {
   'bankImport.fileCurrencyHint': 'Este presupuesto usa {currency}. Si el archivo está en otra moneda, no se importa: Clara nunca convierte.',
   'bankImport.currencyNote': '{count} filas están en otra moneda y no se pueden importar: este presupuesto usa {currency} y Clara no convierte.',
   'bankImport.balanceEffect': 'Cuenta «{account}» en {currency}: el saldo cambiará {effect} ({count} posteriores al saldo de referencia; los anteriores quedan como historial).',
+  'home.alert.incompleteTitle': 'No se pudieron revisar todos los pagos de {names}',
+  'home.alert.incompleteText': 'Ese programado tiene demasiadas fechas desde su inicio. Lo reservado puede estar incompleto, así que hoy no se sugiere un importe por día. Revisa el calendario o ajusta la fecha de inicio del programado.',
   'home.period.snapshotNote': 'Cifras reconstruidas con los movimientos y apartados hasta esa fecha. Los programados y los ajustes (periodo, arrastre, cuentas) son los actuales: no tienen historial.',
 } as const
