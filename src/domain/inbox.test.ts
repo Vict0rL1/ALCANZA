@@ -218,3 +218,20 @@ describe('bandeja: límites de categoría y reglas', () => {
     expect(kept.categoryRules).toHaveLength(1)
   })
 })
+
+describe('bandeja: confirmación automática que registró el importe completo tras un parcial (QA-02)', () => {
+  it('señala el movimiento sobrante con lo registrado de más; corregir el importe lo resuelve; se puede descartar', () => {
+    const schedule = bill('2026-09-20', 100000, { id: 'rent', name: 'Renta', autoConfirm: true })
+    const partial = tx({ id: 'p', amountMinor: 40000, scheduleId: 'rent', occurrenceDate: '2026-09-20', partialSettlement: true, date: '2026-09-20' })
+    const wrongFinal = tx({ id: 'f', amountMinor: 100000, scheduleId: 'rent', occurrenceDate: '2026-09-20', source: 'scheduled', date: '2026-09-21' })
+    const data = baseData({ schedules: [schedule], transactions: [partial, wrongFinal] })
+    const item = inboxView(data, ctx.today).active.find((i) => i.reason === 'autoConfirmOverstated')
+    expect(item).toMatchObject({ id: 'int:auto:f', kind: 'integrity', amountMinor: 40000, txIds: ['f', 'p'], date: '2026-09-20', canDismiss: true })
+    // Corregido a mano al resto (60000): el aviso desaparece.
+    const fixed = saveTransaction(data, { ...wrongFinal, amountMinor: 60000 }, ctx)
+    expect(fixed.ok && inboxView(fixed.data, ctx.today).active.some((i) => i.reason === 'autoConfirmOverstated')).toBe(false)
+    // «Revisado» se recuerda mientras no cambien los datos relevantes.
+    const dismissed = dismissInboxItem(data, item!, ctx)
+    expect(dismissed.ok && inboxView(dismissed.data, ctx.today).active.some((i) => i.reason === 'autoConfirmOverstated')).toBe(false)
+  })
+})

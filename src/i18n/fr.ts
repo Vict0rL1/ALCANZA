@@ -2939,4 +2939,6 @@ export const fr: Record<keyof typeof es, string> = {
   'feedback.includeErrors': 'Ajouter le rapport d’erreurs ({count})',
   'feedback.errorsHeading': 'Rapport d’erreurs',
   'settings.shortcuts.indexTitle': 'Raccourcis',
+  'inbox.title.autoConfirmOverstated': '« {name} » a été enregistré en entier après un paiement partiel',
+  'inbox.why.autoConfirmOverstated': 'Le {other}, vous avez enregistré un acompte et le {date} la confirmation automatique a ajouté le montant complet au lieu du reste : il y a {amount} en trop. Corrigez le montant du mouvement signalé (ou supprimez-le). Rien ne change tout seul.',
 }

@@ -2939,4 +2939,6 @@ export const pt: Record<keyof typeof es, string> = {
   'feedback.includeErrors': 'Adicionar o relatório de erros ({count})',
   'feedback.errorsHeading': 'Relatório de erros',
   'settings.shortcuts.indexTitle': 'Atalhos',
+  'inbox.title.autoConfirmOverstated': '“{name}” foi registrado por inteiro depois de um recebimento parcial',
+  'inbox.why.autoConfirmOverstated': 'Em {other} você registrou uma parte e em {date} a confirmação automática adicionou o valor completo em vez do restante: há {amount} a mais. Corrija o valor do movimento marcado (ou exclua-o). Nada muda sozinho.',
 }

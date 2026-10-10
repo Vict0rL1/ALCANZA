@@ -2941,4 +2941,6 @@ export const en: Record<keyof typeof es, string> = {
   'feedback.includeErrors': 'Add the error report ({count})',
   'feedback.errorsHeading': 'Error report',
   'settings.shortcuts.indexTitle': 'Shortcuts',
+  'inbox.title.autoConfirmOverstated': '"{name}" was recorded in full after a partial payment',
+  'inbox.why.autoConfirmOverstated': 'On {other} you recorded a partial amount and on {date} automatic confirmation added the full amount instead of the remainder: {amount} too much. Fix the amount of the flagged movement (or delete it). Nothing changes on its own.',
 }

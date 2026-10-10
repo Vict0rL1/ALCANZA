@@ -2940,4 +2940,6 @@ export const es = {
   'feedback.includeErrors': 'Añadir el informe de errores ({count})',
   'feedback.errorsHeading': 'Informe de errores',
   'settings.shortcuts.indexTitle': 'Atajos',
+  'inbox.title.autoConfirmOverstated': '«{name}» se registró completo después de un cobro parcial',
+  'inbox.why.autoConfirmOverstated': 'El {other} registraste una parte a cuenta y el {date} la confirmación automática añadió el importe completo en vez del resto: hay {amount} de más. Corrige el importe del movimiento marcado (o elimínalo). Nada se cambia solo.',
 } as const
