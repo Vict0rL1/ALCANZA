@@ -104,7 +104,8 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), serviceWorker({ publicDir: 'public' }), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_ENDPOINT)],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).
-    include: ['src/**/*.test.ts', 'pwa/**/*.test.ts', 'tests/config/**/*.test.ts'],
+    // `qa/`: regresiones de la auditoría 2026-10-09 (financieras y de seguridad); forman parte de `npm run check`.
+    include: ['src/**/*.test.ts', 'pwa/**/*.test.ts', 'tests/config/**/*.test.ts', 'qa/**/*.test.ts'],
     environment: 'node',
   },
 }))
