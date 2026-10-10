@@ -590,7 +590,9 @@ export function Home() {
       {viewing && (
         <div className="banner banner--warning period-banner" role="status" data-testid="period-banner">
           <Icon name="alert" size={18} />
-          <span className="banner__text">{t('home.period.viewingOther')}</span>
+          <span className="banner__text">
+            {t('home.period.viewingOther')} <span className="banner__sub">{t('home.period.snapshotNote')}</span>
+          </span>
           <button type="button" className="btn btn--secondary btn--small" onClick={() => setViewStart(null)} data-testid="period-back">
             {t('home.period.backToCurrent')}
           </button>

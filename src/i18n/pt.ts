@@ -2945,4 +2945,5 @@ export const pt: Record<keyof typeof es, string> = {
   'explain.period.outside': 'Dinheiro que entrou ou saiu fora das contas do orçamento (poupança, contas excluídas)',
   'explain.period.liquidity': 'Saldo real de hoje nas contas do orçamento',
   'explain.period.limitedByBalance': 'Sem arrasto, a base é o menor entre o líquido do período e o saldo real: nunca se sugere gastar dinheiro que não está nas suas contas (por exemplo, se o período começou com dívida ou saldo negativo).',
+  'home.period.snapshotNote': 'Valores reconstruídos com os movimentos e reservas até essa data. Os agendamentos e os ajustes (período, arrasto, contas) são os atuais: não têm histórico.',
 }

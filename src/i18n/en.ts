@@ -2947,4 +2947,5 @@ export const en: Record<keyof typeof es, string> = {
   'explain.period.outside': 'Money that came in or went out outside your budget accounts (savings, excluded accounts)',
   'explain.period.liquidity': 'Today’s actual balance in your budget accounts',
   'explain.period.limitedByBalance': 'Without carry-over, the base is the lower of the period net and the actual balance: you are never told to spend money that isn’t in your accounts (for example, if the period started with debt or a negative balance).',
+  'home.period.snapshotNote': 'Figures rebuilt from the movements and set-asides up to that date. Scheduled items and settings (period, carry-over, accounts) are the current ones: they have no history.',
 }

@@ -2945,4 +2945,5 @@ export const fr: Record<keyof typeof es, string> = {
   'explain.period.outside': 'Argent entré ou sorti hors des comptes du budget (épargne, comptes exclus)',
   'explain.period.liquidity': 'Solde réel d’aujourd’hui sur les comptes du budget',
   'explain.period.limitedByBalance': 'Sans report, la base est le plus petit entre le net de la période et le solde réel : on ne vous suggère jamais de dépenser de l’argent qui n’est pas sur vos comptes (par exemple si la période a commencé avec une dette ou un solde négatif).',
+  'home.period.snapshotNote': 'Chiffres reconstitués à partir des mouvements et réserves jusqu’à cette date. Les paiements programmés et les réglages (période, report, comptes) sont ceux d’aujourd’hui : ils n’ont pas d’historique.',
 }

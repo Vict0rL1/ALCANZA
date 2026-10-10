@@ -2946,4 +2946,5 @@ export const es = {
   'explain.period.outside': 'Dinero que entró o salió fuera de las cuentas del presupuesto (ahorro, cuentas excluidas)',
   'explain.period.liquidity': 'Saldo real de hoy en las cuentas del presupuesto',
   'explain.period.limitedByBalance': 'Sin arrastre, la base es el menor entre el neto del periodo y el saldo real: nunca se sugiere gastar dinero que no está en tus cuentas (por ejemplo, si el periodo empezó con deuda o saldo negativo).',
+  'home.period.snapshotNote': 'Cifras reconstruidas con los movimientos y apartados hasta esa fecha. Los programados y los ajustes (periodo, arrastre, cuentas) son los actuales: no tienen historial.',
 } as const

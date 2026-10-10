@@ -1015,6 +1015,12 @@ compactos ni se redondean para calcular.
   referencia con fecha > cierre)`, con fecha de referencia = cierre. Sobre esa copia se aplican
   `computeBudget` y `heroFigures` con «hoy» = cierre: saldo, reservado, disponible, ingresos y gastos
   tal como se habrían visto ese día.
+- **Apartados (QA-04):** los apartados de metas tienen fecha, así que en la copia solo existen los
+  de fecha ≤ cierre (aportes, liberaciones y pagos desde una meta por igual); una meta creada después
+  del cierre (`createdAt` en la zona horaria del presupuesto) no existe, y un gasto planificado cerrado
+  después sigue abierto. Un apartado de septiembre ya no reduce el disponible de agosto.
+- **Límite declarado:** los programados y los ajustes (tipo de periodo, arrastre, cuentas incluidas)
+  no tienen historial propio, así que la instantánea usa los actuales. La pancarta del periodo lo dice.
 - El periodo actual no usa la instantánea: Inicio muestra las cifras vivas. La navegación nunca escribe.
 
 ## 41. «Repetir» al guardar un movimiento (`domain/repeat.ts`, D6)

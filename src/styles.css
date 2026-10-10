@@ -303,6 +303,14 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Nota secundaria dentro de un banner (p. ej. el límite de una instantánea de otro periodo). */
+.banner__sub {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 400;
+  opacity: 0.9;
+}
+
 /* Plantilla de enlace (Ajustes › Atajos de iPhone): una URL larga sin espacios se parte donde haga falta. */
 .url-template {
   display: block;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeBudget } from './budget'
 import { dataAsOf, homePeriodAt, homeSnapshotAt, isCurrentPeriod, nextPeriod, previousPeriod } from './homeSnapshot'
-import { account, baseData, TODAY, tx } from '../test/fixtures'
+import { account, baseData, goal, TODAY, tx } from '../test/fixtures'
 
 // Saldo de referencia 1000.00 fijado hoy (28-sep-2026). Movimientos de agosto y septiembre.
 const data = baseData({
@@ -70,5 +70,42 @@ describe('Inicio en otro periodo (D1)', () => {
     homeSnapshotAt(data, '2026-08-31', { today: TODAY })
     dataAsOf(data, '2026-07-31')
     expect(JSON.stringify(data)).toBe(before)
+  })
+})
+
+describe('QA-04 · los apartados tienen fecha: una instantánea pasada no ve los posteriores', () => {
+  const alloc = (id: string, amountMinor: number, date: string, reason?: 'contribution' | 'release' | 'payment' | 'carry') => ({ id, amountMinor, date, createdAt: '2026-09-28T13:00:00.000Z', ...(reason ? { reason } : {}) })
+
+  it('un apartado de septiembre no reduce el disponible de agosto; uno de agosto sí', () => {
+    const later = baseData({ goals: [goal({ id: 'g', createdAt: '2026-08-01T12:00:00.000Z', allocations: [alloc('sep', 30000, '2026-09-10')] })] })
+    expect(homeSnapshotAt(later, '2026-08-31', { today: TODAY }).budget.availableMinor).toBe(100000)
+    expect(homeSnapshotAt(later, '2026-08-31', { today: TODAY }).budget.goalsReservedMinor).toBe(0)
+    const earlier = baseData({ goals: [goal({ id: 'g', createdAt: '2026-08-01T12:00:00.000Z', allocations: [alloc('aug', 30000, '2026-08-15')] })] })
+    expect(homeSnapshotAt(earlier, '2026-08-31', { today: TODAY }).budget.goalsReservedMinor).toBe(30000)
+    expect(homeSnapshotAt(earlier, '2026-08-31', { today: TODAY }).budget.availableMinor).toBe(70000)
+  })
+
+  it('una liberación posterior no cambia el pasado; un aporte futuro tampoco; una meta creada después no existía', () => {
+    const released = baseData({ goals: [goal({ id: 'g', createdAt: '2026-08-01T12:00:00.000Z', allocations: [alloc('aug', 30000, '2026-08-15', 'contribution'), alloc('rel', -30000, '2026-09-20', 'release')] })] })
+    expect(homeSnapshotAt(released, '2026-08-31', { today: TODAY }).budget.goalsReservedMinor).toBe(30000)
+    expect(homeSnapshotAt(released, '2026-09-30', { today: TODAY }).budget.goalsReservedMinor).toBe(0)
+    const created = baseData({ goals: [goal({ id: 'g', createdAt: '2026-09-05T12:00:00.000Z', allocations: [alloc('aug', 30000, '2026-08-15')] })] })
+    expect(dataAsOf(created, '2026-08-31').goals).toEqual([])
+    expect(dataAsOf(created, '2026-09-30').goals).toHaveLength(1)
+  })
+
+  it('un gasto planificado cerrado en octubre sigue abierto en la instantánea de septiembre', () => {
+    const g = goal({ id: 'p', kind: 'expense', createdAt: '2026-08-01T12:00:00.000Z', allocations: [alloc('a', 5000, '2026-09-01')], targetMinor: 5000, targetDate: '2026-09-25', plan: { paidAt: '2026-10-02T12:00:00.000Z', history: [] } })
+    const snap = dataAsOf(baseData({ goals: [g] }), '2026-09-30')
+    expect(snap.goals[0]!.plan?.paidAt).toBeUndefined()
+    expect(dataAsOf(baseData({ goals: [g] }), '2026-10-05').goals[0]!.plan?.paidAt).toBe('2026-10-02T12:00:00.000Z')
+  })
+
+  it('la lectura histórica nunca toca los datos reales', () => {
+    const d = baseData({ goals: [goal({ id: 'g', createdAt: '2026-08-01T12:00:00.000Z', allocations: [alloc('sep', 30000, '2026-09-10')] })] })
+    const before = JSON.stringify(d)
+    homeSnapshotAt(d, '2026-08-31', { today: TODAY })
+    expect(JSON.stringify(d)).toBe(before)
+    expect(computeBudget(d, TODAY).goalsReservedMinor).toBe(30000)
   })
 })
