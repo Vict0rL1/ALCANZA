@@ -11,6 +11,7 @@
  * - Importar una copia o reiniciar la demo es un corte (`replace`): no se puede revertir ni
  *   reconstruir el estado anterior a ese punto.
  */
+import { canChangeCurrency } from './currencyChange'
 import { newId } from './ids'
 import type { OpContext, OpResult } from './operations'
 import type { AppData, HistoryChange, HistoryCollection, HistoryEntry, HistorySource, Settings } from './types'
@@ -129,6 +130,10 @@ export function revertEntry(data: AppData, entryId: string, ctx: OpContext): OpR
   if (status === 'conflict') return { ok: false, issues: [{ path: 'history', code: 'revertConflict', params: { count: revertConflicts(data, entry).length } }] }
   let next = data
   for (const change of [...entry.changes].reverse()) next = setValue(next, change.collection, change.id, change.before)
+  // QA-01: deshacer un cambio de moneda es otro cambio de moneda: solo si no hay importes guardados.
+  if (next.settings.currency !== data.settings.currency && !canChangeCurrency(data)) {
+    return { ok: false, issues: [{ path: 'history', code: 'currencyMismatch', params: { expected: data.settings.currency } }] }
+  }
   return { ok: true, data: { ...next, updatedAt: ctx.now }, value: entry }
 }
 

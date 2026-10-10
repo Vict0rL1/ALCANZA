@@ -10,6 +10,7 @@ import { defaultCollectionsV9, defaultSettingsV9 } from './defaults'
 import { addDays, isValidLocalDate } from './dates'
 import { goalProgress } from './goals'
 import { newId } from './ids'
+import { canChangeCurrency } from './currencyChange'
 import { isSupportedCurrency, sumMinor } from './money'
 import { findSettlement } from './planItems'
 import { balanceAtDate, reconciliationFingerprint } from './reconcile'
@@ -1040,8 +1041,9 @@ export function moveFavorite(data: AppData, id: string, direction: -1 | 1, ctx: 
 export function changeCurrency(data: AppData, currency: CurrencyCode, ctx: OpContext): OpResult<Settings> {
   if (!isSupportedCurrency(currency)) return fail([{ path: 'currency', code: 'invalidValue' }])
   if (currency === data.settings.currency) return { ok: true, data, value: data.settings, unchanged: true }
-  const hasAmounts = data.transactions.length > 0 || data.trash.length > 0 || data.schedules.length > 0 || data.goals.length > 0 || data.plans.length > 0 || data.favorites.some((f) => f.amountMinor !== undefined) || data.periodBudgets.length > 0
-  if (hasAmounts) return fail([{ path: 'currency', code: 'currencyMismatch', params: { expected: data.settings.currency } }])
+  // QA-01: cualquier importe guardado (saldos de referencia incluidos) se reinterpretaría en la otra
+  // moneda; la lista de lo que cuenta vive en `currencyChange.ts` y es la misma que usa Ajustes.
+  if (!canChangeCurrency(data)) return fail([{ path: 'currency', code: 'currencyMismatch', params: { expected: data.settings.currency } }])
   const settings: Settings = { ...data.settings, currency }
   const issues = validateSettings(settings)
   if (issues.length) return fail(issues)
