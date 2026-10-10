@@ -1076,3 +1076,19 @@ compactos ni se redondean para calcular.
   `fecha = hoy + días`; «al día» = `⌊Σ30 ÷ 30⌋`. Enteros en unidades menores, nunca flotantes ni
   división entre cero. Meta completa → sin estimación.
 - La estimación es orientativa: cambia con cada aporte y no es una promesa ni un plan.
+
+## 43. Exportación CSV sin fórmulas (`domain/csvExport.ts`, QA-07)
+
+- Un CSV se abre en hojas de cálculo que **ejecutan** lo que empieza por `=`, `+`, `-`, `@`,
+  tabulador o retorno de carro. Una nota o un comercio escritos (o importados de un banco) con
+  ese inicio podrían convertirse en una fórmula al abrir la exportación.
+- Toda celda de **texto libre** (tipo, estado, categoría, cuenta, destino, nota, comercio, origen,
+  nombres de categorías y planes, títulos de sección) pasa por `safeText`: si el texto, tras los
+  espacios iniciales, empieza por uno de esos caracteres, se antepone un apóstrofo (`'`), la
+  convención de Excel, LibreOffice y Google Sheets para «esto es texto»; los caracteres de control
+  (salvo tabulador y saltos de línea, que se entrecomillan) se quitan. Después se entrecomilla como
+  siempre si contiene `"`, `,`, `;` o saltos de línea.
+- **Fechas, importes, moneda e ids no pasan por `safeText`:** los importes siguen siendo números
+  con signo (`-12.50`) para que las sumas de la hoja funcionen. El contenido numérico no cambia.
+- Fidelidad: una nota que empiece por «-» o «+» se verá con el apóstrofo delante en la hoja; es el
+  coste de no ejecutar nada. Las copias de seguridad (JSON) no se tocan: no son hojas de cálculo.
