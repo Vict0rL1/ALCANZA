@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currencySymbol, formatDate, formatMoney, formatNumber, formatPercent, formatRelativeDate } from './formatters'
+import { currencyName, currencySymbol, formatDate, formatMoney, formatNumber, formatPercent, formatRelativeDate } from './formatters'
 
 /** `Intl` separa símbolo y cifra con un espacio duro en algunos locales. */
 const plain = (s: string) => s.replace(/[  ]/g, ' ')
@@ -80,5 +80,16 @@ describe('números, porcentajes y fechas', () => {
     expect(formatRelativeDate('2026-10-04', today, 'pt')).toBe('há 3 dias')
     expect(formatRelativeDate('2026-08-01', today, 'es-MX')).toBe('1 ago')
     expect(formatRelativeDate('2025-08-01', today, 'es-MX')).toBe('1 ago 2025')
+  })
+})
+
+describe('UX-01 · el nombre de la moneda sigue al idioma, no al formato numérico', () => {
+  it('CAD se nombra en el idioma de la interfaz', () => {
+    expect(currencyName('CAD', 'es')).toMatch(/canadiense/i)
+    expect(currencyName('CAD', 'en')).toMatch(/canadian/i)
+    expect(currencyName('CAD', 'pt')).toMatch(/canadense/i)
+    expect(currencyName('CAD', 'fr')).toMatch(/canadien/i)
+    // Un código desconocido vuelve tal cual, sin romper la pantalla.
+    expect(currencyName('ZZZ', 'es')).toBe('ZZZ')
   })
 })

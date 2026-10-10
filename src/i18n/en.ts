@@ -2444,7 +2444,7 @@ export const en: Record<keyof typeof es, string> = {
   'scheduled.pause': 'Pause "{name}"',
   'scheduled.pausedToast': 'Scheduled paused: no payments or alerts',
   'scheduled.resumedToast': 'Scheduled resumed',
-  'safe.title': 'Safe to spend',
+  'safe.title': 'You can spend',
   'safe.intro': 'The "you can spend" figure on Home: what is left for the period after setting aside what is committed.',
   'safe.showOnHome': 'Show on Home',
   'safe.granularity': 'Default view',

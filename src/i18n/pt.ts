@@ -2442,7 +2442,7 @@ export const pt: Record<keyof typeof es, string> = {
   'scheduled.pause': 'Pausar «{name}»',
   'scheduled.pausedToast': 'Programado em pausa: sem pagamentos nem avisos',
   'scheduled.resumedToast': 'Programado retomado',
-  'safe.title': 'Safe to spend',
+  'safe.title': 'Você pode gastar',
   'safe.intro': 'O valor «você pode gastar» do Início: o que resta do período após reservar o comprometido.',
   'safe.showOnHome': 'Mostrar no Início',
   'safe.granularity': 'Mostrar por padrão',

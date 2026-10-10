@@ -375,7 +375,7 @@ export function Settings({ route }: { route: Route }) {
         <div className="field">
           <p className="field__label">{t('settings.currency.label')}</p>
           <p>
-            <strong>{data.settings.currency}</strong> · {currencyName(data.settings.currency, data.settings.numberLocale)} · {sample.money(123456)}
+            <strong>{data.settings.currency}</strong> · {currencyName(data.settings.currency, data.settings.language)} · {sample.money(123456)}
           </p>
           <button type="button" className="btn btn--secondary btn--small" onClick={() => setCurrencyOpen(true)} data-testid="change-currency">
             <Icon name="coins" size={16} />
@@ -724,7 +724,7 @@ export function Settings({ route }: { route: Route }) {
         />
       )}
       {decrypting && <PassphraseDialog mode="decrypt" error={decrypting.error} onClose={() => setDecrypting(null)} onSubmit={openEncrypted} />}
-      {currencyOpen && <CurrencyDialog current={data.settings.currency} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
+      {currencyOpen && <CurrencyDialog current={data.settings.currency} language={data.settings.language} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
       {accountDialog && <AccountDialog account={accountDialog === 'new' ? null : accountDialog} onClose={() => setAccountDialog(null)} />}
       {balanceFor && <UpdateBalanceDialog initialAccountId={balanceFor} onClose={() => setBalanceFor(null)} />}
 

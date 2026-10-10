@@ -2443,7 +2443,7 @@ export const es = {
   'scheduled.pause': 'Pausar «{name}»',
   'scheduled.pausedToast': 'Programado en pausa: no genera pagos ni avisos',
   'scheduled.resumedToast': 'Programado reanudado',
-  'safe.title': 'Safe to spend',
+  'safe.title': 'Puedes gastar',
   'safe.intro': 'La cifra «puedes gastar» de Inicio: lo que queda del periodo tras apartar lo comprometido.',
   'safe.showOnHome': 'Mostrar en Inicio',
   'safe.granularity': 'Mostrar por defecto',
