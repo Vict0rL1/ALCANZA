@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
+import { checkRemoteAiConfig, REMOTE_AI_REASON_TEXT, type RemoteAiEnv } from './src/domain/aiConfig.ts'
 import { serviceWorker } from './pwa/serviceWorkerPlugin.ts'
 
 /**
@@ -24,6 +25,18 @@ export function remoteOrigin(endpoint: string | undefined): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Endpoint del proveedor remoto solo si la configuración es segura (R-01): https, no un host de
+ * proveedor de IA y una clave que no tenga forma de secreto. Si no lo es, la compilación FALLA con el
+ * motivo: no se publica una app con una credencial dentro. Sin variables → sin proveedor.
+ */
+export function safeRemoteEndpoint(env: RemoteAiEnv): string | undefined {
+  const check = checkRemoteAiConfig(env)
+  if (check.ok) return check.endpoint
+  if (check.reason === 'none') return undefined
+  throw new Error(`Proveedor remoto del asistente mal configurado (${check.reason}): ${REMOTE_AI_REASON_TEXT[check.reason]}`)
 }
 
 export function buildCsp(aiEndpoint?: string): string {
@@ -101,7 +114,7 @@ export default defineConfig(({ mode }) => ({
     __APP_VERSION__: JSON.stringify(APP_VERSION),
     __BUILD_HASH__: JSON.stringify(buildHash()),
   },
-  plugins: [react(), serviceWorker({ publicDir: 'public' }), contentSecurityPolicy(loadEnv(mode, process.cwd(), 'VITE_').VITE_AI_ENDPOINT)],
+  plugins: [react(), serviceWorker({ publicDir: 'public' }), contentSecurityPolicy(safeRemoteEndpoint(loadEnv(mode, process.cwd(), 'VITE_')))],
   test: {
     // Las pruebas unitarias cubren la lógica financiera pura (sin navegador).
     // `qa/`: regresiones de la auditoría 2026-10-09 (financieras y de seguridad); forman parte de `npm run check`.

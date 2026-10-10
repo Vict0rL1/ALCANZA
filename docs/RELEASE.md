@@ -160,6 +160,22 @@ anterior se cancela.
 - Si algún trabajo de navegador tarda más de 15 minutos en GitHub, se divide en dos mitades
   (`--shard=1/2` y `--shard=2/2`) en lugar de subir el límite.
 
+### Proveedor remoto del asistente (`VITE_AI_ENDPOINT` y `VITE_AI_KEY`)
+
+La beta no lo configura: el asistente analiza el texto en el dispositivo. Si algún día se activa, dos
+reglas que la compilación comprueba sola (`npm run build` falla con el motivo; no se publica nada):
+
+- Todo lo que empieza por `VITE_` **viaja dentro de la app**: cualquiera que la abra puede leerlo. Por eso
+  `VITE_AI_KEY` solo puede ser un **token público de alcance limitado** para un servicio propio (que
+  guarde la credencial real del proveedor, imponga cuotas y autorice por usuario). Una clave con forma
+  de secreto de proveedor (`sk-…`, `AIza…`, `gsk_…`, `AKIA…`, `ghp_…`) detiene la compilación.
+- `VITE_AI_ENDPOINT` debe ser `https` y **no** el host de un proveedor de IA (OpenAI, Anthropic, Google,
+  Mistral, Groq, OpenRouter, Azure, Bedrock…): si fuera directo, la clave sería la credencial de ese
+  proveedor. Las dos variables van juntas o ninguna.
+
+La política de seguridad de contenido solo añade ese origen cuando la configuración pasa, y la app usa
+el análisis local en cualquier otro caso sin fingir un proveedor (`src/domain/aiConfig.ts`, decisión 138).
+
 ### Despliegues (`.github/workflows/deploy.yml`)
 
 `ci.yml` llama a `deploy.yml` solo cuando `check` y los tres `e2e` están en verde, así que nada sin

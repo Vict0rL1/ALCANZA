@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { buildCsp, remoteOrigin, renderHeaders } from '../../vite.config'
+import { buildCsp, remoteOrigin, renderHeaders, safeRemoteEndpoint } from '../../vite.config'
 
 describe('CSP de la versión compilada', () => {
   it('solo conecta con la propia app; con un proveedor remoto https añade exactamente su origen', () => {
@@ -46,5 +46,26 @@ describe('J2 · cabeceras de Cloudflare Pages (dist/_headers)', () => {
 
   it('sin la marca __CSP__ en la plantilla la compilación falla (no publica sin CSP)', () => {
     expect(() => renderHeaders('/*\n  X-Frame-Options: DENY\n')).toThrow(/__CSP__/)
+  })
+})
+
+describe('R-01 · la compilación falla con una configuración insegura del proveedor remoto', () => {
+  it('sin variables no hay origen remoto; con un servicio propio seguro se usa ese endpoint', () => {
+    expect(safeRemoteEndpoint({})).toBeUndefined()
+    expect(safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'https://clara-ai.example.com/parse', VITE_AI_KEY: 'pub_token' })).toBe('https://clara-ai.example.com/parse')
+    expect(buildCsp(safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'https://clara-ai.example.com/parse', VITE_AI_KEY: 'pub_token' }))).toContain("connect-src 'self' https://clara-ai.example.com;")
+  })
+
+  it('una clave de proveedor, un endpoint directo a un proveedor, http o una variable suelta detienen la compilación con el motivo', () => {
+    expect(() => safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'https://clara-ai.example.com/parse', VITE_AI_KEY: 'sk-ant-api03-ficticia' })).toThrow(/secretKey/)
+    expect(() => safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'https://api.openai.com/v1/chat/completions', VITE_AI_KEY: 'pub_token' })).toThrow(/providerHost/)
+    expect(() => safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'http://clara-ai.example.com/parse', VITE_AI_KEY: 'pub_token' })).toThrow(/insecureEndpoint/)
+    expect(() => safeRemoteEndpoint({ VITE_AI_KEY: 'pub_token' })).toThrow(/incomplete/)
+    // El mensaje nunca repite la clave.
+    try {
+      safeRemoteEndpoint({ VITE_AI_ENDPOINT: 'https://clara-ai.example.com/parse', VITE_AI_KEY: 'sk-ant-api03-ficticia' })
+    } catch (e) {
+      expect(String(e)).not.toContain('ficticia')
+    }
   })
 })
