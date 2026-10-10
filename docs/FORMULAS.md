@@ -304,6 +304,20 @@ guarda hasta confirmar la vista previa. Límites: 2 MB y 5000 filas.
   Ajustes. Una columna con signo (− = gasto) o dos columnas (cargo resta, abono suma,
   sin importar su signo). `(12.34)` = −12.34. Opción de invertir el signo (tarjetas).
   Positivo → ingreso; negativo → gasto; cero, fecha futura o inválida → fila con error.
+- **Moneda (QA-05):** Clara no convierte. Una moneda escrita que no es la del presupuesto
+  es una fila con error `currency` (se muestra la marca encontrada y la esperada), nunca se
+  asume la del presupuesto. Se reconoce: un **código** junto al importe (`USD 100`,
+  `100 EUR`), un **prefijo con dólar** (`CA$`, `US$`, `R$`), un **símbolo** suelto
+  (`€12`, `12,50 €`, `¥100`) y una **columna de moneda** del archivo (cabecera
+  «Moneda», «Currency», «Devise», «Ccy»…, detectada sola o elegida). Un símbolo suelto se
+  acepta solo si puede ser el de la moneda del presupuesto: `$` vale para CAD, USD, MXN,
+  COP, CLP, ARS, AUD o BRL y no para EUR, GBP, JPY, PEN o CHF; `€` solo para EUR; `¥`
+  para JPY y CNY. Un código que no es una moneda conocida (`XYZ 10`) también es error. La
+  persona puede declarar la **moneda de todo el archivo**: si no es la del presupuesto,
+  ninguna fila se importa; si coincide, es como no decirlo. Las columnas de cargo y abono
+  siguen la misma regla cada una. Los movimientos importados llevan siempre la moneda del
+  presupuesto (§11), y la vista previa dice cuánto cambiará el saldo con las filas marcadas
+  posteriores al saldo de referencia.
 - **Huella** `importRef = cuenta | fecha | importe con signo | descripción normalizada |
   nº de repetición`. La descripción se normaliza (minúsculas, sin acentos, espacios
   simples, 80 caracteres). El nº de repetición distingue dos filas idénticas del mismo

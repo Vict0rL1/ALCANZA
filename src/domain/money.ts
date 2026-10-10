@@ -229,9 +229,85 @@ function validGrouping(value: string, sep: string): boolean {
   return !!first && first.length >= 1 && first.length <= 3 && rest.every((g) => g.length === 3)
 }
 
-export type ParseMoneyError = 'empty' | 'invalid' | 'tooManyDecimals' | 'negativeNotAllowed' | 'tooLarge' | 'zero'
+export type ParseMoneyError = 'empty' | 'invalid' | 'tooManyDecimals' | 'negativeNotAllowed' | 'tooLarge' | 'zero' | 'currencyMismatch' | 'unknownCurrency'
 
-export type ParseMoneyResult = { ok: true; minor: number } | { ok: false; error: ParseMoneyError; digits: number }
+/** En `currencyMismatch` y `unknownCurrency`, `found` es la marca escrita y `expected` la moneda del presupuesto. */
+export type ParseMoneyResult = { ok: true; minor: number } | { ok: false; error: ParseMoneyError; digits: number; found?: string; expected?: string }
+
+/* ------------------------------------------------------------------ */
+/* Marcas de moneda escritas junto al importe (QA-05)                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lo que la persona (o un CSV) escribió junto al número: un código («USD 100», «12 EUR»), un
+ * prefijo con dólar («CA$», «US$», «R$») o un símbolo suelto («€12», «12,50 €», «$ 45»).
+ * `unknown` es un texto que parece un código pero no es una moneda admitida.
+ */
+export type CurrencyMark = { code: string } | { symbol: string } | { unknown: string }
+
+/** Prefijos con dólar → moneda. */
+const DOLLAR_PREFIX: Record<string, string> = { C: 'CAD', CA: 'CAD', CAN: 'CAD', US: 'USD', U: 'USD', MX: 'MXN', MEX: 'MXN', R: 'BRL', COL: 'COP', CO: 'COP', AU: 'AUD', NZ: 'NZD', AR: 'ARS', CL: 'CLP', UY: 'UYU', HK: 'HKD', SG: 'SGD', NT: 'TWD' }
+
+/**
+ * Separa la marca de moneda del número: `text` queda listo para `parseScaled` (con su signo) y
+ * `mark` dice qué moneda se escribió, si alguna. Nunca convierte ni decide: solo lee.
+ */
+export function stripCurrencyMark(input: string): { text: string; mark: CurrencyMark | null } {
+  let s = input.trim().replace(/[   ]/g, ' ')
+  let sign = ''
+  if (/^[-−+]/.test(s)) {
+    sign = s[0]!
+    s = s.slice(1).trim()
+  }
+  let mark: CurrencyMark | null = null
+  const setCode = (raw: string) => {
+    const code = raw.toUpperCase()
+    mark = isSupportedCurrency(code) ? { code } : { unknown: code }
+  }
+  // Código al final: «12 USD», «1.234,56 EUR».
+  const suffix = /^(.*\d.*?)\s*([A-Za-z]{3})$/.exec(s)
+  if (suffix) {
+    setCode(suffix[2]!)
+    s = suffix[1]!.trim()
+  }
+  // Prefijos: «CAD 12», «CA$12», «US$ 12», «$12», «€12». Un signo puede ir detrás («$-12»).
+  const code = /^([A-Za-z]{3})\s*(?=[-−+]?[\d.,])/.exec(s)
+  const dollar = /^([A-Za-z]{0,3})\$\s*/.exec(s)
+  const symbol = /^([€£¥])\s*/.exec(s)
+  if (code) {
+    if (!mark) setCode(code[1]!)
+    s = s.slice(code[0].length)
+  } else if (dollar) {
+    const letters = dollar[1]!.toUpperCase()
+    if (letters) mark ??= DOLLAR_PREFIX[letters] ? { code: DOLLAR_PREFIX[letters]! } : { unknown: `${letters}$` }
+    else mark ??= { symbol: '$' }
+    s = s.slice(dollar[0].length)
+  } else if (symbol) {
+    mark ??= { symbol: symbol[1]! }
+    s = s.slice(symbol[0].length)
+  } else {
+    // Símbolo al final: «12,50 €», «45 $».
+    const trailing = /^(.*\d.*?)\s*([€£¥$])$/.exec(s)
+    if (trailing) {
+      mark ??= { symbol: trailing[2]! }
+      s = trailing[1]!.trim()
+    }
+  }
+  if (!sign && /^[-−+]/.test(s)) {
+    sign = s[0]!
+    s = s.slice(1).trim()
+  }
+  return { text: sign + s, mark }
+}
+
+/**
+ * ¿Puede ese símbolo suelto ser el de la moneda del presupuesto? «$» vale para CAD, USD, MXN,
+ * COP…; «€» solo para EUR; «¥» para JPY y CNY. Un símbolo que no puede ser el de la moneda es
+ * una moneda distinta (QA-05): nunca se asume la del presupuesto.
+ */
+export function symbolMatchesCurrency(symbol: string, currency: CurrencyCode): boolean {
+  return currencySymbol(currency, 'en').includes(symbol)
+}
 
 export interface ParseMoneyOptions {
   allowNegative?: boolean
@@ -254,7 +330,15 @@ export function parseMoney(
   locale: string,
   options: ParseMoneyOptions = {},
 ): ParseMoneyResult {
-  return parseScaled(input, currencyDigits(currency), locale, options)
+  const digits = currencyDigits(currency)
+  const { text, mark } = stripCurrencyMark(input)
+  // QA-05: una moneda escrita que no es la del presupuesto se rechaza; nunca se convierte ni se asume.
+  if (mark) {
+    if ('unknown' in mark) return { ok: false, error: 'unknownCurrency', digits, found: mark.unknown, expected: currency }
+    if ('code' in mark && mark.code !== currency) return { ok: false, error: 'currencyMismatch', digits, found: mark.code, expected: currency }
+    if ('symbol' in mark && !symbolMatchesCurrency(mark.symbol, currency)) return { ok: false, error: 'currencyMismatch', digits, found: mark.symbol, expected: currency }
+  }
+  return parseScaled(text, digits, locale, options)
 }
 
 /**
@@ -277,8 +361,8 @@ export function bpsToInputString(bps: number, locale: string): string {
 function parseScaled(input: string, digits: number, locale: string, options: ParseMoneyOptions): ParseMoneyResult {
   const fail = (error: ParseMoneyError): ParseMoneyResult => ({ ok: false, error, digits })
 
-  let s = input.trim().replace(/[\s  '’]/g, '').replace(/[$€£¥]/g, '')
-  s = s.replace(/^[A-Z]{2,3}(?=[\d.,\-−])/i, '') // "CA$ 5" o "CAD 5" → "5"
+  // Las marcas de moneda las separa `stripCurrencyMark` (quien llama decide si son válidas).
+  let s = input.trim().replace(/[\s  '’]/g, '')
   if (s === '') return fail('empty')
 
   let negative = false

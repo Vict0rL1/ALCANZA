@@ -14,49 +14,27 @@
  * Nada de esto guarda: solo rellena el formulario, que la persona revisa.
  */
 import { categoriesForKind } from './categories'
-import { parseMoney, SUPPORTED_CURRENCIES } from './money'
+import { parseMoney, stripCurrencyMark } from './money'
 import { dictionaryCategory, learnCategories, parseText, significantWords } from './parser'
 import { matchCategoryRule, normalizeText } from './rules'
 import type { AppData, CurrencyCode, Language } from './types'
 import { LIMITS } from './validation'
 
-/** Prefijos «C$», «CA$», «US$», «MX$», «R$», «COL$» → moneda. */
-const DOLLAR_PREFIX: Record<string, string> = { C: 'CAD', CA: 'CAD', CAN: 'CAD', US: 'USD', U: 'USD', MX: 'MXN', MEX: 'MXN', R: 'BRL', COL: 'COP', CO: 'COP' }
 const SYMBOL: Record<string, string> = { '€': 'EUR', '£': 'GBP', '¥': 'JPY' }
-
-const CODES = new Set(SUPPORTED_CURRENCIES.map((c) => c.code as string))
 
 export type ShortcutAmount = { ok: true; minor: number; foreignCurrency?: string } | { ok: false }
 
+/**
+ * Lee el importe de un atajo con el mismo lector de marcas de moneda que el resto de la app
+ * (`stripCurrencyMark`, QA-05). Aquí una moneda distinta NO es un error: el formulario se rellena
+ * con el número y avisa (`foreignCurrency`), porque nada se guarda sin que la persona revise.
+ */
 export function parseShortcutAmount(text: string, currency: string, numberLocale: string): ShortcutAmount {
-  let s = text.replace(/[  ]/g, ' ').trim()
-  let marked: string | undefined
-  // Código al final: «12 USD», «12,50 EUR».
-  const suffix = /^(.*?)\s*([A-Za-z]{3})$/.exec(s)
-  if (suffix && /\d/.test(suffix[1]!)) {
-    if (!CODES.has(suffix[2]!.toUpperCase())) return { ok: false }
-    marked = suffix[2]!.toUpperCase()
-    s = suffix[1]!
-  }
-  // Prefijo: «CAD 12», «C$12.50», «US$ 12», «€12», «$12».
-  const code = /^([A-Za-z]{3})\s*(?=[\d.,])/.exec(s)
-  const dollar = /^([A-Za-z]{0,3})\$\s*/.exec(s)
-  const symbol = /^([€£¥])\s*/.exec(s)
-  if (code) {
-    if (!CODES.has(code[1]!.toUpperCase())) return { ok: false }
-    marked = code[1]!.toUpperCase()
-    s = s.slice(code[0].length)
-  } else if (dollar) {
-    const letters = dollar[1]!.toUpperCase()
-    if (letters && !DOLLAR_PREFIX[letters]) return { ok: false }
-    if (letters) marked = DOLLAR_PREFIX[letters]
-    s = s.slice(dollar[0].length)
-  } else if (symbol) {
-    marked = SYMBOL[symbol[1]!]
-    s = s.slice(symbol[0].length)
-  }
-  const parsed = parseMoney(s, currency as CurrencyCode, numberLocale)
+  const { text: amount, mark } = stripCurrencyMark(text.replace(/[\u00a0\u202f]/g, ' '))
+  if (mark && 'unknown' in mark) return { ok: false }
+  const parsed = parseMoney(amount, currency as CurrencyCode, numberLocale)
   if (!parsed.ok) return { ok: false }
+  const marked = mark && 'code' in mark ? mark.code : mark && 'symbol' in mark ? SYMBOL[mark.symbol] : undefined
   return marked && marked !== currency ? { ok: true, minor: parsed.minor, foreignCurrency: marked } : { ok: true, minor: parsed.minor }
 }
 

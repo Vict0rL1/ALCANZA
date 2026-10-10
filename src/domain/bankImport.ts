@@ -14,7 +14,7 @@
  *   POSIBLE duplicado: se muestra desmarcada para que la persona decida.
  */
 import { addDays, isValidLocalDate, toLocalDate, daysInMonth } from './dates'
-import { MAX_AMOUNT_MINOR, parseMoney } from './money'
+import { MAX_AMOUNT_MINOR, parseMoney, stripCurrencyMark } from './money'
 import { normalizeText } from './rules'
 import type { AppData, LocalDate } from './types'
 
@@ -94,14 +94,17 @@ export interface ColumnMapping {
   /** …o dos columnas: cargos (gastos) y abonos (ingresos). */
   debit?: number
   credit?: number
+  /** Columna con el código de moneda de cada fila (QA-05): se valida contra la del presupuesto. */
+  currency?: number
 }
 
-const HEADER_HINTS: Record<'date' | 'description' | 'amount' | 'debit' | 'credit', RegExp> = {
+const HEADER_HINTS: Record<'date' | 'description' | 'amount' | 'debit' | 'credit' | 'currency', RegExp> = {
   date: /^(fecha|date|fecha de operaci[oó]n|transaction date|posted date|posting date|date de l'op[ée]ration)/i,
   description: /(descripci[oó]n|concepto|description|detalle|details|memo|payee|libell[ée]|merchant|comercio|narrative)/i,
   amount: /^(importe|monto|amount|montant|cantidad|valor)/i,
   debit: /(cargo|d[ée]bito|debit|withdrawal|retiro|salida|egreso|money out|paid out)/i,
   credit: /(abono|cr[ée]dito|credit|deposit|dep[oó]sito|entrada|ingreso|money in|paid in)/i,
+  currency: /^(moneda|currency|devise|divisa|ccy|cur\.?|iso|c[oó]digo de moneda|currency code)$/i,
 }
 
 function findColumn(header: string[], hint: RegExp, taken: Set<number>): number | undefined {
@@ -123,6 +126,7 @@ export function guessMapping(header: string[]): ColumnMapping | null {
   const amount = take(findColumn(header, HEADER_HINTS.amount, taken))
   const debit = amount === undefined ? take(findColumn(header, HEADER_HINTS.debit, taken)) : undefined
   const credit = amount === undefined ? take(findColumn(header, HEADER_HINTS.credit, taken)) : undefined
+  const currency = take(findColumn(header, HEADER_HINTS.currency, taken))
   const description = take(findColumn(header, HEADER_HINTS.description, taken))
   if (date === undefined) return null
   if (amount === undefined && (debit === undefined || credit === undefined)) return null
@@ -131,6 +135,7 @@ export function guessMapping(header: string[]): ColumnMapping | null {
     date,
     description: description ?? (fallbackDescription >= 0 ? fallbackDescription : date),
     ...(amount !== undefined ? { amount } : { debit, credit }),
+    ...(currency !== undefined ? { currency } : {}),
   }
 }
 
@@ -210,9 +215,15 @@ export interface ImportOptions {
   /** Formato numérico de Ajustes (decide "1,234" vs "1.234"). */
   locale: string
   today: LocalDate
+  /**
+   * Moneda declarada para TODO el archivo (QA-05), si la persona la indica. Distinta de la del
+   * presupuesto → ninguna fila se importa: Clara no convierte.
+   */
+  fileCurrency?: string
 }
 
-export type ImportRowError = 'date' | 'amount' | 'zero' | 'future' | 'tooLarge'
+/** `currency`: la fila (o el archivo) está en otra moneda, o en una desconocida; nunca se asume la del presupuesto. */
+export type ImportRowError = 'date' | 'amount' | 'zero' | 'future' | 'tooLarge' | 'currency'
 
 /**
  * - trashed: el movimiento de esa fila está en la papelera → no se importa (se restaura desde la papelera).
@@ -234,6 +245,8 @@ export interface ImportRow {
   matchId?: string
   /** Fecha anterior o igual a la del saldo de referencia de la cuenta. */
   anchorRelation?: 'before' | 'sameDay' | 'after'
+  /** Moneda escrita en la fila (columna propia, código o símbolo junto al importe), si la hubo. */
+  currency?: string
 }
 
 export interface ImportPreview {
@@ -247,25 +260,42 @@ export function normalizeDescription(value: string): string {
   return normalizeText(value).slice(0, 80)
 }
 
-function signedAmount(cells: string[], mapping: ColumnMapping, currency: string, locale: string): { ok: true; value: number } | { ok: false; error: ImportRowError } {
-  const read = (i: number | undefined) => {
+type AmountRead = { ok: true; value: number; currency?: string } | { ok: false; error: ImportRowError; currency?: string }
+
+function signedAmount(cells: string[], mapping: ColumnMapping, currency: string, locale: string): AmountRead {
+  // Columna de moneda (QA-05): un código distinto del presupuesto, o desconocido, no se importa.
+  let explicit: string | undefined
+  if (mapping.currency !== undefined) {
+    const raw = (cells[mapping.currency] ?? '').trim().toUpperCase()
+    if (raw !== '') {
+      if (raw !== currency) return { ok: false, error: 'currency', currency: raw }
+      explicit = raw
+    }
+  }
+  const read = (i: number | undefined): { ok: true; minor: number; empty: boolean; currency?: string } | { ok: false; error: ImportRowError; currency?: string } => {
     const raw = (i === undefined ? '' : (cells[i] ?? '')).replace(/^\((.*)\)$/, '-$1')
-    if (raw.trim() === '') return { ok: true as const, minor: 0, empty: true }
+    if (raw.trim() === '') return { ok: true, minor: 0, empty: true }
     const r = parseMoney(raw.replace(/^\+/, ''), currency, locale, { allowNegative: true, allowZero: true })
-    return r.ok ? { ok: true as const, minor: r.minor, empty: false } : { ok: false as const, tooLarge: r.error === 'tooLarge' }
+    if (r.ok) {
+      const mark = stripCurrencyMark(raw).mark
+      return { ok: true, minor: r.minor, empty: false, ...(mark && 'code' in mark ? { currency: mark.code } : {}) }
+    }
+    if (r.error === 'currencyMismatch' || r.error === 'unknownCurrency') return { ok: false, error: 'currency', currency: r.found }
+    return { ok: false, error: r.error === 'tooLarge' ? 'tooLarge' : 'amount' }
   }
   if (mapping.amount !== undefined) {
     const r = read(mapping.amount)
-    if (!r.ok) return { ok: false, error: r.tooLarge ? 'tooLarge' : 'amount' }
+    if (!r.ok) return r
     if (r.empty) return { ok: false, error: 'amount' }
-    return { ok: true, value: r.minor }
+    return { ok: true, value: r.minor, currency: r.currency ?? explicit }
   }
   const debit = read(mapping.debit)
   const credit = read(mapping.credit)
-  if (!debit.ok || !credit.ok) return { ok: false, error: (!debit.ok && debit.tooLarge) || (!credit.ok && credit.tooLarge) ? 'tooLarge' : 'amount' }
+  if (!debit.ok) return debit
+  if (!credit.ok) return credit
   if (debit.empty && credit.empty) return { ok: false, error: 'amount' }
   // Los cargos pueden venir con o sin signo: siempre restan.
-  return { ok: true, value: Math.abs(credit.minor) - Math.abs(debit.minor) }
+  return { ok: true, value: Math.abs(credit.minor) - Math.abs(debit.minor), currency: debit.currency ?? credit.currency ?? explicit }
 }
 
 /**
@@ -296,8 +326,9 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
     const description = (cells[options.mapping.description] ?? '').replace(/\s+/g, ' ').trim().slice(0, DESCRIPTION_MAX)
     const date = parseBankDate(cells[options.mapping.date] ?? '', options.dateFormat)
     if (!date) return { line, status: 'error', error: 'date', description }
+    if (options.fileCurrency && options.fileCurrency.toUpperCase() !== currency) return { line, status: 'error', error: 'currency', date, description, currency: options.fileCurrency.toUpperCase() }
     const amount = signedAmount(cells, options.mapping, currency, options.locale)
-    if (!amount.ok) return { line, status: 'error', error: amount.error, date, description }
+    if (!amount.ok) return { line, status: 'error', error: amount.error, date, description, ...(amount.currency ? { currency: amount.currency } : {}) }
     const signed = options.invertSign ? -amount.value : amount.value
     if (signed === 0) return { line, status: 'error', error: 'zero', date, description }
     const amountMinor = Math.abs(signed)
@@ -310,7 +341,7 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
     repeats.set(key, n)
     const importRef = `${key}|${n}`
     const anchorRelation = !account ? undefined : date < account.anchor.date ? 'before' : date === account.anchor.date ? 'sameDay' : 'after'
-    const base = { line, date, kind, amountMinor, description, importRef, anchorRelation } as const
+    const base = { line, date, kind, amountMinor, description, importRef, anchorRelation, ...(amount.currency ? { currency: amount.currency } : {}) } as const
 
     const exact = existingRefs.get(importRef)
     if (exact) return { ...base, status: 'duplicate', matchId: exact }

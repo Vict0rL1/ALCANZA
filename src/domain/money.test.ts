@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ceilDiv, floorDiv, formatMoney, groupAmountInput, minorToDecimalString, minorToInputString, mulDivFloor, parseMoney, sumMinor } from './money'
+import { ceilDiv, floorDiv, formatMoney, groupAmountInput, minorToDecimalString, minorToInputString, mulDivFloor, parseMoney, sumMinor, stripCurrencyMark, symbolMatchesCurrency } from './money'
 
 const ok = (input: string, locale = 'es-MX', currency = 'CAD', opts = {}) => {
   const r = parseMoney(input, currency, locale, opts)
@@ -153,5 +153,55 @@ describe('groupAmountInput (E2): miles mientras se escribe', () => {
   it('mantiene el cursor sobre el mismo dígito', () => {
     expect(groupAmountInput('1234', 'es-MX', 'CAD', 2)).toEqual({ text: '1,234', caret: 3 })
     expect(groupAmountInput('1234567', 'es-MX', 'CAD', 4)).toEqual({ text: '1,234,567', caret: 5 })
+  })
+})
+
+describe('marcas de moneda junto al importe (QA-05)', () => {
+  const parse = (text: string, currency = 'CAD', locale = 'en-CA') => parseMoney(text, currency, locale, { allowNegative: true })
+
+  it('lee códigos, prefijos con dólar y símbolos sin tocar el número', () => {
+    expect(stripCurrencyMark('USD 100.00')).toEqual({ text: '100.00', mark: { code: 'USD' } })
+    expect(stripCurrencyMark('12,50 EUR')).toEqual({ text: '12,50', mark: { code: 'EUR' } })
+    expect(stripCurrencyMark('CA$12.00')).toEqual({ text: '12.00', mark: { code: 'CAD' } })
+    expect(stripCurrencyMark('R$ 10')).toEqual({ text: '10', mark: { code: 'BRL' } })
+    expect(stripCurrencyMark('$ 45')).toEqual({ text: '45', mark: { symbol: '$' } })
+    expect(stripCurrencyMark('12,50 €')).toEqual({ text: '12,50', mark: { symbol: '€' } })
+    expect(stripCurrencyMark('-$12')).toEqual({ text: '-12', mark: { symbol: '$' } })
+    expect(stripCurrencyMark('$-12')).toEqual({ text: '-12', mark: { symbol: '$' } })
+    expect(stripCurrencyMark('ABC 12')).toEqual({ text: '12', mark: { unknown: 'ABC' } })
+    expect(stripCurrencyMark('45')).toEqual({ text: '45', mark: null })
+  })
+
+  it('la moneda del presupuesto, escrita o con su símbolo, se acepta; el número no cambia', () => {
+    expect(parse('CAD 3')).toEqual({ ok: true, minor: 300 })
+    expect(parse('CA$12.00')).toEqual({ ok: true, minor: 1200 })
+    expect(parse('$ 45')).toEqual({ ok: true, minor: 4500 })
+    expect(parse('12,50 €', 'EUR', 'es-ES')).toEqual({ ok: true, minor: 1250 })
+    expect(parse('¥100', 'JPY', 'ja-JP')).toEqual({ ok: true, minor: 100 })
+    expect(parse('R$ 10', 'BRL', 'pt-BR')).toEqual({ ok: true, minor: 1000 })
+    expect(parse('(USD 100.00)'.replace(/^\((.*)\)$/, '-$1'), 'USD', 'en-US')).toEqual({ ok: true, minor: -10000 })
+  })
+
+  it('otra moneda explícita se rechaza con la marca encontrada; nunca se convierte ni se asume', () => {
+    expect(parse('USD 100.00')).toEqual({ ok: false, error: 'currencyMismatch', digits: 2, found: 'USD', expected: 'CAD' })
+    expect(parse('100 usd')).toMatchObject({ ok: false, error: 'currencyMismatch', found: 'USD' })
+    expect(parse('€12')).toMatchObject({ ok: false, error: 'currencyMismatch', found: '€' })
+    expect(parse('12,50 €', 'CAD', 'es-ES')).toMatchObject({ ok: false, error: 'currencyMismatch', found: '€' })
+    expect(parse('$ 45', 'EUR', 'es-ES')).toMatchObject({ ok: false, error: 'currencyMismatch', found: '$' })
+    expect(parse('US$12.50')).toMatchObject({ ok: false, error: 'currencyMismatch', found: 'USD' })
+    expect(parse('¥100')).toMatchObject({ ok: false, error: 'currencyMismatch', found: '¥' })
+    expect(parse('1.234,56 EUR', 'CAD', 'es-ES')).toMatchObject({ ok: false, error: 'currencyMismatch', found: 'EUR' })
+    expect(parse('100 JPY')).toMatchObject({ ok: false, error: 'currencyMismatch', found: 'JPY' })
+  })
+
+  it('un código que no es una moneda conocida tampoco se asume', () => {
+    expect(parse('ABC 12')).toEqual({ ok: false, error: 'unknownCurrency', digits: 2, found: 'ABC', expected: 'CAD' })
+    expect(parse('XY$ 12')).toMatchObject({ ok: false, error: 'unknownCurrency', found: 'XY$' })
+  })
+
+  it('«$» vale para las monedas que usan ese símbolo y para ninguna otra', () => {
+    for (const c of ['CAD', 'USD', 'MXN', 'COP', 'CLP', 'ARS', 'AUD', 'BRL']) expect(symbolMatchesCurrency('$', c), c).toBe(true)
+    for (const c of ['EUR', 'GBP', 'JPY', 'PEN', 'CHF']) expect(symbolMatchesCurrency('$', c), c).toBe(false)
+    expect(symbolMatchesCurrency('¥', 'JPY') && symbolMatchesCurrency('¥', 'CNY')).toBe(true)
   })
 })
