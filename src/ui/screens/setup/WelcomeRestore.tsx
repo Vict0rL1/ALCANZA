@@ -57,7 +57,7 @@ export function WelcomeRestore({ fmt, timeZone }: { fmt: Formatter; timeZone: st
     }
     if (!isEncryptedBackup(envelope)) return setState({ kind: 'issues', issues: [{ path: 'file', code: 'notABackup' }] })
     const r = await decryptBackup(envelope, passphrase)
-    if (!r.ok) return setState({ ...state, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : 'encrypted.wrong') })
+    if (!r.ok) return setState({ ...state, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : r.reason === 'invalid' ? 'encrypted.invalid' : 'encrypted.wrong') })
     parse(r.json)
   }
 

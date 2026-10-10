@@ -2958,4 +2958,5 @@ export const fr: Record<keyof typeof es, string> = {
   'home.alert.incompleteTitle': 'Impossible de vérifier tous les paiements de {names}',
   'home.alert.incompleteText': 'Ce paiement programmé a trop de dates depuis son début. La réserve peut être incomplète ; aucun montant par jour n’est donc suggéré aujourd’hui. Vérifiez le calendrier ou ajustez la date de début.',
   'home.period.snapshotNote': 'Chiffres reconstitués à partir des mouvements et réserves jusqu’à cette date. Les paiements programmés et les réglages (période, report, comptes) sont ceux d’aujourd’hui : ils n’ont pas d’historique.',
+  'encrypted.invalid': 'Cette copie chiffrée est endommagée ou n’a pas le format attendu : impossible de l’ouvrir.',
 }

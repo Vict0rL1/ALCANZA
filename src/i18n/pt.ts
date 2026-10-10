@@ -2958,4 +2958,5 @@ export const pt: Record<keyof typeof es, string> = {
   'home.alert.incompleteTitle': 'Não foi possível revisar todos os pagamentos de {names}',
   'home.alert.incompleteText': 'Esse agendamento tem datas demais desde o início. O reservado pode estar incompleto, por isso hoje não se sugere um valor por dia. Revise o calendário ou ajuste a data de início do agendamento.',
   'home.period.snapshotNote': 'Valores reconstruídos com os movimentos e reservas até essa data. Os agendamentos e os ajustes (período, arrasto, contas) são os atuais: não têm histórico.',
+  'encrypted.invalid': 'Esta cópia criptografada está danificada ou não tem o formato esperado: não é possível abri-la.',
 }

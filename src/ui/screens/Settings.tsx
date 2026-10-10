@@ -204,7 +204,7 @@ export function Settings({ route }: { route: Route }) {
     }
     const r = await decryptBackup(envelope, passphrase)
     if (!r.ok) {
-      setDecrypting({ ...decrypting, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : 'encrypted.wrong') })
+      setDecrypting({ ...decrypting, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : r.reason === 'invalid' ? 'encrypted.invalid' : 'encrypted.wrong') })
       return
     }
     setDecrypting(null)

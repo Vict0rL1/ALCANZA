@@ -2960,4 +2960,5 @@ export const en: Record<keyof typeof es, string> = {
   'home.alert.incompleteTitle': 'Could not review every payment of {names}',
   'home.alert.incompleteText': 'That schedule has too many dates since it started. What is reserved may be incomplete, so no daily amount is suggested today. Review the calendar or adjust the schedule’s start date.',
   'home.period.snapshotNote': 'Figures rebuilt from the movements and set-asides up to that date. Scheduled items and settings (period, carry-over, accounts) are the current ones: they have no history.',
+  'encrypted.invalid': 'This encrypted backup is damaged or not in the expected format: it cannot be opened.',
 }
