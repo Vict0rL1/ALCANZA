@@ -1,17 +1,6 @@
+import { SUPPORTED_CURRENCIES } from '../../domain/money'
 import { useMemo, useRef, useState } from 'react'
-import {
-  guessMapping,
-  isImportable,
-  looksLikeHeader,
-  MAX_IMPORT_BYTES,
-  MAX_IMPORT_ROWS,
-  parseCsv,
-  possibleDateFormats,
-  previewImport,
-  type BankDateFormat,
-  type ColumnMapping,
-  type ImportRow,
-} from '../../domain/bankImport'
+import { parseCsv, type BankDateFormat, type ColumnMapping, defaultSelection, guessMapping, type ImportRow, isImportable, looksLikeHeader, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, possibleDateFormats, previewImport } from '../../domain/bankImport'
 import { categoriesForKind } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { importTransactions, removeTransactions } from '../../domain/operations'
@@ -66,6 +55,7 @@ export function BankImport() {
   const [dateFormat, setDateFormat] = useState<BankDateFormat>('ymd')
   const [invertSign, setInvertSign] = useState(false)
   const [sameDayIncluded, setSameDayIncluded] = useState(true)
+  const [fileCurrency, setFileCurrency] = useState(data.settings.currency)
   const [expenseCategory, setExpenseCategory] = useState('other_expense')
   const [incomeCategory, setIncomeCategory] = useState('other_income')
   const [choices, setChoices] = useState<Map<string, boolean>>(new Map())
@@ -109,8 +99,8 @@ export function BankImport() {
   }
 
   const preview = useMemo(
-    () => (file ? previewImport(file.table, data, { accountId, mapping, hasHeader, dateFormat, invertSign, locale: data.settings.numberLocale, today }) : null),
-    [file, data, accountId, mapping, hasHeader, dateFormat, invertSign, today],
+    () => (file ? previewImport(file.table, data, { accountId, mapping, hasHeader, dateFormat, invertSign, locale: data.settings.numberLocale, today, fileCurrency }) : null),
+    [file, data, accountId, mapping, hasHeader, dateFormat, invertSign, today, fileCurrency],
   )
 
   const header = file?.table[0] ?? []
@@ -123,10 +113,21 @@ export function BankImport() {
   const validFormats = possibleDateFormats(dateValues)
   const splitAmount = mapping.amount === undefined
 
-  const isChecked = (row: ImportRow) => isImportable(row) && (choices.get(row.importRef) ?? row.status === 'new')
+  // Marcadas por defecto: la misma regla que `defaultSelection` (nuevas que no parecen pagos de tarjeta).
+  const defaults = useMemo(() => (preview ? defaultSelection(preview) : new Set<number>()), [preview])
+  const isChecked = (row: ImportRow) => isImportable(row) && (choices.get(row.importRef) ?? defaults.has(row.line))
   const selected = preview ? preview.rows.filter(isChecked) : []
   const hasSameDay = selected.some((r) => r.anchorRelation === 'sameDay')
   const selectedTotal = selected.reduce((sum, r) => sum + (r.kind === 'income' ? r.amountMinor! : -r.amountMinor!), 0)
+  // Efecto real sobre el saldo antes de confirmar: solo las filas posteriores al saldo de referencia (y las del
+  // mismo día si no estaban ya incluidas); las anteriores se guardan como historial y no lo cambian.
+  const balanceEffect = selected.reduce(
+    (acc, r) => {
+      const counts = r.anchorRelation === 'after' || (r.anchorRelation === 'sameDay' && !sameDayIncluded)
+      return counts ? { effectMinor: acc.effectMinor + (r.kind === 'income' ? r.amountMinor! : -r.amountMinor!), count: acc.count + 1 } : acc
+    },
+    { effectMinor: 0, count: 0 },
+  )
 
   /** Categoría de una fila: la elegida a mano, si no la de una regla, si no la general. */
   const categoryFor = (row: ImportRow): { categoryId: string; rule?: CategoryRule } => {
@@ -179,7 +180,7 @@ export function BankImport() {
   const rowBadges = (row: ImportRow) => {
     switch (row.status) {
       case 'error':
-        return <Badge tone="critical" icon="alert">{t(`bankImport.error.row.${row.error}` as MessageKey)}</Badge>
+        return <Badge tone="critical" icon="alert">{t(`bankImport.error.row.${row.error}` as MessageKey, { found: row.currency ?? '?', expected: data.settings.currency })}</Badge>
       case 'duplicate':
         return <Badge tone="neutral" icon="check">{t('bankImport.status.duplicate')}</Badge>
       case 'possibleDuplicate':
@@ -189,9 +190,15 @@ export function BankImport() {
       case 'purged':
         return <Badge tone="warning" icon="info">{t('bankImport.status.purged')}</Badge>
       default:
-        return <Badge tone="good" icon="plus">{t('bankImport.status.new')}</Badge>
+        return (
+          <>
+            <Badge tone="good" icon="plus">{t('bankImport.status.new')}</Badge>
+            {row.cardPaymentHint && <Badge tone="warning" icon="alert">{t('bankImport.status.cardPayment')}</Badge>}
+          </>
+        )
     }
   }
+  const cardPaymentRows = preview ? preview.rows.filter((r) => r.cardPaymentHint && isImportable(r)).length : 0
 
   const possibleMatch = (row: ImportRow) => {
     const match = row.matchId ? data.transactions.find((tx) => tx.id === row.matchId) : undefined
@@ -290,6 +297,26 @@ export function BankImport() {
                 error={validFormats.length > 0 && !validFormats.includes(dateFormat) ? t('bankImport.dateMismatch') : null}
               />
             </div>
+            <div className="form-grid">
+              {/* QA-05: la moneda del archivo se declara o se lee de una columna; una distinta nunca se importa. */}
+              <SelectField
+                label={t('bankImport.fileCurrency')}
+                value={fileCurrency}
+                onChange={(e) => setFileCurrency(e.target.value)}
+                options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: c.code }))}
+                hint={t('bankImport.fileCurrencyHint', { currency: data.settings.currency })}
+              />
+              <SelectField
+                label={t('bankImport.currencyColumn')}
+                value={mapping.currency === undefined ? '' : String(mapping.currency)}
+                onChange={(e) => {
+                  const { currency: _omit, ...rest } = mapping
+                  setMapping(e.target.value === '' ? rest : { ...rest, currency: Number(e.target.value) })
+                }}
+                options={[{ value: '', label: t('bankImport.currencyColumnNone') }, ...columnOptions]}
+                hint={t('bankImport.currencyColumnHint')}
+              />
+            </div>
             <CheckboxField
               label={t('bankImport.invert')}
               hint={account?.kind === 'credit' ? t('bankImport.invertCardHint') : t('bankImport.invertHint')}
@@ -348,6 +375,12 @@ export function BankImport() {
               </p>
             )}
             {preview.counts.purged > 0 && <p className="note">{t('bankImport.purgedNote')}</p>}
+            {cardPaymentRows > 0 && (
+              <p className="note" data-testid="import-card-payment-note">{tn('bankImport.cardPaymentNote', cardPaymentRows)}</p>
+            )}
+            {preview.rows.some((r) => r.error === 'currency') && (
+              <p className="note" data-testid="import-currency-note">{t('bankImport.currencyNote', { count: preview.rows.filter((r) => r.error === 'currency').length, currency: data.settings.currency })}</p>
+            )}
             {account && selected.some((r) => r.anchorRelation === 'before') && (
               <p className="note">{t('bankImport.beforeAnchorNote', { date: fmt.date(account.anchor.date) })}</p>
             )}
@@ -444,6 +477,11 @@ export function BankImport() {
             )}
 
             <p className="summary-line">{t('bankImport.selectedSummary', { count: selected.length, total: fmt.money(selectedTotal, { sign: true }) })}</p>
+            {account && (
+              <p className="note" data-testid="import-balance-effect">
+                {t('bankImport.balanceEffect', { account: account.name, currency: data.settings.currency, effect: fmt.money(balanceEffect.effectMinor, { sign: true }), count: balanceEffect.count })}
+              </p>
+            )}
             <div className="form__actions">
               <button type="button" className="btn btn--primary btn--large" disabled={busy || selected.length === 0} onClick={() => void confirm()}>
                 <Icon name="check" />

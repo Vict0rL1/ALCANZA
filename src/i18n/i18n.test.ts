@@ -120,3 +120,12 @@ describe('textos (i18n)', () => {
     expect(translate('en', 'common.save')).toBe('Save')
   })
 })
+
+describe('UX-01 · la sección «Puedes gastar» se llama como la cifra de Inicio en cada idioma', () => {
+  it('ningún diccionario deja «Safe to spend» como título de la sección; el título es el de la cifra', () => {
+    for (const [lang, dict] of Object.entries({ es, ...LANGS })) {
+      expect(dict['safe.title'], lang).toBe(dict['home.availableLabel'])
+      if (lang !== 'en') expect(dict['safe.title'], lang).not.toMatch(/safe to spend/i)
+    }
+  })
+})

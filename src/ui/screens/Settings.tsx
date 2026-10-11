@@ -50,6 +50,7 @@ import { useEncryptedExport } from '../useEncryptedExport'
 import { DEV_MODE } from './Pro'
 import { aiUsagePercent, isPro } from '../../domain/featureGate'
 import { decryptBackup, isEncryptedBackup, looksEncrypted } from '../../storage/encryptedBackup'
+import { canChangeCurrency as canChangeCurrencyNow } from '../../domain/currencyChange'
 import { CurrencyDialog } from './settings/CurrencyDialog'
 import { ExportSection } from './settings/ExportSection'
 import { LockSection } from './settings/LockSection'
@@ -203,7 +204,7 @@ export function Settings({ route }: { route: Route }) {
     }
     const r = await decryptBackup(envelope, passphrase)
     if (!r.ok) {
-      setDecrypting({ ...decrypting, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : 'encrypted.wrong') })
+      setDecrypting({ ...decrypting, error: t(r.reason === 'unsupported' ? 'encrypted.unsupported' : r.reason === 'invalid' ? 'encrypted.invalid' : 'encrypted.wrong') })
       return
     }
     setDecrypting(null)
@@ -261,7 +262,8 @@ export function Settings({ route }: { route: Route }) {
     }
     if (!result.unchanged) toast({ message: saved ? t('currency.changed', { code }) : t('save.error.generic'), tone: saved ? 'good' : 'critical' })
   }
-  const canChangeCurrency = data.transactions.length === 0 && data.trash.length === 0 && data.schedules.length === 0 && data.goals.length === 0 && data.plans.length === 0 && data.periodBudgets.length === 0 && !data.favorites.some((f) => f.amountMinor !== undefined)
+  // La misma regla que la operación (QA-01): saldos distintos de cero también son importes guardados.
+  const canChangeCurrency = canChangeCurrencyNow(data)
   const currentPeriod = data.settings.budgetPeriod?.type && data.settings.budgetPeriod.type !== 'untilIncome' ? getPeriod(data.settings.budgetPeriod, today) : null
 
   const sample = createFormatter({ ...data.settings })
@@ -348,6 +350,7 @@ export function Settings({ route }: { route: Route }) {
           options={BUDGET_PERIOD_TYPES.map((p) => ({ value: p, label: t(`period.type.${p}` as MessageKey) }))}
           hint={t('settings.period.hint')}
         />
+        {data.settings.budgetPeriod?.type === 'biweek' && <p className="field__hint">{t('period.biweekHint')}</p>}
         {data.settings.budgetPeriod?.type === 'week' && (
           <SelectField
             label={t('settings.period.weekStart')}
@@ -373,7 +376,7 @@ export function Settings({ route }: { route: Route }) {
         <div className="field">
           <p className="field__label">{t('settings.currency.label')}</p>
           <p>
-            <strong>{data.settings.currency}</strong> · {currencyName(data.settings.currency, data.settings.numberLocale)} · {sample.money(123456)}
+            <strong>{data.settings.currency}</strong> · {currencyName(data.settings.currency, data.settings.language)} · {sample.money(123456)}
           </p>
           <button type="button" className="btn btn--secondary btn--small" onClick={() => setCurrencyOpen(true)} data-testid="change-currency">
             <Icon name="coins" size={16} />
@@ -722,7 +725,7 @@ export function Settings({ route }: { route: Route }) {
         />
       )}
       {decrypting && <PassphraseDialog mode="decrypt" error={decrypting.error} onClose={() => setDecrypting(null)} onSubmit={openEncrypted} />}
-      {currencyOpen && <CurrencyDialog current={data.settings.currency} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
+      {currencyOpen && <CurrencyDialog current={data.settings.currency} language={data.settings.language} locale={data.settings.numberLocale} onPick={(code) => void pickCurrency(code)} onClose={() => setCurrencyOpen(false)} />}
       {accountDialog && <AccountDialog account={accountDialog === 'new' ? null : accountDialog} onClose={() => setAccountDialog(null)} />}
       {balanceFor && <UpdateBalanceDialog initialAccountId={balanceFor} onClose={() => setBalanceFor(null)} />}
 

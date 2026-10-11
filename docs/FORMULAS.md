@@ -126,6 +126,17 @@ años no bisiestos.
 **Primera fecha:** la «próxima fecha» de un programado es la primera ocurrencia que se
 controla; las anteriores no se consideran.
 
+**Topes de recorrido (QA-06, `domain/recurrence.ts` y `domain/planItems.ts`):** una ventana
+normal (calendario, reservas hasta el próximo ingreso) se recorre con un tope de 2 000
+ocurrencias por programado (`MAX_OCCURRENCES`, ~5 años de un pago diario). Los **vencidos**
+desde el inicio del programado se recorren **aparte**, con un tope propio de 20 000
+(`OVERDUE_SCAN_LIMIT`, ~55 años de un pago diario): así un programado antiguo con miles de
+ocurrencias pagadas nunca consume el tope de la ventana actual y el pago de hoy sigue
+reservado. Si aun así se alcanza un tope, el resultado se marca **truncado**
+(`truncatedScheduleIds` en el calendario, `incompleteScheduleIds` en `computeBudget`): lo
+reservado puede estar incompleto, no se sugiere importe por día ni por semana e Inicio avisa.
+Nunca se presenta una cifra incompleta como si estuviera completa.
+
 ## 6. Disponible hasta el próximo ingreso
 
 ```
@@ -304,6 +315,20 @@ guarda hasta confirmar la vista previa. Límites: 2 MB y 5000 filas.
   Ajustes. Una columna con signo (− = gasto) o dos columnas (cargo resta, abono suma,
   sin importar su signo). `(12.34)` = −12.34. Opción de invertir el signo (tarjetas).
   Positivo → ingreso; negativo → gasto; cero, fecha futura o inválida → fila con error.
+- **Moneda (QA-05):** Clara no convierte. Una moneda escrita que no es la del presupuesto
+  es una fila con error `currency` (se muestra la marca encontrada y la esperada), nunca se
+  asume la del presupuesto. Se reconoce: un **código** junto al importe (`USD 100`,
+  `100 EUR`), un **prefijo con dólar** (`CA$`, `US$`, `R$`), un **símbolo** suelto
+  (`€12`, `12,50 €`, `¥100`) y una **columna de moneda** del archivo (cabecera
+  «Moneda», «Currency», «Devise», «Ccy»…, detectada sola o elegida). Un símbolo suelto se
+  acepta solo si puede ser el de la moneda del presupuesto: `$` vale para CAD, USD, MXN,
+  COP, CLP, ARS, AUD o BRL y no para EUR, GBP, JPY, PEN o CHF; `€` solo para EUR; `¥`
+  para JPY y CNY. Un código que no es una moneda conocida (`XYZ 10`) también es error. La
+  persona puede declarar la **moneda de todo el archivo**: si no es la del presupuesto,
+  ninguna fila se importa; si coincide, es como no decirlo. Las columnas de cargo y abono
+  siguen la misma regla cada una. Los movimientos importados llevan siempre la moneda del
+  presupuesto (§11), y la vista previa dice cuánto cambiará el saldo con las filas marcadas
+  posteriores al saldo de referencia.
 - **Huella** `importRef = cuenta | fecha | importe con signo | descripción normalizada |
   nº de repetición`. La descripción se normaliza (minúsculas, sin acentos, espacios
   simples, 80 caracteres). El nº de repetición distingue dos filas idénticas del mismo
@@ -888,7 +913,9 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
 
 - Tipos: semana (día de inicio configurable), quincena (1–15 / 16–fin), mes, trimestre, semestre y año alineados al calendario, personalizado (el rango se repite con la misma duración hasta contener hoy) y «hasta mi próximo ingreso» (modelo original: hoy … día anterior al ingreso).
 - `daysLeft` cuenta hoy y el último día del periodo. Si hoy ya pasó el fin, es 0 y no se divide.
-- Saldo del periodo: `carryOver = saldo consolidado de hoy − (ingresos − gastos realizados del periodo)`. Con arrastre, `base = carryOver + ingresos − gastos` (= saldo consolidado); sin arrastre, `base = ingresos − gastos`. `availablePct = base disponible / (carryOver + ingresos)` solo si el denominador es > 0.
+- Saldo del periodo: `netoPresupuesto = Σ efecto sobre las cuentas del presupuesto de los movimientos realizados del periodo` (ingresos y devoluciones recibidos en cuentas del presupuesto − gastos desde ellas − transferencias hacia cuentas excluidas + transferencias desde ellas, ajustes incluidos). `carryOver = saldo real de hoy − netoPresupuesto` (lo que había en esas cuentas al empezar). Con arrastre, `base = saldo real` (= carryOver + netoPresupuesto). **Sin arrastre, `base = min(netoPresupuesto, saldo real)`** (QA-03, decisión 131): la asignación del periodo nunca supera el dinero que de verdad hay en las cuentas. `availablePct = base disponible / (carryOver + ingresos)` solo si el denominador es > 0.
+  - Ejemplos sin arrastre (mes): saldo de referencia −500 e ingreso 1 000 → saldo real 500, neto 1 000 → **base 500** (antes: 1 000, más de lo que había). Saldo previo 2 000, ingreso 1 000, gasto 200 → saldo 2 800, neto 800 → **base 800** (manda la asignación). Ingreso de 1 000 en una cuenta excluida → neto 0 → **base 0**, y «¿Cómo se calculó?» muestra la diferencia con los ingresos de Estadísticas. Deuda previa −1 500 e ingreso 1 000 → **base −500**: el déficit se ve, no se recorta a cero.
+  - Lo comprometido (pagos reservados y apartados) se resta UNA vez de esa base, igual que con arrastre.
 - Disponible = `base − pagos reservados hasta el fin del periodo (incluido) − apartados de metas`. Las mismas reservas que §1; nada cambia para `untilIncome`.
 - *Safe to spend* = `max(disponible − comprometido, 0)`; por día = `floor(safe / daysLeft)`; por semana = `floor(safe × min(7, daysLeft) / daysLeft)`; por periodo = `safe`.
 
@@ -903,7 +930,7 @@ Pruebas: `ui/preferences.test.ts` y e2e `personalize.spec.ts`.
 
 ## 33. Programados v2 y avisos locales
 
-- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por el importe previsto, `source: 'scheduled'`. Idempotente: una ocurrencia liquidada u omitida no se registra.
+- Confirmación automática: ocurrencias abiertas (ni pagadas ni omitidas) con fecha en `[hoy − 7, hoy]` de programados con `autoConfirm` y sin pausa → movimiento realizado por **lo que falta** de la ocurrencia (previsto − cobros parciales, el mismo `PlanItem.amountMinor` del calendario), `source: 'scheduled'`; si no falta nada, la ocurrencia se cierra sin crear movimiento (QA-02). Idempotente: una ocurrencia liquidada u omitida no se registra. Los vencidos se revisan con los topes del §5.
 - Pausa: un programado en pausa no genera ocurrencias ni reservas; al reanudar vuelven las futuras y las vencidas no omitidas.
 - Avisos: con `scheduledAlerts`, vencidos (desde las 09:00) y los que vencen hoy o mañana; `dailyReminder` a su hora solo si hoy no hay movimientos realizados; `dailySummary` a su hora con gastos − devoluciones del día. En horas de silencio (rango que puede cruzar medianoche) no se emite nada; al salir del rango se emiten los pendientes. Cada aviso tiene una clave por día para no repetirse.
 
@@ -1013,6 +1040,12 @@ compactos ni se redondean para calcular.
   referencia con fecha > cierre)`, con fecha de referencia = cierre. Sobre esa copia se aplican
   `computeBudget` y `heroFigures` con «hoy» = cierre: saldo, reservado, disponible, ingresos y gastos
   tal como se habrían visto ese día.
+- **Apartados (QA-04):** los apartados de metas tienen fecha, así que en la copia solo existen los
+  de fecha ≤ cierre (aportes, liberaciones y pagos desde una meta por igual); una meta creada después
+  del cierre (`createdAt` en la zona horaria del presupuesto) no existe, y un gasto planificado cerrado
+  después sigue abierto. Un apartado de septiembre ya no reduce el disponible de agosto.
+- **Límite declarado:** los programados y los ajustes (tipo de periodo, arrastre, cuentas incluidas)
+  no tienen historial propio, así que la instantánea usa los actuales. La pancarta del periodo lo dice.
 - El periodo actual no usa la instantánea: Inicio muestra las cifras vivas. La navegación nunca escribe.
 
 ## 41. «Repetir» al guardar un movimiento (`domain/repeat.ts`, D6)
@@ -1043,3 +1076,19 @@ compactos ni se redondean para calcular.
   `fecha = hoy + días`; «al día» = `⌊Σ30 ÷ 30⌋`. Enteros en unidades menores, nunca flotantes ni
   división entre cero. Meta completa → sin estimación.
 - La estimación es orientativa: cambia con cada aporte y no es una promesa ni un plan.
+
+## 43. Exportación CSV sin fórmulas (`domain/csvExport.ts`, QA-07)
+
+- Un CSV se abre en hojas de cálculo que **ejecutan** lo que empieza por `=`, `+`, `-`, `@`,
+  tabulador o retorno de carro. Una nota o un comercio escritos (o importados de un banco) con
+  ese inicio podrían convertirse en una fórmula al abrir la exportación.
+- Toda celda de **texto libre** (tipo, estado, categoría, cuenta, destino, nota, comercio, origen,
+  nombres de categorías y planes, títulos de sección) pasa por `safeText`: si el texto, tras los
+  espacios iniciales, empieza por uno de esos caracteres, se antepone un apóstrofo (`'`), la
+  convención de Excel, LibreOffice y Google Sheets para «esto es texto»; los caracteres de control
+  (salvo tabulador y saltos de línea, que se entrecomillan) se quitan. Después se entrecomilla como
+  siempre si contiene `"`, `,`, `;` o saltos de línea.
+- **Fechas, importes, moneda e ids no pasan por `safeText`:** los importes siguen siendo números
+  con signo (`-12.50`) para que las sumas de la hoja funcionen. El contenido numérico no cambia.
+- Fidelidad: una nota que empiece por «-» o «+» se verá con el apóstrofo delante en la hoja; es el
+  coste de no ejecutar nada. Las copias de seguridad (JSON) no se tocan: no son hojas de cálculo.

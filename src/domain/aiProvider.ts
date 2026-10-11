@@ -4,6 +4,7 @@
  * si hay credenciales en variables de entorno de compilación; sin ellas nunca se simula: la app
  * usa el local y lo dice. Ningún proveedor registra movimientos ni toca saldos.
  */
+import { checkRemoteAiConfig, type RemoteAiEnv } from './aiConfig'
 import { parseText, type ParseContext, type ParsedEntry } from './parser'
 
 export interface AIProvider {
@@ -74,8 +75,13 @@ function sanitize(remote: unknown, fallback: ParsedEntry | undefined, ctx: Parse
   return { ...base, kind, amountMinor: amount, date, ...(categoryId ? { categoryId } : {}), description, confidence }
 }
 
-/** Elige proveedor según la configuración de compilación. Sin credenciales → local, sin excepciones. */
-export function createAiProvider(env: { VITE_AI_ENDPOINT?: string; VITE_AI_KEY?: string } = {}): AIProvider {
-  if (env.VITE_AI_ENDPOINT && env.VITE_AI_KEY) return new RemoteProvider({ endpoint: env.VITE_AI_ENDPOINT, apiKey: env.VITE_AI_KEY })
+/**
+ * Elige proveedor según la configuración de compilación. Sin credenciales → local, sin excepciones.
+ * Con una configuración insegura (R-01: clave de proveedor o endpoint directo a un proveedor) también
+ * local: la misma regla que hace fallar la compilación (`checkRemoteAiConfig`).
+ */
+export function createAiProvider(env: RemoteAiEnv = {}): AIProvider {
+  const check = checkRemoteAiConfig(env)
+  if (check.ok) return new RemoteProvider({ endpoint: check.endpoint, apiKey: (env.VITE_AI_KEY ?? '').trim() })
   return new LocalProvider()
 }

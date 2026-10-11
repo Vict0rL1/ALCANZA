@@ -1,4 +1,4 @@
-/** Selector de moneda (§7.7): búsqueda y grupos por región; ≥ 45 monedas con nombre localizado. */
+/** Selector de moneda (§7.7): búsqueda y grupos por región; ≥ 45 monedas. El nombre sigue al idioma y el ejemplo al formato numérico (UX-01). */
 import { useMemo, useState } from 'react'
 import { currencyName } from '../../../domain/formatters'
 import { formatMoney, SUPPORTED_CURRENCIES, type CurrencyGroup } from '../../../domain/money'
@@ -11,13 +11,13 @@ import { Icon } from '../../components/Icon'
 
 const GROUPS: CurrencyGroup[] = ['americas', 'europe', 'asiaPacific', 'middleEastAfrica']
 
-export function CurrencyDialog({ current, locale, onPick, onClose }: { current: CurrencyCode; locale: string; onPick: (code: CurrencyCode) => void; onClose: () => void }) {
+export function CurrencyDialog({ current, language, locale, onPick, onClose }: { current: CurrencyCode; language: string; locale: string; onPick: (code: CurrencyCode) => void; onClose: () => void }) {
   const { t } = useT()
   const [query, setQuery] = useState('')
   const rows = useMemo(() => {
     const q = normalizeText(query)
-    return SUPPORTED_CURRENCIES.map((c) => ({ ...c, name: currencyName(c.code, locale), sample: formatMoney(123456, c.code, locale) })).filter((c) => !q || normalizeText(`${c.code} ${c.name}`).includes(q))
-  }, [query, locale])
+    return SUPPORTED_CURRENCIES.map((c) => ({ ...c, name: currencyName(c.code, language), sample: formatMoney(123456, c.code, locale) })).filter((c) => !q || normalizeText(`${c.code} ${c.name}`).includes(q))
+  }, [query, language, locale])
   return (
     <Dialog open onClose={onClose} title={t('currency.pickTitle')}>
       <SearchBar value={query} onChange={setQuery} label={t('currency.search')} placeholder={t('currency.searchPlaceholder')} clearLabel={t('common.clear')} autoFocus />

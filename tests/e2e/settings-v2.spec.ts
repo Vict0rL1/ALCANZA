@@ -112,7 +112,7 @@ test('apariencia y exportación: idioma con bandera, moneda bloqueada con regist
   await page.getByTestId('change-currency').click()
   await page.getByLabel('Buscar moneda').fill('mex')
   await page.getByRole('dialog').getByRole('button', { name: /MXN/ }).click()
-  await expect(page.getByText('Ya hay registros con importe')).toBeVisible()
+  await expect(page.getByText('Ya hay importes guardados')).toBeVisible()
 
   await go(page, '/ajustes/exportar')
   const download = page.waitForEvent('download')
@@ -127,11 +127,12 @@ test('apariencia y exportación: idioma con bandera, moneda bloqueada con regist
   await expect(page.getByText('Dónde están tus datos')).toBeVisible()
 })
 
-test('moneda: un presupuesto nuevo sin registros puede cambiarla desde el selector con búsqueda', async ({ page }) => {
+test('moneda: un presupuesto nuevo sin importes (saldo en cero) puede cambiarla desde el selector con búsqueda', async ({ page }) => {
   await openApp(page)
   await page.getByRole('button', { name: 'Configurar con mis datos' }).click()
   await page.getByRole('button', { name: 'Continuar' }).click()
-  await page.getByLabel('Saldo disponible').fill('100')
+  // QA-01: un saldo de referencia distinto de cero ya es un importe guardado y bloquea el cambio (audit-regressions.spec).
+  await page.getByLabel('Saldo disponible').fill('0')
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('radio', { name: 'No tengo fecha' }).check()
   await page.getByRole('button', { name: 'Continuar' }).click()

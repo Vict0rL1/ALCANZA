@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { autoConfirmDue, setSchedulePaused } from './scheduledJobs'
+import { autoConfirmDue, overstatedAutoConfirms, setSchedulePaused } from './scheduledJobs'
 import { dueNotices, isQuietHour } from './notifications'
+import { markOccurrence } from './operations'
 import { savePlan } from './plans'
 import { computeBudget } from './budget'
 import { baseData, bill, ctx, income, tx } from '../test/fixtures'
@@ -100,5 +101,93 @@ describe('notificaciones locales (reglas puras)', () => {
     expect(dueNotices(over, { today: ctx.today, now: '08:00', settings }, fmt)).toMatchObject([{ kind: 'plan100', params: { over: '5000' } }])
     expect(dueNotices(saved.data, { today: ctx.today, now: '08:00', settings: DEFAULT_NOTIFICATIONS }, fmt)).toEqual([])
     expect(dueNotices(saved.data, { today: ctx.today, now: '23:00', settings: { ...settings, quietHours: true } }, fmt)).toEqual([])
+  })
+})
+
+describe('confirmación automática con cobros o pagos parciales (QA-02)', () => {
+  const partialIncome = (overrides: Partial<Parameters<typeof income>[2]> = {}) =>
+    baseData({ schedules: [income(ctx.today, 100000, { id: 'pay', name: 'Sueldo', autoConfirm: true, ...overrides })] })
+  const total = (d: ReturnType<typeof baseData>) => d.transactions.reduce((sum, t) => sum + t.amountMinor, 0)
+
+  it('ingreso 1000 con 400 a cuenta: añade solo los 600 que faltan, cierra la ocurrencia y una segunda pasada no añade nada', () => {
+    const part = markOccurrence(partialIncome(), { scheduleId: 'pay', occurrenceDate: ctx.today, amountMinor: 40000, date: ctx.today, expectRemainder: true }, ctx)
+    if (!part.ok) throw new Error('fixture')
+    const auto = autoConfirmDue(part.data, ctx)
+    expect(auto.ok).toBe(true)
+    if (!auto.ok) return
+    expect(auto.value.confirmed.map((t) => t.amountMinor)).toEqual([60000])
+    expect(total(auto.data)).toBe(100000)
+    expect(auto.data.transactions.filter((t) => t.scheduleId === 'pay' && !t.partialSettlement)).toHaveLength(1)
+    expect(computeBudget(auto.data, ctx.today).incomeDueToday).toEqual([])
+    expect(validateAppData(auto.data).ok).toBe(true)
+    expect(autoConfirmDue(auto.data, ctx)).toMatchObject({ ok: true, unchanged: true })
+    expect(total(auto.data)).toBe(100000)
+  })
+
+  it('activar la confirmación automática DESPUÉS del cobro parcial da el mismo resultado', () => {
+    const manual = baseData({ schedules: [income(ctx.today, 100000, { id: 'pay', name: 'Sueldo' })] })
+    const part = markOccurrence(manual, { scheduleId: 'pay', occurrenceDate: ctx.today, amountMinor: 40000, date: ctx.today, expectRemainder: true }, ctx)
+    if (!part.ok) throw new Error('fixture')
+    const enabled = { ...part.data, schedules: part.data.schedules.map((s) => ({ ...s, autoConfirm: true })) }
+    const auto = autoConfirmDue(enabled, ctx)
+    expect(auto.ok && total(auto.data)).toBe(100000)
+  })
+
+  it('un gasto con pago parcial también se completa solo por el resto', () => {
+    const d = baseData({ schedules: [bill(ctx.today, 30000, { id: 'rent', name: 'Renta', autoConfirm: true }), income('2026-10-12', 100000)] })
+    const part = markOccurrence(d, { scheduleId: 'rent', occurrenceDate: ctx.today, amountMinor: 10000, date: ctx.today, expectRemainder: true }, ctx)
+    if (!part.ok) throw new Error('fixture')
+    const auto = autoConfirmDue(part.data, ctx)
+    expect(auto.ok && auto.value.confirmed.map((t) => t.amountMinor)).toEqual([20000])
+    expect(auto.ok && computeBudget(auto.data, ctx.today).reservedTotalMinor).toBe(0)
+    expect(auto.ok && computeBudget(auto.data, ctx.today).availableMinor).toBe(70000)
+  })
+
+  it('si los parciales ya cubren el importe, cierra la ocurrencia sin crear ningún movimiento', () => {
+    // Un parcial editado a mano hasta el importe completo sigue marcado como parcial: la ocurrencia está «abierta por 0».
+    const d = baseData({
+      schedules: [income(ctx.today, 100000, { id: 'pay', name: 'Sueldo', autoConfirm: true })],
+      transactions: [tx({ id: 'p1', kind: 'income', categoryId: 'salary', amountMinor: 100000, scheduleId: 'pay', occurrenceDate: ctx.today, partialSettlement: true })],
+    })
+    const auto = autoConfirmDue(d, ctx)
+    expect(auto.ok).toBe(true)
+    if (!auto.ok) return
+    expect(auto.data.transactions).toHaveLength(1)
+    expect(auto.data.transactions[0]).toMatchObject({ id: 'p1', amountMinor: 100000 })
+    expect(auto.data.transactions[0]!.partialSettlement).toBeUndefined()
+    expect(total(auto.data)).toBe(100000)
+  })
+
+  it('ingreso variable: el resto se calcula sobre el importe esperado', () => {
+    const d = partialIncome({ amountMinor: 50000, range: { minMinor: 10000, extraMinor: 90000 } })
+    const part = markOccurrence(d, { scheduleId: 'pay', occurrenceDate: ctx.today, amountMinor: 20000, date: ctx.today, expectRemainder: true }, ctx)
+    if (!part.ok) throw new Error('fixture')
+    const auto = autoConfirmDue(part.data, ctx)
+    expect(auto.ok && auto.value.confirmed.map((t) => t.amountMinor)).toEqual([30000])
+    expect(auto.ok && total(auto.data)).toBe(50000)
+  })
+
+  it('en pausa o con la ocurrencia omitida no registra nada, también con parciales previos', () => {
+    const part = markOccurrence(partialIncome(), { scheduleId: 'pay', occurrenceDate: ctx.today, amountMinor: 40000, date: ctx.today, expectRemainder: true }, ctx)
+    if (!part.ok) throw new Error('fixture')
+    const paused = { ...part.data, schedules: part.data.schedules.map((s) => ({ ...s, paused: true })) }
+    expect(autoConfirmDue(paused, ctx)).toMatchObject({ ok: true, unchanged: true })
+    const skipped = { ...part.data, schedules: part.data.schedules.map((s) => ({ ...s, skippedDates: [ctx.today] })) }
+    expect(autoConfirmDue(skipped, ctx)).toMatchObject({ ok: true, unchanged: true })
+    expect(total(skipped)).toBe(40000)
+  })
+
+  it('detecta datos antiguos con el defecto (parcial + importe completo automático) y no marca liquidaciones correctas', () => {
+    const schedule = income(ctx.today, 100000, { id: 'pay', name: 'Sueldo', autoConfirm: true })
+    const partial = tx({ id: 'p', kind: 'income', categoryId: 'salary', amountMinor: 40000, scheduleId: 'pay', occurrenceDate: ctx.today, partialSettlement: true, date: '2026-09-27' })
+    const wrongFinal = tx({ id: 'f', kind: 'income', categoryId: 'salary', amountMinor: 100000, scheduleId: 'pay', occurrenceDate: ctx.today, source: 'scheduled' })
+    const bad = baseData({ schedules: [schedule], transactions: [partial, wrongFinal] })
+    expect(overstatedAutoConfirms(bad)).toEqual([{ scheduleId: 'pay', occurrenceDate: ctx.today, finalTxId: 'f', partialTxIds: ['p'], excessMinor: 40000 }])
+    // Corregido a mano (el resto) o liquidado a mano con el importe completo: nada que señalar.
+    const fixed = baseData({ schedules: [schedule], transactions: [partial, { ...wrongFinal, amountMinor: 60000 }] })
+    expect(overstatedAutoConfirms(fixed)).toEqual([])
+    const manualFull = baseData({ schedules: [schedule], transactions: [partial, { ...wrongFinal, source: 'manual' }] })
+    expect(overstatedAutoConfirms(manualFull)).toEqual([])
+    expect(overstatedAutoConfirms(baseData({ schedules: [schedule], transactions: [wrongFinal] }))).toEqual([])
   })
 })

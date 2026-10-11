@@ -28,6 +28,30 @@ function cell(value: string | number | undefined): string {
   return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+/**
+ * Texto que una hoja de cálculo ejecutaría como fórmula al abrir el CSV (QA-07): empieza por
+ * «=», «+», «−», «@», tabulador o retorno de carro, con o sin espacios delante. Entrecomillarlo
+ * no basta (Excel sigue evaluando `"=1+1"`).
+ */
+export const FORMULA_TRIGGER = /^[\s\u00a0]*[=+\-@\t\r]/
+
+/**
+ * Texto escrito por la persona (notas, comercios, nombres) listo para una hoja de cálculo: si
+ * podría leerse como fórmula se antepone un apóstrofo, la convención de Excel, LibreOffice y
+ * Sheets para «esto es texto». Fidelidad: una nota que empiece por «-» o «+» se verá con ese
+ * apóstrofo delante; los importes no pasan por aquí (siguen siendo números con signo). Los
+ * caracteres de control (salvo tabulador y saltos de línea, que se entrecomillan) se quitan.
+ */
+export function safeText(value: string | undefined): string {
+  const s = (value ?? '').replace(/[^\P{Cc}\t\n\r]/gu, '')
+  return FORMULA_TRIGGER.test(s) ? `'${s}` : s
+}
+
+/** Celda de texto libre: neutralizada y entrecomillada si hace falta. */
+function textCell(value: string | undefined): string {
+  return cell(safeText(value))
+}
+
 const BOM = '\uFEFF'
 
 function table(headers: readonly string[], rows: readonly (readonly (string | number | undefined)[])[], sep: ',' | ';'): string {
@@ -43,19 +67,21 @@ export function signedAmount(tx: Transaction): number {
 
 export function transactionsToCsv(txs: readonly Transaction[], labels: CsvLabels): string {
   const sep = labels.separator ?? ','
+  // Fechas, importes, monedas e ids son valores generados: van tal cual. El resto es texto de la
+  // persona (o etiquetas que pueden serlo, como una categoría propia) y pasa por `safeText`.
   const rows = txs.map((tx) => [
     tx.date,
-    labels.kind(tx),
-    labels.status(tx),
+    safeText(labels.kind(tx)),
+    safeText(labels.status(tx)),
     minorToDecimalString(signedAmount(tx), tx.currency),
     tx.currency,
-    labels.category(tx),
-    labels.account(tx.accountId),
-    tx.kind === 'transfer' ? labels.account(tx.toAccountId) : '',
-    tx.note ?? '',
-    tx.merchant ?? '',
+    safeText(labels.category(tx)),
+    safeText(labels.account(tx.accountId)),
+    tx.kind === 'transfer' ? safeText(labels.account(tx.toAccountId)) : '',
+    safeText(tx.note),
+    safeText(tx.merchant),
     tx.id,
-    ...(labels.source ? [labels.source(tx)] : []),
+    ...(labels.source ? [safeText(labels.source(tx))] : []),
   ])
   return `${BOM}${table(labels.headers, rows, sep)}\r\n`
 }
@@ -72,7 +98,7 @@ export interface CategoryCsvLabels {
 
 /** Categorías (del sistema y propias) con grupo, tipo, color, icono y estado. */
 export function categoriesToCsv(categories: readonly Category[], labels: CategoryCsvLabels): string {
-  const rows = categories.map((c) => [c.id, labels.name(c), labels.kind(c), labels.group(c), c.color, c.icon, c.archived ? labels.yes : labels.no, c.isCustom ? labels.yes : labels.no])
+  const rows = categories.map((c) => [c.id, safeText(labels.name(c)), safeText(labels.kind(c)), safeText(labels.group(c)), c.color, c.icon, c.archived ? labels.yes : labels.no, c.isCustom ? labels.yes : labels.no])
   return `${BOM}${table(labels.headers, rows, labels.separator ?? ',')}\r\n`
 }
 
@@ -91,15 +117,15 @@ export interface PlanCsvLabels {
 export function plansToCsv(plans: readonly Plan[], labels: PlanCsvLabels): string {
   const rows = plans.map((p) => [
     p.id,
-    labels.name(p),
-    labels.categories(p),
+    safeText(labels.name(p)),
+    safeText(labels.categories(p)),
     minorToDecimalString(p.amountMinor, p.currency),
     p.currency,
-    labels.period(p),
+    safeText(labels.period(p)),
     p.startDate ?? '',
     p.endDate ?? '',
     p.recurring ? labels.yes : labels.no,
-    labels.status(p),
+    safeText(labels.status(p)),
     p.result ? minorToDecimalString(p.result.spentMinor, p.currency) : '',
     p.result ? (p.result.achieved ? labels.yes : labels.no) : '',
   ])
@@ -108,5 +134,5 @@ export function plansToCsv(plans: readonly Plan[], labels: PlanCsvLabels): strin
 
 /** Varias tablas en un solo archivo, separadas por una línea en blanco y un título. */
 export function joinCsvSections(sections: readonly { title: string; csv: string }[]): string {
-  return `${BOM}${sections.map((s) => `${cell(s.title)}\r\n${s.csv.replace(BOM, '')}`).join('\r\n')}`
+  return `${BOM}${sections.map((s) => `${textCell(s.title)}\r\n${s.csv.replace(BOM, '')}`).join('\r\n')}`
 }

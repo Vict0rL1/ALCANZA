@@ -18,6 +18,7 @@ import { lastVerified, reconciliationsFor, reconciliationState } from './reconci
 import { planProgress } from './plans'
 import { normalizeText, RULE_PATTERN_MIN } from './rules'
 import { cardSummary } from './cards'
+import { overstatedAutoConfirms } from './scheduledJobs'
 import { goalProgress, goalSavedMinor } from './goals'
 import type { OpContext, OpResult } from './operations'
 import type { AppData, InboxState, LocalDate, Transaction } from './types'
@@ -43,6 +44,7 @@ export type InboxReason =
   | 'planOverLimit'
   | 'ruleCategoryUnavailable'
   | 'ruleUnused'
+  | 'autoConfirmOverstated'
 
 export interface InboxItem {
   /** Estable: el mismo problema siempre tiene el mismo id. */
@@ -299,6 +301,20 @@ function integrity(data: AppData): InboxItem[] {
         canDismiss: false,
       })
     }
+  }
+  // QA-02: la confirmación automática registró el importe completo después de un cobro parcial
+  // (datos anteriores a la corrección). Se señala el movimiento sobrante; nada se corrige solo.
+  for (const o of overstatedAutoConfirms(data)) {
+    items.push({
+      id: `int:auto:${o.finalTxId}`,
+      kind: 'integrity',
+      reason: 'autoConfirmOverstated',
+      fingerprint: `${o.finalTxId}|${o.excessMinor}|${o.partialTxIds.join(',')}`,
+      date: o.occurrenceDate,
+      amountMinor: o.excessMinor,
+      txIds: [o.finalTxId, ...o.partialTxIds],
+      canDismiss: true,
+    })
   }
   for (const d of data.incomeDistributions) {
     if (d.undoneAt) continue

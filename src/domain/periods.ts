@@ -3,10 +3,10 @@
  * «hasta mi próximo ingreso» (modelo original de Clara, decisión 7). Saldo del periodo con arrastre
  * y *safe to spend*. Funciones puras: «hoy» llega como parámetro; nunca se divide entre cero.
  */
-import { spendableBalance } from './balances'
+import { spendableBalance, txEffectOnBudgetPool } from './balances'
 import { addDays, addMonthsClamped, daysBetween, daysInMonth, endOfMonth, parseLocalDate, startOfMonth, toLocalDate, weekday } from './dates'
 import { periodSummary } from './insights'
-import { floorDiv, mulDivFloor } from './money'
+import { floorDiv, mulDivFloor, sumMinor } from './money'
 import type { AppData, BudgetPeriodSettings, BudgetPeriodType, LocalDate, Weekday, SafeToSpendSettings } from './types'
 
 export interface Period {
@@ -94,12 +94,31 @@ export function getPeriod(settings: BudgetPeriodSettings, today: LocalDate, opti
 
 export interface PeriodBalance {
   period: Period
-  /** Saldo consolidado al inicio del periodo (lo que no se gastó antes). */
+  /** Saldo consolidado al inicio del periodo (lo que había en las cuentas del presupuesto). */
   carryOverMinor: number
+  /** Ingresos y gastos realizados del periodo (como en Estadísticas: todas las cuentas). */
   incomeMinor: number
   expensesMinor: number
-  /** Con arrastre: carryOver + ingresos − gastos (= saldo del presupuesto hoy). Sin arrastre: ingresos − gastos. */
+  /**
+   * Neto que entró o salió de las CUENTAS DEL PRESUPUESTO en el periodo (ingresos − gastos −
+   * transferencias hacia fuera + transferencias desde fuera, ajustes incluidos). Es la asignación
+   * del periodo sin arrastre: lo que el periodo «trajo». Puede ser negativo.
+   */
+  poolNetMinor: number
+  /** poolNet − (ingresos − gastos): dinero que entró o salió fuera de las cuentas del presupuesto (0 casi siempre). */
+  outsideMinor: number
+  /** Saldo real de hoy en las cuentas del presupuesto (liquidez). */
+  balanceMinor: number
+  /** Con arrastre: el saldo real. Sin arrastre: el neto del periodo (asignación). */
   availableMinor: number
+  /**
+   * Base del disponible (QA-03). Con arrastre, el saldo real. Sin arrastre, el MENOR entre la
+   * asignación del periodo y el saldo real: nunca se sugiere gastar dinero que no está en las cuentas
+   * (por ejemplo, si el periodo empezó con deuda o saldo negativo).
+   */
+  spendableBaseMinor: number
+  /** Sin arrastre y la asignación supera el saldo real: la base se limitó al saldo. */
+  limitedByBalance: boolean
   /** Disponible / (carryOver + ingresos), entre 0 y 1; null si la base es ≤ 0. */
   availablePct: number | null
   carryOver: boolean
@@ -113,13 +132,19 @@ export function periodBalance(data: Pick<AppData, 'transactions' | 'accounts'>, 
   const summary = periodSummary(data, period.start, period.end)
   const incomeMinor = summary.incomeMinor
   const expensesMinor = summary.netSpendingMinor
-  const balanceToday = spendableBalance(data).totalMinor
-  // Lo que había al empezar el periodo = saldo de hoy − (ingresos − gastos) de los días ya pasados del periodo.
-  const carryOverMinor = balanceToday - (incomeMinor - expensesMinor)
-  const availableMinor = carryOver ? carryOverMinor + incomeMinor - expensesMinor : incomeMinor - expensesMinor
+  const balanceMinor = spendableBalance(data).totalMinor
+  const poolNetMinor = sumMinor(
+    data.transactions.filter((tx) => tx.status === 'realized' && tx.date >= period.start && tx.date <= period.end).map((tx) => txEffectOnBudgetPool(tx, data.accounts)),
+  )
+  const outsideMinor = poolNetMinor - (incomeMinor - expensesMinor)
+  // Lo que había al empezar el periodo = saldo de hoy − lo que el periodo trajo a las cuentas del presupuesto.
+  const carryOverMinor = balanceMinor - poolNetMinor
+  const availableMinor = carryOver ? balanceMinor : poolNetMinor
+  const limitedByBalance = !carryOver && balanceMinor < poolNetMinor
+  const spendableBaseMinor = carryOver ? balanceMinor : Math.min(poolNetMinor, balanceMinor)
   const base = carryOver ? carryOverMinor + incomeMinor : incomeMinor
   const availablePct = base > 0 ? Math.min(1, Math.max(0, availableMinor / base)) : null
-  return { period, carryOverMinor, incomeMinor, expensesMinor, availableMinor, availablePct, carryOver }
+  return { period, carryOverMinor, incomeMinor, expensesMinor, poolNetMinor, outsideMinor, balanceMinor, availableMinor, spendableBaseMinor, limitedByBalance, availablePct, carryOver }
 }
 
 export interface SafeToSpend {

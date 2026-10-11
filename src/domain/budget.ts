@@ -17,7 +17,7 @@ import { spendableBalance, oldestAnchor, type AccountBalance } from './balances'
 import { addDays, daysBetween, localDateInTimeZone } from './dates'
 import { goalReserveLines, scheduleCoverage } from './reserves'
 import { floorDiv, mulDivFloor, sumMinor } from './money'
-import { openItemsUntil, planItems, type PlanItem } from './planItems'
+import { openItemsDetailed, openItemsUntil, planItems, type PlanItem } from './planItems'
 import { getPeriod, periodBalance, type Period, type PeriodBalance } from './periods'
 import type { AppData, Goal, LocalDate, Timestamp } from './types'
 
@@ -68,8 +68,13 @@ export interface BudgetResult {
   period: Period | null
   /** Saldo del periodo (arrastre, ingresos y gastos del periodo); null sin periodo de calendario. */
   periodBalance: PeriodBalance | null
-  /** Base del disponible: saldo consolidado (con arrastre) o neto del periodo (sin arrastre). */
+  /** Base del disponible: saldo real (con arrastre) o el menor entre el neto del periodo y el saldo real (sin arrastre). */
   baseMinor: number
+  /**
+   * Programados cuyos vencidos no se pudieron revisar enteros (QA-06). Si hay alguno, lo reservado
+   * puede estar incompleto: no se sugiere nada por día ni por semana e Inicio lo dice.
+   */
+  incompleteScheduleIds: string[]
 }
 
 /** Ingresos programados abiertos (pendientes o vencidos) hasta `to`. Solo estos definen el periodo. */
@@ -101,11 +106,12 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   const period = periodSettings && periodSettings.type !== 'untilIncome' ? getPeriod(periodSettings, today) : null
   const horizon: Horizon | null = period ? { endDate: period.end, days: period.daysLeft, source: 'period' } : found.horizon
   const pBalance = period ? periodBalance(data, period, data.settings.carryOverBalance !== false) : null
-  const baseMinor = pBalance ? pBalance.availableMinor : spendableMinor
+  // QA-03: sin arrastre la base nunca supera el saldo real (ver `periodBalance.spendableBaseMinor`).
+  const baseMinor = pBalance ? pBalance.spendableBaseMinor : spendableMinor
 
   // Sin horizonte se reservan, como mínimo, los pagos de los próximos 30 días.
   const reserveUntil = horizon ? horizon.endDate : addDays(today, 30)
-  const open = openItemsUntil(data, today, reserveUntil)
+  const { items: open, truncatedScheduleIds: incompleteScheduleIds } = openItemsDetailed(data, today, reserveUntil)
   const reservedItems = open.filter((i) => i.budgetEffectMinor < 0)
   // Metas: reserva efectiva (lo gastado en un periodo vinculado ya la consumió).
   const lines = goalReserveLines(data)
@@ -121,7 +127,8 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
   let dailyMinor: number | null = null
   let weeklyMinor: number | null = null
   let weeklyDays: number | null = null
-  if (horizon && horizon.days > 0) {
+  // Con reservas incompletas no se sugiere un importe por día: sería gastar sobre una cifra no revisada.
+  if (horizon && horizon.days > 0 && incompleteScheduleIds.length === 0) {
     weeklyDays = Math.min(7, horizon.days)
     dailyMinor = availableMinor > 0 ? floorDiv(availableMinor, horizon.days) : 0
     weeklyMinor = availableMinor > 0 ? mulDivFloor(availableMinor, weeklyDays, horizon.days) : 0
@@ -161,6 +168,7 @@ export function computeBudget(data: AppData, today: LocalDate): BudgetResult {
     period,
     periodBalance: pBalance,
     baseMinor,
+    incompleteScheduleIds,
   }
 }
 

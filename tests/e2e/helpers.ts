@@ -94,6 +94,18 @@ export async function writeStoredData(page: Page, data: unknown) {
   )
 }
 
+/**
+ * Siembra datos en el almacenamiento real (IndexedDB) desde la bienvenida y recarga, como una persona
+ * que ya usaba Clara. `data` suele venir de los constructores de `src/test/fixtures.ts`.
+ */
+export async function seedStoredData(page: Page, data: unknown) {
+  await openApp(page)
+  await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
+  await writeStoredData(page, data)
+  await page.reload()
+  await expect(page.getByTestId('available')).toBeVisible()
+}
+
 /** Hace que IndexedDB rechace escrituras (como con el almacenamiento lleno). */
 export async function failStorageWrites(page: Page, name: 'QuotaExceededError' | 'InvalidStateError' = 'QuotaExceededError') {
   await page.evaluate((n) => {

@@ -340,6 +340,7 @@ export function Setup({ language, onLanguageChange }: { language: Language; onLa
                 {stepTitle('setup.balance.title')}
                 <SelectField label={t('setup.balance.currency')} value={currency} onChange={(e) => setCurrency(e.target.value)} options={SUPPORTED_CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} · ${currencyName(c.code, language)}` }))} hint={t('setup.balance.currencyHint')} />
                 <SelectField label={t('setup.period.label')} value={periodType} onChange={(e) => setPeriodType(e.target.value as BudgetPeriodType)} options={BUDGET_PERIOD_TYPES.map((p) => ({ value: p, label: t(`period.type.${p}` as MessageKey) }))} hint={t('setup.period.hint')} />
+                {periodType === 'biweek' && <p className="field__hint">{t('period.biweekHint')}</p>}
                 <SelectField
                   label={t('settings.format.number')}
                   value={numberLocale}

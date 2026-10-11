@@ -95,7 +95,7 @@ existe en la beta y no se simula** (ningún botón, texto ni pantalla lo finge):
 |---|---|
 | Cuentas de usuario y sincronización | Copia de seguridad en un archivo y restaurar en otro dispositivo (`docs/RESTORE.md`). La pantalla «Cuenta» dice «Modo invitado» y no ofrece iniciar sesión. |
 | Servidor propio (backend) | Ninguno: Cloudflare Pages solo sirve los archivos de la app. |
-| IA remota | El asistente analiza el texto en el dispositivo con reglas fijas. El proveedor remoto existe en el código, pero la compilación de la beta no lo configura (`VITE_AI_ENDPOINT` vacío). |
+| IA remota | El asistente analiza el texto en el dispositivo con reglas fijas. El proveedor remoto existe en el código, pero la compilación de la beta no lo configura (`VITE_AI_ENDPOINT` vacío). Activarlo exige un servicio propio con cuotas y autorización por usuario: la compilación falla si `VITE_AI_KEY` tiene forma de clave de proveedor o el endpoint apunta directo a uno (`docs/RELEASE.md` › «Proveedor remoto del asistente», decisión 138). |
 | Compras de Pro | La pantalla Pro explica qué incluiría; no hay botones de compra ni cobros. |
 | Notificaciones push | Avisos locales que Clara calcula mientras está abierta (Ajustes › Notificaciones), recordatorios en Inicio y la Bandeja de pendientes. Nada llega con la app cerrada. |
 | Widgets | — |

@@ -11,7 +11,7 @@
  */
 import { addDays } from './dates'
 import { txEffectOnBudgetPool } from './balances'
-import { occurrencesBetween } from './recurrence'
+import { OVERDUE_SCAN_LIMIT, scanOccurrences } from './recurrence'
 import type { Account, AppData, IncomeRange, IncomeScenario, LocalDate, Schedule, Transaction } from './types'
 
 export type PlanItemState = 'pending' | 'overdue' | 'paid' | 'skipped'
@@ -151,23 +151,51 @@ export interface PlanItemsQuery {
   scenario?: IncomeScenario
 }
 
+export interface PlanItemsResult {
+  items: PlanItem[]
+  /**
+   * Programados cuyo historial de vencidos no se pudo recorrer entero (QA-06): la lista puede
+   * estar incompleta y quien la usa debe decirlo en vez de dar la cifra por buena.
+   */
+  truncatedScheduleIds: string[]
+}
+
 /**
  * Elementos del plan en el rango [from, to], ordenados por fecha.
  * Si `includeOverdueBefore` es verdadero, añade también todos los vencidos anteriores a `from`.
  */
 export function planItems(data: AppData, query: PlanItemsQuery): PlanItem[] {
+  return planItemsDetailed(data, query).items
+}
+
+/**
+ * Como `planItems`, y además dice qué programados quedaron truncados. El historial de vencidos
+ * (desde `startDate` hasta la víspera de `from`) se recorre aparte de la ventana [from, to], con
+ * su propio tope y saltando rápido las ocurrencias ya pagadas u omitidas gracias al índice de
+ * liquidaciones: 2 000 pagos antiguos ya no consumen el tope de la ventana actual (QA-06).
+ */
+export function planItemsDetailed(data: AppData, query: PlanItemsQuery): PlanItemsResult {
   const { today, from, to } = query
   const settlements = settlementIndex(data.transactions)
+  const scenario = query.scenario ?? 'expected'
   const items: PlanItem[] = []
+  const truncatedScheduleIds: string[] = []
 
   for (const schedule of data.schedules) {
     // En pausa: no genera ocurrencias ni reservas hasta reanudarlo.
     if (schedule.paused) continue
-    const rangeFrom = query.includeOverdueBefore ? schedule.startDate : from
-    for (const date of occurrencesBetween(schedule, rangeFrom < from ? rangeFrom : from, to)) {
-      const item = scheduleItem(schedule, date, today, settlements.get(`${schedule.id}:${date}`), data.accounts, query.scenario ?? 'expected')
-      if (date < from && item.state !== 'overdue') continue
-      items.push(item)
+    if (query.includeOverdueBefore && schedule.startDate < from) {
+      const scan = scanOccurrences(schedule, schedule.startDate, addDays(from, -1), OVERDUE_SCAN_LIMIT)
+      if (scan.truncated) truncatedScheduleIds.push(schedule.id)
+      for (const date of scan.dates) {
+        const settlement = settlements.get(`${schedule.id}:${date}`)
+        if (settlement?.final || schedule.skippedDates.includes(date)) continue
+        const item = scheduleItem(schedule, date, today, settlement, data.accounts, scenario)
+        if (item.state === 'overdue') items.push(item)
+      }
+    }
+    for (const date of scanOccurrences(schedule, from, to).dates) {
+      items.push(scheduleItem(schedule, date, today, settlements.get(`${schedule.id}:${date}`), data.accounts, scenario))
     }
   }
 
@@ -178,14 +206,19 @@ export function planItems(data: AppData, query: PlanItemsQuery): PlanItem[] {
     if (inRange || overdueBefore) items.push(plannedItem(tx, today, data.accounts))
   }
 
-  return items.sort((a, b) => (a.date === b.date ? a.name.localeCompare(b.name) : a.date < b.date ? -1 : 1))
+  items.sort((a, b) => (a.date === b.date ? a.name.localeCompare(b.name) : a.date < b.date ? -1 : 1))
+  return { items, truncatedScheduleIds }
 }
 
 /** Pendientes y vencidos (sin pagar ni omitir) desde siempre hasta `to`. */
 export function openItemsUntil(data: AppData, today: LocalDate, to: LocalDate, scenario: IncomeScenario = 'expected'): PlanItem[] {
-  return planItems(data, { today, from: today, to, includeOverdueBefore: true, scenario }).filter(
-    (i) => i.state === 'pending' || i.state === 'overdue',
-  )
+  return openItemsDetailed(data, today, to, scenario).items
+}
+
+/** Como `openItemsUntil`, con los programados cuyo historial quedó truncado (QA-06). */
+export function openItemsDetailed(data: AppData, today: LocalDate, to: LocalDate, scenario: IncomeScenario = 'expected'): PlanItemsResult {
+  const r = planItemsDetailed(data, { today, from: today, to, includeOverdueBefore: true, scenario })
+  return { items: r.items.filter((i) => i.state === 'pending' || i.state === 'overdue'), truncatedScheduleIds: r.truncatedScheduleIds }
 }
 
 /** Recordatorios dentro de la app: vencidos + los que vencen dentro de su margen de aviso. */

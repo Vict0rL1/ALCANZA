@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { categoriesToCsv, csvSeparatorFor, joinCsvSections, plansToCsv, signedAmount, transactionsToCsv } from './csvExport'
+import { categoriesToCsv, csvSeparatorFor, joinCsvSections, plansToCsv, signedAmount, transactionsToCsv, safeText } from './csvExport'
 import { NOW, tx } from '../test/fixtures'
 
 const labels = { headers: ['Fecha', 'Tipo', 'Estado', 'Importe', 'Moneda', 'Categoría', 'Cuenta', 'Hacia', 'Nota', 'Comercio', 'Id'], kind: (t: ReturnType<typeof tx>) => t.kind, status: (t: ReturnType<typeof tx>) => t.status, category: (t: ReturnType<typeof tx>) => t.categoryId ?? '', account: (id?: string) => id ?? '' }
@@ -54,5 +54,43 @@ describe('L1 · origen en el CSV', () => {
     const [head, row] = csv.replace('\uFEFF', '').split('\r\n')
     expect(head!.split(',').at(-1)).toBe('Origen')
     expect(row!.split(',').at(-1)).toBe('Atajo')
+  })
+})
+
+describe('QA-07 · texto que una hoja de cálculo ejecutaría como fórmula', () => {
+  const only = (csv: string) => csv.slice(1).split('\r\n')[1]!
+
+  it('antepone un apóstrofo a notas, comercios y etiquetas que empiezan por =, +, −, @, tabulador o retorno (con o sin espacios); los importes siguen siendo números', () => {
+    for (const [note, expected] of [
+      ['=1+1', "'=1+1"],
+      ['+1234', "'+1234"],
+      ['-2 cafés', "'-2 cafés"],
+      ['@SUM(A1)', "'@SUM(A1)"],
+      [' =HYPERLINK("http://x")', "\"' =HYPERLINK(\"\"http://x\"\")\""],
+      ['\t=1', "'\t=1"],
+    ] as const) {
+      const row = only(transactionsToCsv([tx({ id: 'a', amountMinor: 1000, note })], labels))
+      expect(row, note).toBe(`2026-09-28,expense,realized,-10.00,CAD,groceries,main,,${expected},,a`)
+      expect(row).not.toContain(`,${note.trim()},`)
+    }
+    const merchant = only(transactionsToCsv([tx({ id: 'b', merchant: '=cmd|calc' })], labels))
+    expect(merchant).toContain(",'=cmd|calc,")
+    const category = only(transactionsToCsv([tx({ id: 'c' })], { ...labels, category: () => '=X', account: () => '-Y' }))
+    expect(category).toContain(",'=X,'-Y,")
+  })
+
+  it('el texto normal no cambia; las comillas se siguen escapando; los caracteres de control se quitan', () => {
+    expect(safeText('café con leche')).toBe('café con leche')
+    expect(safeText('a\u0000b\u0007c')).toBe('abc')
+    expect(safeText(undefined)).toBe('')
+    const row = only(transactionsToCsv([tx({ id: 'q', note: '="x"' })], labels))
+    expect(row).toContain('"\'=""x"""')
+  })
+
+  it('también con separador «;» y en categorías, planes y títulos de sección', () => {
+    const csv = transactionsToCsv([tx({ id: 'a', note: '=1+1' })], { ...labels, separator: ';' })
+    expect(csv).toContain(";'=1+1;")
+    const sections = joinCsvSections([{ title: '=título', csv: '﻿a,b\r\n' }])
+    expect(sections.slice(1)).toMatch(/^'=título\r\n/)
   })
 })

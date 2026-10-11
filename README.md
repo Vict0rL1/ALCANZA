@@ -237,7 +237,9 @@ papelera, reimportación), bandeja de pendientes (aparecen, se resuelven, se pos
 duplican, falsos positivos de duplicados), distribución de ingresos (sin crear dinero ni
 duplicar reservas, ingresos gastados, editados o eliminados, deshacer, fallo de guardado) y
 migraciones v1–v6 → v7, 30 casos calculados a mano (`independent.test.ts`) y fallos
-controlados de almacenamiento y de dos pestañas (`persistence.test.ts`).
+controlados de almacenamiento y de dos pestañas (`persistence.test.ts`). También corre la suite de
+la auditoría externa de octubre de 2026 (`qa/`: 12 escenarios financieros con oráculos a mano y las
+ocho regresiones `QA-01`…`QA-08`, ya corregidas; ver `docs/AUDIT-2026-10-10.md`).
 
 ### Pruebas en el navegador (celular 390 px, celular 320 px y escritorio)
 

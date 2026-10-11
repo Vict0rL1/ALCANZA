@@ -261,6 +261,22 @@ export function Home() {
         </Alert>
       ),
     },
+    budget.incompleteScheduleIds.length > 0 && {
+      key: 'incomplete',
+      node: (
+        <Alert
+          tone="critical"
+          title={t('home.alert.incompleteTitle', { names: budget.incompleteScheduleIds.map((id) => `«${data.schedules.find((s) => s.id === id)?.name ?? id}»`).join(', ') })}
+          actions={
+            <a className="btn btn--small btn--secondary" href={href('/plan/calendario')}>
+              {t('home.alert.reviewCalendar')}
+            </a>
+          }
+        >
+          <span data-testid="incomplete-reserves">{t('home.alert.incompleteText')}</span>
+        </Alert>
+      ),
+    },
     (budget.goalsExceedMoney) && {
       key: 'goals',
       node: (
@@ -590,7 +606,9 @@ export function Home() {
       {viewing && (
         <div className="banner banner--warning period-banner" role="status" data-testid="period-banner">
           <Icon name="alert" size={18} />
-          <span className="banner__text">{t('home.period.viewingOther')}</span>
+          <span className="banner__text">
+            {t('home.period.viewingOther')} <span className="banner__sub">{t('home.period.snapshotNote')}</span>
+          </span>
           <button type="button" className="btn btn--secondary btn--small" onClick={() => setViewStart(null)} data-testid="period-back">
             {t('home.period.backToCurrent')}
           </button>
@@ -756,7 +774,20 @@ export function Home() {
                     )}
                     <CalcRow op={budget.periodBalance.carryOver ? '+' : undefined} label={t('explain.period.income')} value={fmt.money(budget.periodBalance.incomeMinor)} />
                     <CalcRow op="−" label={t('explain.period.expenses')} value={fmt.money(budget.periodBalance.expensesMinor)} />
-                    <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                    {budget.periodBalance.outsideMinor !== 0 && (
+                      <CalcRow op={budget.periodBalance.outsideMinor > 0 ? '+' : '−'} label={t('explain.period.outside')} value={fmt.money(Math.abs(budget.periodBalance.outsideMinor))} />
+                    )}
+                    {budget.periodBalance.limitedByBalance ? (
+                      <>
+                        {/* QA-03: sin arrastre, la asignación del periodo supera el saldo real → la base es el saldo. */}
+                        <CalcRow op="=" label={t('explain.period.net')} value={fmt.money(budget.periodBalance.poolNetMinor)} />
+                        <CalcRow label={t('explain.period.liquidity')} value={fmt.money(budget.periodBalance.balanceMinor)} />
+                        <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                        <p className="calc__detail" data-testid="limited-by-balance">{t('explain.period.limitedByBalance')}</p>
+                      </>
+                    ) : (
+                      <CalcRow op="=" label={t('explain.period.base')} value={fmt.money(budget.baseMinor)} strong />
+                    )}
                   </>
                 )}
                 <CalcRow label={t('explain.balance')} value={fmt.money(budget.spendableMinor)} />
