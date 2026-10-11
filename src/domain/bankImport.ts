@@ -16,7 +16,7 @@
 import { addDays, isValidLocalDate, toLocalDate, daysInMonth } from './dates'
 import { MAX_AMOUNT_MINOR, parseMoney, stripCurrencyMark } from './money'
 import { normalizeText } from './rules'
-import type { AppData, LocalDate } from './types'
+import type { Account, AppData, LocalDate } from './types'
 
 export const MAX_IMPORT_BYTES = 2 * 1024 * 1024
 export const MAX_IMPORT_ROWS = 5000
@@ -247,6 +247,32 @@ export interface ImportRow {
   anchorRelation?: 'before' | 'sameDay' | 'after'
   /** Moneda escrita en la fila (columna propia, código o símbolo junto al importe), si la hubo. */
   currency?: string
+  /**
+   * Parece el pago de una tarjeta (§8): dinero que entra en una tarjeta («PAYMENT - THANK YOU») o que
+   * sale de un banco hacia una tarjeta («PAGO TARJETA VISA»). Un pago de tarjeta no es ingreso ni gasto
+   * (la compra ya fue el gasto): se ofrece desmarcado para registrarlo como transferencia.
+   */
+  cardPaymentHint?: CardPaymentHint
+}
+
+export type CardPaymentHint = 'toCard' | 'fromBank'
+
+/** Palabras (ya sin acentos ni mayúsculas) que señalan un pago recibido en el extracto de una tarjeta. */
+const CARD_PAYMENT_IN = /\b(pago|payment|paiement|reglement|pagamento|abono|thank you|gracias|merci|obrigado|transfer|transferencia|virement)\b/
+/** Palabras de tarjeta y de pago que, juntas en el extracto de un banco, señalan el pago de una tarjeta. */
+const CARD_WORDS = /\b(tarjeta|card|carte|cartao|visa|mastercard|master card|amex|american express|credito|credit)\b/
+const PAY_WORDS = /\b(pago|payment|paiement|pagamento|reglement|abono|transfer|transferencia|virement)\b/
+
+/**
+ * ¿Parece esta fila el pago de una tarjeta? Solo una pista: nunca cambia el tipo ni el importe. En
+ * una tarjeta, dinero que entra con palabras de pago; en un banco (si hay alguna tarjeta en Clara),
+ * dinero que sale con palabras de tarjeta y de pago.
+ */
+export function looksLikeCardPayment(description: string, kind: 'income' | 'expense', importingKind: Account['kind'], hasCreditAccount: boolean): CardPaymentHint | undefined {
+  const d = normalizeText(description)
+  if (importingKind === 'credit') return kind === 'income' && CARD_PAYMENT_IN.test(d) ? 'toCard' : undefined
+  if (!hasCreditAccount) return undefined
+  return kind === 'expense' && CARD_WORDS.test(d) && PAY_WORDS.test(d) ? 'fromBank' : undefined
 }
 
 export interface ImportPreview {
@@ -304,6 +330,7 @@ function signedAmount(cells: string[], mapping: ColumnMapping, currency: string,
  */
 export function previewImport(table: string[][], data: AppData, options: ImportOptions): ImportPreview {
   const account = data.accounts.find((a) => a.id === options.accountId)
+  const hasCreditAccount = data.accounts.some((a) => a.kind === 'credit')
   const body = options.hasHeader ? table.slice(1) : table
   const tooManyRows = body.length > MAX_IMPORT_ROWS
   const limited = body.slice(0, MAX_IMPORT_ROWS)
@@ -341,7 +368,8 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
     repeats.set(key, n)
     const importRef = `${key}|${n}`
     const anchorRelation = !account ? undefined : date < account.anchor.date ? 'before' : date === account.anchor.date ? 'sameDay' : 'after'
-    const base = { line, date, kind, amountMinor, description, importRef, anchorRelation, ...(amount.currency ? { currency: amount.currency } : {}) } as const
+    const cardPaymentHint = looksLikeCardPayment(description, kind, account?.kind ?? 'bank', hasCreditAccount)
+    const base = { line, date, kind, amountMinor, description, importRef, anchorRelation, ...(amount.currency ? { currency: amount.currency } : {}), ...(cardPaymentHint ? { cardPaymentHint } : {}) } as const
 
     const exact = existingRefs.get(importRef)
     if (exact) return { ...base, status: 'duplicate', matchId: exact }
@@ -368,9 +396,9 @@ export function previewImport(table: string[][], data: AppData, options: ImportO
   return { rows, counts, tooManyRows }
 }
 
-/** Filas que se ofrecen marcadas por defecto: solo las nuevas. */
+/** Filas que se ofrecen marcadas por defecto: solo las nuevas que no parecen pagos de tarjeta. */
 export function defaultSelection(preview: ImportPreview): Set<number> {
-  return new Set(preview.rows.filter((r) => r.status === 'new').map((r) => r.line))
+  return new Set(preview.rows.filter((r) => r.status === 'new' && !r.cardPaymentHint).map((r) => r.line))
 }
 
 export function isImportable(row: ImportRow): row is ImportRow & Required<Pick<ImportRow, 'date' | 'kind' | 'amountMinor' | 'importRef'>> {

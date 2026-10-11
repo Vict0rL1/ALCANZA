@@ -350,6 +350,7 @@ export function Settings({ route }: { route: Route }) {
           options={BUDGET_PERIOD_TYPES.map((p) => ({ value: p, label: t(`period.type.${p}` as MessageKey) }))}
           hint={t('settings.period.hint')}
         />
+        {data.settings.budgetPeriod?.type === 'biweek' && <p className="field__hint">{t('period.biweekHint')}</p>}
         {data.settings.budgetPeriod?.type === 'week' && (
           <SelectField
             label={t('settings.period.weekStart')}

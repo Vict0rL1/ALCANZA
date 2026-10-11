@@ -1,22 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays, daysBetween } from '../../src/domain/dates'
 import { account, baseData, bill, goal, income, tx } from '../../src/test/fixtures'
-import { available, go, openApp, openDetails, openExplain, openMoreMenu, setLanguage, startDemo, storedData, writeStoredData } from './helpers'
+import { available, go, openApp, openDetails, openExplain, openMoreMenu, seedStoredData, setLanguage, startDemo, storedData, writeStoredData } from './helpers'
 
 /**
  * Regresiones de la auditoría 2026-10-09 en el navegador (`qa/PLAN-E2E.md`): una prueba por hallazgo,
  * con la acción hecha desde la interfaz y un oráculo independiente (una suma calculada aquí, los
  * bytes del archivo descargado, los datos guardados tras recargar). Los importes son ficticios.
  */
-
-/** Siembra datos en el almacenamiento real (IndexedDB) y recarga, como una persona que ya usaba Clara. */
-async function seed(page: Page, data: unknown) {
-  await openApp(page)
-  await expect(page.getByRole('heading', { name: 'Hola, esto es Clara' })).toBeVisible()
-  await writeStoredData(page, data)
-  await page.reload()
-  await expect(page.getByTestId('available')).toBeVisible()
-}
 
 async function newBudgetWithBalance(page: Page, balance: string) {
   await openApp(page)
@@ -99,7 +90,7 @@ test('QA-03 · sin arrastre: referencia −500 e ingreso de 1000 → saldo 500 y
     accounts: [account({ id: 'main', name: 'Principal', anchor: { amountMinor: -50000, date: '2026-09-01', setAt: '2026-09-01T12:00:00.000Z' } })],
     transactions: [tx({ id: 'pay', kind: 'income', categoryId: 'salary', amountMinor: 100000, date: '2026-09-05' })],
   })
-  await seed(page, data)
+  await seedStoredData(page, data)
   await expect(await available(page)).toHaveText('$500.00')
   await openExplain(page)
   await expect(page.getByTestId('limited-by-balance')).toBeVisible()
@@ -116,7 +107,7 @@ test('QA-04 · un apartado hecho en septiembre no reduce el disponible de agosto
     accounts: [account({ id: 'main', name: 'Principal', anchor: { amountMinor: 100000, date: '2026-08-01', setAt: '2026-08-01T12:00:00.000Z' } })],
     goals: [goal({ id: 'g', name: 'Portátil', targetMinor: 50000, createdAt: '2026-09-10T15:00:00.000Z', updatedAt: '2026-09-10T15:00:00.000Z', allocations: [{ id: 'a1', amountMinor: 30000, date: '2026-09-10', createdAt: '2026-09-10T15:00:00.000Z', reason: 'contribution' }] })],
   })
-  await seed(page, data)
+  await seedStoredData(page, data)
   // Septiembre (hoy): 1 000 − 300 apartados.
   await expect(await available(page)).toHaveText('$700.00')
   await page.getByTestId('period-prev').click()
@@ -176,7 +167,7 @@ test('QA-06 · un pago diario desde 2020 con 2 000 ocurrencias pagadas: los venc
     schedules: [bill(start, 100, { id: 'daily', name: 'Transporte', frequency: 'daily' }), income('2026-10-12', 100000, { id: 'pay', name: 'Sueldo' })],
     transactions: paid,
   })
-  await seed(page, data)
+  await seedStoredData(page, data)
   // Oráculo independiente: desde el día 2 001 (2025-06-23) hasta el día del próximo ingreso (12-oct), un pago de 1.00 cada día.
   const firstUnpaid = addDays(start, 2000)
   expect(firstUnpaid).toBe('2025-06-23')

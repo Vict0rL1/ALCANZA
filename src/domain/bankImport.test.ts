@@ -5,6 +5,7 @@ import {
   detectDelimiter,
   guessMapping,
   isImportable,
+  looksLikeCardPayment,
   looksLikeHeader,
   parseBankDate,
   parseCsv,
@@ -341,5 +342,43 @@ describe('contrato de duplicados tras borrar, enviar a la papelera, restaurar o 
     const purged = purgeTrash(trashed.data, 'all', ctx)
     if (!purged.ok) throw new Error('purge')
     expect(status(purged.data)).toBe('purged')
+  })
+})
+
+describe('pagos de tarjeta importados (§8): se señalan y quedan desmarcados, nunca se convierten solos', () => {
+  const withCard = (extra: Partial<AppData> = {}) =>
+    data({ accounts: [...data().accounts, account({ id: 'visa', name: 'Visa', kind: 'credit', anchor: { amountMinor: -50000, date: '2026-09-10', setAt: '2026-09-10T15:00:00.000Z' } })], ...extra })
+
+  it('en el extracto de una tarjeta, el dinero que entra con palabras de pago parece un pago de la tarjeta; una devolución no', () => {
+    expect(looksLikeCardPayment('PAYMENT - THANK YOU', 'income', 'credit', true)).toBe('toCard')
+    expect(looksLikeCardPayment('Pago recibido, gracias', 'income', 'credit', true)).toBe('toCard')
+    expect(looksLikeCardPayment('Paiement reçu — merci', 'income', 'credit', true)).toBe('toCard')
+    expect(looksLikeCardPayment('Refund Amazon', 'income', 'credit', true)).toBeUndefined()
+    expect(looksLikeCardPayment('PAYMENT - THANK YOU', 'expense', 'credit', true)).toBeUndefined()
+  })
+
+  it('en el extracto de un banco, dinero que sale con palabras de tarjeta y de pago, solo si hay alguna tarjeta en Clara', () => {
+    expect(looksLikeCardPayment('PAGO TARJETA VISA 1234', 'expense', 'bank', true)).toBe('fromBank')
+    expect(looksLikeCardPayment('Credit card payment', 'expense', 'bank', true)).toBe('fromBank')
+    expect(looksLikeCardPayment('Transferência cartão', 'expense', 'bank', true)).toBe('fromBank')
+    expect(looksLikeCardPayment('PAGO TARJETA VISA 1234', 'expense', 'bank', false)).toBeUndefined()
+    expect(looksLikeCardPayment('Supermercado Visa', 'expense', 'bank', true)).toBeUndefined()
+    expect(looksLikeCardPayment('Pago de renta', 'expense', 'bank', true)).toBeUndefined()
+    expect(looksLikeCardPayment('PAGO TARJETA VISA', 'income', 'bank', true)).toBeUndefined()
+  })
+
+  it('la vista previa marca la pista, la fila sigue siendo nueva e importable pero no va marcada por defecto; tipo e importe no cambian', () => {
+    const table = [['Fecha', 'Concepto', 'Importe'], ['2026-09-15', 'PAGO TARJETA VISA', '-200.00'], ['2026-09-15', 'Supermercado', '-30.00']]
+    const p = previewImport(table, withCard(), options())
+    expect(p.rows[0]).toMatchObject({ status: 'new', kind: 'expense', amountMinor: 20000, cardPaymentHint: 'fromBank' })
+    expect(p.rows[1]!.cardPaymentHint).toBeUndefined()
+    expect(isImportable(p.rows[0]!)).toBe(true)
+    expect([...defaultSelection(p)]).toEqual([3])
+    // Sin tarjeta en Clara no hay pista: todo marcado.
+    expect([...defaultSelection(previewImport(table, data(), options()))]).toEqual([2, 3])
+    // En el extracto de la tarjeta, el pago recibido.
+    const card = previewImport([['Fecha', 'Concepto', 'Importe'], ['2026-09-15', 'PAYMENT - THANK YOU', '200.00'], ['2026-09-15', 'Store', '-30.00']], withCard(), options({ accountId: 'visa' }))
+    expect(card.rows[0]).toMatchObject({ status: 'new', kind: 'income', cardPaymentHint: 'toCard' })
+    expect([...defaultSelection(card)]).toEqual([3])
   })
 })

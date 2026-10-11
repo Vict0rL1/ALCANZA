@@ -27,6 +27,13 @@ Todos los cambios importantes de Clara se anotan aquí. El formato sigue
 
 ### Cambios
 
+- **Importar CSV**: una fila que parece el pago de una tarjeta («PAGO TARJETA VISA» en el banco, «PAYMENT -
+  THANK YOU» en la tarjeta) se señala y queda desmarcada, con la explicación de que se registra como
+  transferencia para no contar la compra y el pago como dos gastos.
+- **Periodo «quincenal»** se llama ahora «Quincena del calendario (1–15 y 16–fin)» y un aviso explica que no
+  es lo mismo que cobrar «cada 2 semanas»; las frecuencias de programados y metas dicen «Cada 2 semanas».
+- Ejemplos breves en «Ya incluido en el saldo» y en «Los apartados son virtuales»; la copia exportada se
+  distingue de las copias locales y «Borrar todos los datos» dice qué se conserva.
 - El CSV del historial tiene una columna final **«Origen»** (Manual, Asistente, Importado, Programado, Favorito o Atajo).
 - La versión se publica en Cloudflare Pages desde GitHub Actions: cada PR pasa comprobaciones,
   pruebas en tres tamaños y un presupuesto de tamaño, y obtiene un despliegue de prueba con pruebas

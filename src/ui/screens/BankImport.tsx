@@ -1,18 +1,6 @@
 import { SUPPORTED_CURRENCIES } from '../../domain/money'
 import { useMemo, useRef, useState } from 'react'
-import {
-  guessMapping,
-  isImportable,
-  looksLikeHeader,
-  MAX_IMPORT_BYTES,
-  MAX_IMPORT_ROWS,
-  parseCsv,
-  possibleDateFormats,
-  previewImport,
-  type BankDateFormat,
-  type ColumnMapping,
-  type ImportRow,
-} from '../../domain/bankImport'
+import { parseCsv, type BankDateFormat, type ColumnMapping, defaultSelection, guessMapping, type ImportRow, isImportable, looksLikeHeader, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, possibleDateFormats, previewImport } from '../../domain/bankImport'
 import { categoriesForKind } from '../../domain/categories'
 import { newId } from '../../domain/ids'
 import { importTransactions, removeTransactions } from '../../domain/operations'
@@ -125,7 +113,9 @@ export function BankImport() {
   const validFormats = possibleDateFormats(dateValues)
   const splitAmount = mapping.amount === undefined
 
-  const isChecked = (row: ImportRow) => isImportable(row) && (choices.get(row.importRef) ?? row.status === 'new')
+  // Marcadas por defecto: la misma regla que `defaultSelection` (nuevas que no parecen pagos de tarjeta).
+  const defaults = useMemo(() => (preview ? defaultSelection(preview) : new Set<number>()), [preview])
+  const isChecked = (row: ImportRow) => isImportable(row) && (choices.get(row.importRef) ?? defaults.has(row.line))
   const selected = preview ? preview.rows.filter(isChecked) : []
   const hasSameDay = selected.some((r) => r.anchorRelation === 'sameDay')
   const selectedTotal = selected.reduce((sum, r) => sum + (r.kind === 'income' ? r.amountMinor! : -r.amountMinor!), 0)
@@ -200,9 +190,15 @@ export function BankImport() {
       case 'purged':
         return <Badge tone="warning" icon="info">{t('bankImport.status.purged')}</Badge>
       default:
-        return <Badge tone="good" icon="plus">{t('bankImport.status.new')}</Badge>
+        return (
+          <>
+            <Badge tone="good" icon="plus">{t('bankImport.status.new')}</Badge>
+            {row.cardPaymentHint && <Badge tone="warning" icon="alert">{t('bankImport.status.cardPayment')}</Badge>}
+          </>
+        )
     }
   }
+  const cardPaymentRows = preview ? preview.rows.filter((r) => r.cardPaymentHint && isImportable(r)).length : 0
 
   const possibleMatch = (row: ImportRow) => {
     const match = row.matchId ? data.transactions.find((tx) => tx.id === row.matchId) : undefined
@@ -379,6 +375,9 @@ export function BankImport() {
               </p>
             )}
             {preview.counts.purged > 0 && <p className="note">{t('bankImport.purgedNote')}</p>}
+            {cardPaymentRows > 0 && (
+              <p className="note" data-testid="import-card-payment-note">{tn('bankImport.cardPaymentNote', cardPaymentRows)}</p>
+            )}
             {preview.rows.some((r) => r.error === 'currency') && (
               <p className="note" data-testid="import-currency-note">{t('bankImport.currencyNote', { count: preview.rows.filter((r) => r.error === 'currency').length, currency: data.settings.currency })}</p>
             )}
