@@ -34,6 +34,33 @@ Todos los cambios importantes de Clara se anotan aquí. El formato sigue
 
 ### Correcciones
 
+Auditoría externa del 9–10 de octubre de 2026 (`docs/AUDIT-2026-10-10.md`; sus pruebas viven en `qa/` y
+forman parte de `npm run check`):
+
+- **Moneda (QA-01):** ya no se puede cambiar la moneda con importes guardados, tampoco con solo un saldo de
+  referencia: CAD 2 000 no se convertía en JPY 200 000 sin que nadie lo decidiera. Con saldo en cero sí.
+- **Registro automático (QA-02):** tras un cobro parcial, el programado con «registrar solo cuando venza»
+  registra únicamente lo que falta (400 recibidos de 1 000 → 600, no 1 000 más). Si ya hubiera datos con
+  ese exceso, la Bandeja de pendientes lo señala; no se corrige nada solo.
+- **Sin arrastre (QA-03):** «Puedes gastar» nunca supera el saldo real: con deuda previa de −500 e ingreso de
+  1 000, la base es 500, no 1 000. «¿Cómo se calculó?» muestra el saldo real y cuándo limitó la base.
+- **Inicio en otro periodo (QA-04):** un apartado hecho en septiembre ya no reduce el disponible de agosto;
+  la pancarta dice qué parte de la reconstrucción usa los ajustes actuales.
+- **Importar CSV (QA-05):** una fila en otra moneda («USD 100.00», «12,50 €») es un error y no se importa
+  como si fuera la del presupuesto; moneda del archivo y columna de moneda; aviso de cuánto cambiará el saldo.
+- **Programados antiguos (QA-06):** un pago diario desde 2020 con 2 000 ocurrencias pagadas ya no pierde
+  los vencidos ni el pago de hoy; si algún recorrido no se puede completar, Inicio lo dice.
+- **Exportar CSV (QA-07):** una nota que empiece por `=`, `+`, `-`, `@` o tabulador sale como texto
+  (con apóstrofo) y la hoja de cálculo no la ejecuta; los importes siguen siendo números.
+- **Copias cifradas (QA-08):** un archivo con parámetros imposibles (iteraciones desmesuradas, sal o IV
+  mal formados, versión desconocida) se rechaza al instante, antes de derivar la clave, con un mensaje
+  propio distinto de «frase incorrecta».
+- **Textos (UX-01):** la sección «Puedes gastar» se llama como la cifra de Inicio en cada idioma (ya no
+  «Safe to spend» en español, portugués y francés) y el nombre de la moneda sigue al idioma, no al formato
+  numérico.
+- **Compilación (R-01):** `npm run build` falla si `VITE_AI_KEY` tiene forma de clave secreta de un
+  proveedor de IA o `VITE_AI_ENDPOINT` apunta directo a uno: nada que empiece por `VITE_` es secreto
+  (`docs/RELEASE.md`). La beta no configura ningún proveedor.
 - Sin conexión: la app abre aunque el servidor añada `Vary: Origin` a sus archivos.
 - Fichas de categoría de la configuración repartidas según el ancho real: ninguna palabra se parte ni se
   sale; sin guiones automáticos en las pestañas. En francés, «Aides publiques».

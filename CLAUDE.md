@@ -10,7 +10,7 @@ claves internas (`margen.data.v1`, `margen-backup`, cachés `margen-`) NO se ren
 ```bash
 npm run typecheck      # tsc -b (app, pruebas y config)
 npm run lint           # oxlint
-npm test               # Vitest: lógica financiera y almacenamiento
+npm test               # Vitest: lógica financiera y almacenamiento (incluye qa/, la auditoría de 2026-10)
 npm run test:e2e       # Playwright: celular, celular 320 px y escritorio (+ axe)
 npm run build
 ```
@@ -104,6 +104,14 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   transferencias, ajustes y divididas no se recategorizan; deshacer restaura por id lo exacto.
 - Preferencias de presentación y modo privado (`ui/preferences.ts`): del dispositivo; nunca
   cambian cifras, datos ni exportaciones; el modo privado no es autenticación ni cifrado.
+- Auditoría 2026-10 (`docs/AUDIT-2026-10-10.md`, decisiones 129–138): cambiar la moneda solo sin
+  ningún importe guardado (`domain/currencyChange.ts`; un saldo ≠ 0 ya es un importe) y nunca se
+  convierte. La confirmación automática registra solo el remanente (`PlanItem.amountMinor`). Sin
+  arrastre, base = mín(asignación del periodo, saldo real) (`spendableBaseMinor`). La instantánea de
+  otro periodo filtra apartados por fecha; programados y ajustes son los actuales y se dice. Importar:
+  una moneda escrita distinta de la del presupuesto es error `currency`, nunca se asume
+  (`stripCurrencyMark`). Los vencidos se recorren aparte de la ventana (`planItemsDetailed`); un
+  recorrido truncado se declara (`incompleteScheduleIds`) y no se sugiere importe por día.
 
 ## Interfaz y accesibilidad
 
@@ -139,6 +147,12 @@ En entornos con Chromium preinstalado: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/ruta/a/c
   persistente, se conserva lo último guardado y se ofrece descargar una copia. Nunca se
   muestra «Guardado» si no se guardó ni se reemplazan datos por una demo o un estado vacío.
 - Datos de demostración siempre marcados con `isDemo: true`.
+- CSV exportado: todo texto libre pasa por `safeText` (apóstrofo ante `=`, `+`, `-`, `@`, tabulador);
+  fechas, importes e ids no. Copias cifradas: `validateEnvelope` antes de WebCrypto (versión 1,
+  iteraciones 1–2 000 000, tamaños de sal/IV/datos); «no válida» ≠ «frase incorrecta».
+- Todo lo que empieza por `VITE_` es público. `VITE_AI_KEY` solo puede ser un token de alcance limitado
+  para un servicio propio: `checkRemoteAiConfig` (`domain/aiConfig.ts`) hace fallar la compilación con
+  una clave con forma de secreto o un endpoint directo a un proveedor de IA.
 - El *service worker* (`pwa/sw.template.js`, generado por `vite.config.ts`) solo cachea
   archivos de la app, nunca datos. Solo se registra en producción y contexto seguro.
   Actualizar solo recarga la pestaña que lo pidió y no se ofrece con un formulario abierto. La versión compilada lleva una CSP

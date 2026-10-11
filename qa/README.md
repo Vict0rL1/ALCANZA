@@ -1,7 +1,15 @@
 # Auditoría independiente de CLARA — 9–10 de octubre de 2026
 
-Base: `9f3b1d03b9a5df20a266bd12797dedf08ea0e738`. Rama local: `qa/auditoria-2026-10-09`.
-Solo se añaden pruebas y documentación; no se cambia lógica de producción.
+Base auditada: `9f3b1d03b9a5df20a266bd12797dedf08ea0e738`. Rama local de la auditoría: `qa/auditoria-2026-10-09`.
+La auditoría solo añadió pruebas y documentación; no cambió lógica de producción.
+
+> **Estado tras la reparación (10 de octubre de 2026, rama `fix/auditoria-2026-10-10`).** Las ocho
+> regresiones `QA-01`…`QA-08` están corregidas en el código de producción y esta suite pasa entera
+> (**37 de 37**). Forma parte de `npm run check` (`vite.config.ts` incluye `qa/**/*.test.ts`), que es el
+> trabajo `check` obligatorio de CI, así que no puede volver a quedar roja sin que se note. El informe de
+> cierre, con la evidencia por hallazgo y el veredicto, está en `docs/AUDIT-2026-10-10.md`; los recorridos
+> de `PLAN-E2E.md` están automatizados en `tests/e2e/audit-regressions.spec.ts`. Lo que sigue describe la
+> auditoría tal como se entregó: sus cifras son **históricas** (base sin reparar).
 
 ## Ejecutar
 
@@ -14,11 +22,11 @@ npx tsc -p qa/tsconfig.json
 npx vitest run --config qa/vitest.config.ts --reporter=verbose
 ```
 
-Resultado de esta auditoría: **37 pruebas nuevas; 29 aprobadas y 8 fallidas**.
-El código de salida 1 de esta suite es intencional: las ocho pruebas `QA-01` a `QA-08`
-expresan el comportamiento correcto pendiente de implementar. No están marcadas como
-`it.fails` ni cambian el resultado esperado para acomodar el error. El `npm run check`
-original no incluye `qa/` y aprobó 654 pruebas, con una omitida.
+Resultado **histórico** de la auditoría sobre la base sin reparar: **37 pruebas nuevas; 29 aprobadas y
+8 fallidas**. El código de salida 1 era intencional: las ocho pruebas `QA-01` a `QA-08` expresaban el
+comportamiento correcto pendiente de implementar. No se marcaron como `it.fails` ni se cambió el resultado
+esperado para acomodar el error. El `npm run check` de entonces no incluía `qa/` y aprobó 654 pruebas, con
+una omitida. (Tras la reparación: 37 aprobadas, 0 fallidas; `npm run check` incluye `qa/`.)
 
 Las fechas del dominio están fijadas al 28 de septiembre de 2026; los recorridos de
 navegador se hicieron los días 9–10 de octubre. Los importes de pruebas son unidades
@@ -39,7 +47,7 @@ coste excesivo. QA-07 inspecciona texto CSV; no abre Excel ni ejecuta fórmulas.
 Las pruebas de almacenamiento simulan IndexedDB y no sustituyen pruebas en dispositivos.
 La medida de 50.000 registros es una muestra en Node, no un objetivo de latencia móvil.
 
-## Regresiones abiertas
+## Regresiones de la auditoría (abiertas el 2026-10-09; cerradas el 2026-10-10)
 
 | ID | Criterio de aceptación |
 |---|---|
@@ -52,11 +60,12 @@ La medida de 50.000 registros es una muestra en Node, no un objetivo de latencia
 | QA-07 | Neutralizar fórmulas en campos de texto exportados a hojas de cálculo. |
 | QA-08 | Rechazar parámetros de cifrado fuera de límites antes de derivar claves. |
 
-QA-03 es una discrepancia de seguridad del producto con la semántica de «Puedes gastar»:
-la fórmula actual de «sin arrastre» está documentada, pero puede exceder el saldo real.
-La reparación debe acordar esa regla y preservar por separado el presupuesto del periodo.
+QA-03 era una discrepancia de seguridad del producto con la semántica de «Puedes gastar»:
+la fórmula de «sin arrastre» estaba documentada, pero podía exceder el saldo real. La regla
+acordada en la reparación (decisión 131, `docs/FORMULAS.md` §31): sin arrastre, la base es el menor
+entre la asignación del periodo y el saldo real; la asignación del periodo se conserva aparte.
 
-## Verificación de navegador
+## Verificación de navegador (histórica)
 
 `npm run test:e2e -- --project=celular --workers=2 --reporter=json` no pudo iniciar Chromium
 en el sandbox macOS (MachPortRendezvous / Permission denied 1100). Los 247 errores de
