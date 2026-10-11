@@ -112,7 +112,7 @@ test('apariencia y exportación: idioma con bandera, moneda bloqueada con regist
   await page.getByTestId('change-currency').click()
   await page.getByLabel('Buscar moneda').fill('mex')
   await page.getByRole('dialog').getByRole('button', { name: /MXN/ }).click()
-  await expect(page.getByText('Ya hay registros con importe')).toBeVisible()
+  await expect(page.getByText('Ya hay importes guardados')).toBeVisible()
 
   await go(page, '/ajustes/exportar')
   const download = page.waitForEvent('download')
